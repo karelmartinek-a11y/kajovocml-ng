@@ -3,16 +3,20 @@
 #include <fcntl.h>
 #include <grp.h>
 #include <linux/limits.h>
+#include <linux/filter.h>
+#include <linux/seccomp.h>
 #include <openssl/evp.h>
 #include <sched.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mount.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
+#include <sys/syscall.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -21,6 +25,27 @@ static void fail(const char *message) { fprintf(stderr, "kcml-sandbox-launcher: 
 static const char *argument(int argc, char **argv, const char *name) { for (int i=1;i+1<argc;i++) if(strcmp(argv[i],name)==0) return argv[i+1]; return NULL; }
 static int separator(int argc, char **argv) { for(int i=1;i<argc;i++) if(strcmp(argv[i],"--")==0) return i; return -1; }
 static bool contained(const char *root, const char *path) { size_t length=strlen(root); return strncmp(root,path,length)==0 && (path[length]=='/' || path[length]=='\0'); }
+
+static void install_seccomp_allowlist(void) {
+  /* The generated handler has no network or broker authority. The allowlist is
+     intentionally explicit; an unknown syscall is killed before exec. */
+  const int allowed[] = { SYS_read, SYS_write, SYS_close, SYS_fstat, SYS_newfstatat, SYS_lseek,
+    SYS_mmap, SYS_mprotect, SYS_munmap, SYS_brk, SYS_rt_sigaction, SYS_rt_sigprocmask,
+    SYS_rt_sigreturn, SYS_ioctl, SYS_pread64, SYS_pwrite64, SYS_readv, SYS_writev,
+    SYS_access, SYS_pipe, SYS_select, SYS_sched_yield, SYS_mremap, SYS_mincore,
+    SYS_madvise, SYS_dup, SYS_dup2, SYS_dup3, SYS_nanosleep, SYS_getpid, SYS_getppid,
+    SYS_getuid, SYS_geteuid, SYS_getgid, SYS_getegid, SYS_gettid, SYS_futex, SYS_set_robust_list,
+    SYS_arch_prctl, SYS_clock_gettime, SYS_clock_nanosleep, SYS_exit, SYS_exit_group,
+    SYS_openat, SYS_unlinkat, SYS_renameat, SYS_mkdirat, SYS_statx, SYS_faccessat2,
+    SYS_getrandom, SYS_prctl };
+  struct sock_filter filter[sizeof(allowed)/sizeof(allowed[0]) + 3]; size_t index=0;
+  filter[index++] = BPF_STMT(BPF_LD|BPF_W|BPF_ABS, (unsigned)offsetof(struct seccomp_data,nr));
+  for(size_t i=0;i<sizeof(allowed)/sizeof(allowed[0]);i++) filter[index++] = BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,(unsigned)allowed[i],1,0);
+  filter[index++] = BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_KILL_PROCESS);
+  filter[index++] = BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW);
+  struct sock_fprog program={(unsigned short)index,filter};
+  if(prctl(PR_SET_SECCOMP,SECCOMP_MODE_FILTER,&program)!=0) fail("seccomp allowlist");
+}
 
 static void file_sha256(int fd, char output[65]) {
   EVP_MD_CTX *context=EVP_MD_CTX_new(); if(!context) fail("EVP_MD_CTX_new");
@@ -53,6 +78,7 @@ int main(int argc, char **argv) {
   setrlimit(RLIMIT_NPROC,&processes);setrlimit(RLIMIT_NOFILE,&files);setrlimit(RLIMIT_CORE,&core);setrlimit(RLIMIT_FSIZE,&size);
   if(setgroups(0,NULL)!=0||setgid(gid)!=0||setuid(uid)!=0)fail("drop identity");
   if(prctl(PR_SET_NO_NEW_PRIVS,1,0,0,0)!=0)fail("no_new_privs");
+  install_seccomp_allowlist();
   const char *execution=getenv("KCML_EXECUTION_ID");clearenv();setenv("LANG","C.UTF-8",1);setenv("PATH","/usr/bin:/bin",1);if(execution)setenv("KCML_EXECUTION_ID",execution,1);
   char **child=&argv[split+1];fexecve(executable_fd,child,environ);fail("fexecve");return 70;
 }

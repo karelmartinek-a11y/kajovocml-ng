@@ -3,9 +3,9 @@ set -Eeuo pipefail
 trap 'printf "REPOSITORY_CONSISTENCY: FAIL line=%s\n" "$LINENO" >&2' ERR
 expected_ssot=2d0a66005bd8c3179d284437dec4c04edca696e97f78650730bafc5c0031913a
 test "$(sha256sum SSOT_CURRENT.md | cut -d' ' -f1)" = "$expected_ssot"
-for path in apps packages contracts components database deploy tests docs .github/workflows; do test -d "$path"; done
+for path in apps packages contracts database deploy tests docs .github/workflows; do test -d "$path"; done
 for file in package.json pnpm-workspace.yaml pnpm-lock.yaml AGENTS.md README.md START_HERE.md BOOTSTRAP_REQUIRED_VALUES.md; do test -s "$file"; done
-while IFS= read -r script; do bash -n "$script"; done < <(find deploy tests scripts -type f -name '*.sh' -print | sort)
+while IFS= read -r script; do bash -n "$script"; done < <(find deploy tests scripts -type f -name '*.sh' ! -name '._*' -print | sort)
 node --input-type=module <<'NODE'
 import { readFile, readdir } from 'node:fs/promises';
 import YAML from 'yaml';

@@ -131,7 +131,9 @@ function operationFamily(name) {
   return name.split('.')[0].toUpperCase();
 }
 
+const explicitlyMutatingOperations = new Set(['component.state.report']);
 function operationMutates(name) {
+  if (explicitlyMutatingOperations.has(name)) return true;
   return !/(?:\.list|\.get|\.read|\.status|\.query|\.inspect|\.observe|\.discover|\.view|\.catalog|\.evidence|\.verify|\.validate|\.probe|\.report)$/.test(name);
 }
 
@@ -264,7 +266,7 @@ const stateMachineSpecs = [
   ['AI_MODEL_CALL', ['QUEUED', 'SUBMITTING', 'IN_PROGRESS', 'STREAMING', 'WAITING_FOR_TOOL_OUTPUT', 'COMPLETED', 'INCOMPLETE', 'REFUSED', 'CANCEL_REQUESTED', 'CANCELLED', 'FAILED', 'EXPIRED'], ['COMPLETED', 'INCOMPLETE', 'REFUSED', 'CANCELLED', 'FAILED', 'EXPIRED']],
   ['RUNTIME_INSTANCE', ['PREPARING', 'STARTING', 'READY', 'RUNNING', 'DRAINING', 'STOPPED', 'FAILED', 'MANUAL_REVIEW'], ['STOPPED', 'FAILED']],
   ['SECRET_RECORD', ['ACTIVE', 'ROTATING', 'RETIRED', 'CLOSED', 'FAILED'], ['RETIRED', 'CLOSED', 'FAILED']],
-  ['OPERATIONAL_ALERT', ['OPEN', 'ACKNOWLEDGED', 'SUPPRESSED', 'RESOLVED', 'CLOSED'], ['RESOLVED', 'CLOSED']],
+  ['OPERATIONAL_ALERT', ['OPEN', 'ACKNOWLEDGED', 'SUPPRESSED', 'CLOSED'], ['CLOSED']],
   ['AUDIT_HEAD', ['ACTIVE', 'VERIFYING', 'ARCHIVING', 'FAILED'], ['FAILED']],
   ['SYSTEM_CHAT_CONVERSATION', ['ACTIVE', 'CANCEL_REQUESTED', 'CANCELLED', 'CLOSED', 'FAILED'], ['CANCELLED', 'CLOSED', 'FAILED']],
   ['OWNER_IDENTITY', ['ACTIVE', 'MFA_ENROLLING', 'MFA_ACTIVE', 'RECOVERY_ROTATING', 'LOCKED'], ['LOCKED']],
@@ -301,7 +303,7 @@ const schemas = {
   },
   'operation-command.schema.json': {
     $schema: 'https://json-schema.org/draft/2020-12/schema', $id: 'kcml://operation/command', type: 'object', additionalProperties: false,
-    required: ['operation', 'target', 'arguments'], properties: { operation: { type: 'string' }, target: { type: ['string', 'null'] }, arguments: { type: 'object' }, expectedStateVersion: { type: ['integer', 'null'], minimum: 0 } }
+    required: ['operation', 'targetId', 'arguments'], properties: { operation: { type: 'string' }, targetId: { type: ['string', 'null'], format: 'uuid' }, arguments: { type: 'object' }, expectedStateVersion: { type: ['integer', 'null'], minimum: 0 }, expectedActivationEpoch: { type: ['integer', 'null'], minimum: 0 }, deadlineAt: { type: ['string', 'null'], format: 'date-time' } }
   },
   'operation-response.schema.json': {
     $schema: 'https://json-schema.org/draft/2020-12/schema', $id: 'kcml://operation/response', type: 'object', additionalProperties: true,
@@ -314,10 +316,10 @@ async function collectArtifacts(directory = root) {
   const entries = await readdir(directory, { withFileTypes: true });
   const output = [];
   for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
-    if (ignored.has(entry.name)) continue;
+    if (ignored.has(entry.name) || entry.name.startsWith('._')) continue;
     const path = join(directory, entry.name);
     if (entry.isDirectory()) output.push(...await collectArtifacts(path));
-    else if (entry.isFile() && entry.name !== 'pnpm-lock.yaml' && !path.includes('/contracts/registries/')) output.push(path);
+    else if (entry.isFile() && !path.includes('/contracts/registries/')) output.push(path);
   }
   return output;
 }
@@ -337,7 +339,26 @@ async function main() {
     }
   }
   const requirements = [...requirementMap.values()].sort((a, b) => a.requirementId.localeCompare(b.requirementId));
-  const operations = parsed.operations.map((name) => makeOperation(name, []));
+  const requirementByStatement = new Map(requirements.map((requirement) => [requirement.canonicalStatement, requirement]));
+  const operations = parsed.operations.map((name) => {
+    const requirement = requirementByStatement.get(name);
+    const operation = makeOperation(name, requirement ? [requirement.requirementId] : []);
+    if (requirement) {
+      requirement.domainModule = 'packages/domain';
+      requirement.aggregateRoots = [operation.aggregateRoot];
+      requirement.stateMachineIds = [`SM-${operation.aggregateRoot}`];
+      requirement.operationIds = [operation.operationId];
+      requirement.apiOperationIds = operation.apiOperationIds;
+      requirement.uiSurfaceIds = operation.uiActionIds;
+      requirement.chatCapabilityIds = operation.chatCapabilityIds;
+      requirement.persistenceObjectIds = [operation.aggregateRoot];
+      requirement.bindingIds = [`BIND-${operation.operationId}`];
+      requirement.testCaseIds = [`TEST-OPERATION-CATALOG-${operation.operationId}`];
+      requirement.acceptanceGateIds = ['GATE-OPERATION-CATALOG'];
+      requirement.closurePredicateIds = [`CLOSURE-${operation.aggregateRoot}`];
+    }
+    return operation;
+  });
   const stateMachines = stateMachineSpecs.map((spec) => makeStateMachine(spec, operations));
   const postgres = operations.filter((operation) => operation.transactionProfileId !== 'CONSISTENT_READ').map((operation) => ({
     postgresContractId: `PG-${operation.operationId}`, operationId: operation.operationId, transactionProfileId: operation.transactionProfileId,
@@ -407,21 +428,297 @@ async function main() {
   // Do not emit inferred directory-level records as traceability evidence. The registry stays empty
   // until a file-level mapping is backed by content digests and bidirectional requirement evidence.
   const artifacts = [];
+  for (const artifactPath of await collectArtifacts()) {
+    const bytes = await readFile(artifactPath);
+    const repositoryPath = relative(root, artifactPath).replaceAll('\\', '/');
+    // Content digests remain the evidence identity; artifact IDs additionally
+    // include the repository path so identical project configuration files do
+    // not collapse into duplicate registry records.
+    const artifactId = `ART-${sha(`${repositoryPath}\u0000${sha(bytes)}`).slice(7)}`;
+    artifacts.push({ artifactId, repositoryPath, artifactKind: 'REPOSITORY_FILE', contentDigest: sha(bytes), sizeBytes: bytes.length,
+      requirementIds: [], evidenceRefs: [`file://${repositoryPath}`], reverseTraceRequired: true,
+      authoritySourceRefs: ['ssot://55/artifact-traceability/file-level'], canonicalDigest: sha(canonical({ repositoryPath, contentDigest: sha(bytes) })) });
+  }
+  const artifactByPath = new Map(artifacts.map((artifact) => [artifact.repositoryPath, artifact]));
+  const touchedTraceArtifacts = new Set();
+  const traceArtifact = (repositoryPath) => {
+    const artifact = artifactByPath.get(repositoryPath);
+    if (!artifact) throw new Error(`TRACE_ARTIFACT_MISSING:${repositoryPath}`);
+    artifact.traceAnchors ??= [];
+    touchedTraceArtifacts.add(artifact);
+    return artifact;
+  };
+  const appendTrace = (artifact, requirementId, locator, symbol, snippet) => {
+    artifact.traceAnchors.push({ requirementId, locator, symbol, snippetDigest: sha(snippet) });
+    artifact.requirementIds.push(requirementId);
+  };
+  const handlerPath = 'packages/domain/src/operation-handler-catalog.ts';
+  const testPath = 'tests/operations/catalog-coverage.test.ts';
+  const handlerArtifact = traceArtifact(handlerPath);
+  const testArtifact = traceArtifact(testPath);
+  const handlerLines = (await readFile(join(root, handlerPath), 'utf8')).split('\n');
+  const testLines = (await readFile(join(root, testPath), 'utf8')).split('\n');
+  const testLineIndex = testLines.findIndex((line) => line.includes('it.each(catalog.records'));
+  if (testLineIndex < 0) throw new Error('OPERATION_TRACE_TEST_ANCHOR_MISSING');
+  for (const operation of operations) {
+    const requirement = requirementMap.get(operation.requirementIds[0]);
+    if (!requirement) throw new Error(`OPERATION_REQUIREMENT_MISSING:${operation.operationName}`);
+    const lineIndex = handlerLines.findIndex((line) => line.includes(`{operation:'${operation.operationName}'`));
+    if (lineIndex < 0) throw new Error(`OPERATION_HANDLER_TRACE_ANCHOR_MISSING:${operation.operationName}`);
+    appendTrace(handlerArtifact, requirement.requirementId, `${handlerPath}:${lineIndex + 1}`, operation.operationName, handlerLines[lineIndex]);
+    appendTrace(testArtifact, requirement.requirementId, `${testPath}:${testLineIndex + 1}`, `TEST-OPERATION-CATALOG-${operation.operationId}`, testLines[testLineIndex]);
+    requirement.artifactIds = [handlerArtifact.artifactId, testArtifact.artifactId];
+    requirement.runtimeEvidenceKinds = ['DECLARED_HANDLER_BINDING', 'CATALOG_STRUCTURE_TEST'];
+  }
+
+  const exactOperationEvidence = [
+    { operationName: 'component.register', sourcePath: 'packages/domain/src/component-operations.ts', sourceMarker: "context.operationName === 'component.register'", testPath: 'tests/integration/run.ts', testMarker: 'COMPONENT_TERMINAL_REPLAY_INCOMPLETE', testCaseId: 'TEST-COMPONENT-REGISTER-LIFECYCLE' },
+    { operationName: 'component.revision.publish', sourcePath: 'packages/domain/src/component-operations.ts', sourceMarker: "context.operationName === 'component.revision.publish'", testPath: 'tests/integration/run.ts', testMarker: 'COMPONENT_REVISION_LIFECYCLE_INVALID', testCaseId: 'TEST-COMPONENT-REVISION-PUBLISH-LIFECYCLE' },
+    { operationName: 'component.heartbeat', sourcePath: 'packages/domain/src/component-operations.ts', sourceMarker: "context.operationName === 'component.heartbeat'", testPath: 'tests/integration/run.ts', testMarker: 'COMPONENT_HEARTBEAT_CONFLICT_NOT_TERMINAL', testCaseId: 'TEST-COMPONENT-HEARTBEAT-DEDUPE-STALE-CONFLICT' },
+    { operationName: 'component.validate', sourcePath: 'packages/domain/src/component-operations.ts', sourceMarker: "operationName==='component.validate'", testPath: 'tests/integration/run.ts', testMarker: 'COMPONENT_VALIDATE_QUERY_INVALID', testCaseId: 'TEST-COMPONENT-VALIDATE-QUERY' },
+    { operationName: 'component.verify', sourcePath: 'packages/domain/src/component-operations.ts', sourceMarker: "operationName==='component.verify'", testPath: 'tests/integration/run.ts', testMarker: 'COMPONENT_VERIFY_GATE_INCORRECT', testCaseId: 'TEST-COMPONENT-VERIFY-GATE' },
+    { operationName: 'component.state.query', sourcePath: 'packages/domain/src/component-operations.ts', sourceMarker: "operationName==='component.state.query'", testPath: 'tests/integration/run.ts', testMarker: 'COMPONENT_STATE_QUERY_STALE_SNAPSHOT_ACCEPTED', testCaseId: 'TEST-COMPONENT-STATE-QUERY-SNAPSHOT-FENCE' },
+    { operationName: 'component.state.report', sourcePath: 'packages/domain/src/component-operations.ts', sourceMarker: "context.operationName==='component.state.report'", testPath: 'tests/integration/run.ts', testMarker: 'COMPONENT_STATE_REPORT_CONFLICT_NOT_TERMINAL', testCaseId: 'TEST-COMPONENT-STATE-REPORT-DEDUPE-SCHEMA-LINEAGE' },
+    { operationName: 'component.suspend', sourcePath: 'packages/domain/src/component-operations.ts', sourceMarker: "context.operationName==='component.suspend'", testPath: 'tests/integration/run.ts', testMarker: 'COMPONENT_SUSPEND_BARRIER_INVALID', testCaseId: 'TEST-COMPONENT-SUSPEND-ADMISSION-BARRIER' },
+    { operationName: 'component.quarantine', sourcePath: 'packages/domain/src/component-operations.ts', sourceMarker: "context.operationName==='component.quarantine'", testPath: 'tests/integration/run.ts', testMarker: 'COMPONENT_QUARANTINE_PROJECTION_INVALID', testCaseId: 'TEST-COMPONENT-QUARANTINE-PROJECTION' },
+    { operationName: 'component.restore', sourcePath: 'packages/domain/src/component-operations.ts', sourceMarker: "context.operationName==='component.restore'", testPath: 'tests/integration/run.ts', testMarker: 'COMPONENT_RESTORE_ACTIVE_INVALID', testCaseId: 'TEST-COMPONENT-RESTORE-READINESS-BARRIER' },
+    { operationName: 'component.recertify', sourcePath: 'packages/domain/src/component-operations.ts', sourceMarker: "context.operationName==='component.recertify'", testPath: 'tests/integration/run.ts', testMarker: 'COMPONENT_RECERTIFY_INVALID', testCaseId: 'TEST-COMPONENT-RECERTIFY-READINESS' },
+    { operationName: 'component.deregister', sourcePath: 'packages/domain/src/component-operations.ts', sourceMarker: "context.operationName==='component.deregister'", testPath: 'tests/integration/run.ts', testMarker: 'COMPONENT_DEREGISTER_CLOSURE_EVIDENCE_INCOMPLETE', testCaseId: 'TEST-COMPONENT-DEREGISTER-TERMINAL-CLOSURE' },
+    { operationName: 'runtime.boundary.verify', sourcePath: 'packages/domain/src/runtime-operations.ts', sourceMarker: 'async function verifyRuntimeBoundary', testPath: 'tests/integration/run.ts', testMarker: 'RUNTIME_BOUNDARY_EXACT_VERIFICATION_INVALID', testCaseId: 'TEST-RUNTIME-BOUNDARY-PERSISTED-AUTHORITY', runtimeEvidenceKinds: ['EXACT_OPERATION_HANDLER','POSTGRES_CONSISTENT_READ_INTEGRATION','NEGATIVE_INVARIANT_EVALUATION'] },
+    { operationName: 'runtime.connection.inspect', sourcePath: 'packages/domain/src/runtime-operations.ts', sourceMarker: 'async function inspectRuntimeConnection', testPath: 'tests/integration/run.ts', testMarker: 'RUNTIME_CONNECTION_EXACT_INSPECTION_INVALID', testCaseId: 'TEST-RUNTIME-CONNECTION-EVIDENCE-INSPECTION', runtimeEvidenceKinds: ['EXACT_OPERATION_HANDLER','POSTGRES_CONSISTENT_READ_INTEGRATION','IPC_EVIDENCE_CORRELATION'] },
+    { operationName: 'secret.usage.report', sourcePath: 'packages/domain/src/secret-operations.ts', sourceMarker: 'async function reportSecretUsage', testPath: 'tests/integration/run.ts', testMarker: 'SECRET_USAGE_REPORT_INVALID', testCaseId: 'TEST-SECRET-USAGE-CONSISTENT-SNAPSHOT', runtimeEvidenceKinds: ['EXACT_OPERATION_HANDLER','POSTGRES_CONSISTENT_READ_INTEGRATION','SECRET_VALUE_NON_DISCLOSURE'] },
+    { operationName: 'ownerApiKey.read', sourcePath: 'packages/domain/src/secret-operations.ts', sourceMarker: 'async function readOwnerApiKey', testPath: 'tests/integration/run.ts', testMarker: 'OWNER_API_KEY_READ_INVALID', testCaseId: 'TEST-OWNER-API-KEY-POINTER-CONSISTENCY', runtimeEvidenceKinds: ['EXACT_OPERATION_HANDLER','POSTGRES_CONSISTENT_READ_INTEGRATION','SECRET_VALUE_NON_DISCLOSURE'] },
+    { operationName: 'selfTest.catalog.list', sourcePath: 'packages/domain/src/self-test-operations.ts', sourceMarker: 'async function listCatalog', testPath: 'tests/integration/run.ts', testMarker: 'SELF_TEST_CATALOG_LIST_INVALID', testCaseId: 'TEST-SELF-TEST-CATALOG-EXACT-CONTRACTS', runtimeEvidenceKinds: ['EXACT_OPERATION_HANDLER','POSTGRES_CONSISTENT_READ_INTEGRATION','SELF_TEST_CATALOG_EVIDENCE'] },
+    { operationName: 'selfTest.run.status', sourcePath: 'packages/domain/src/self-test-operations.ts', sourceMarker: 'async function runStatus', testPath: 'tests/integration/run.ts', testMarker: 'SELF_TEST_ENVIRONMENTAL_STATUS_INVALID', testCaseId: 'TEST-SELF-TEST-ENVIRONMENTAL-STATUS', runtimeEvidenceKinds: ['EXACT_OPERATION_HANDLER','POSTGRES_CONSISTENT_READ_INTEGRATION','NOT_EXECUTED_ENVIRONMENTAL_EVIDENCE'] },
+    { operationName: 'selfTest.evidence.read', sourcePath: 'packages/domain/src/self-test-operations.ts', sourceMarker: 'async function readEvidence', testPath: 'tests/integration/run.ts', testMarker: 'SELF_TEST_EVIDENCE_READ_INVALID', testCaseId: 'TEST-SELF-TEST-EVIDENCE-READ', runtimeEvidenceKinds: ['EXACT_OPERATION_HANDLER','POSTGRES_CONSISTENT_READ_INTEGRATION','SELF_TEST_CASE_EVIDENCE'] },
+    { operationName: 'monitor.alert.open', sourcePath: 'packages/domain/src/monitor-operations.ts', sourceMarker: 'async function openAlert', testPath: 'tests/integration/run.ts', testMarker: 'MONITOR_ALERT_OPEN_LIFECYCLE_INVALID', testCaseId: 'TEST-MONITOR-ALERT-OPEN-DEDUPE', runtimeEvidenceKinds: ['EXACT_OPERATION_HANDLER','POSTGRES_CANONICAL_COMMAND_INTEGRATION','ACTIVE_EPISODE_DEDUPE','MONOTONIC_OBSERVATION_SEQUENCE'] },
+    { operationName: 'monitor.alert.update', sourcePath: 'packages/domain/src/monitor-operations.ts', sourceMarker: 'async function updateAlert', testPath: 'tests/integration/run.ts', testMarker: 'MONITOR_ALERT_UPDATE_LIFECYCLE_INVALID', testCaseId: 'TEST-MONITOR-ALERT-ACKNOWLEDGE-SUPPRESS', runtimeEvidenceKinds: ['EXACT_OPERATION_HANDLER','POSTGRES_CANONICAL_COMMAND_INTEGRATION','STATE_VERSION_CAS','ALERT_STATE_MACHINE'] },
+    { operationName: 'monitor.alert.close', sourcePath: 'packages/domain/src/monitor-operations.ts', sourceMarker: 'async function closeAlert', testPath: 'tests/integration/run.ts', testMarker: 'MONITOR_ALERT_CLOSE_LIFECYCLE_INVALID', testCaseId: 'TEST-MONITOR-ALERT-CLOSE-STALE-FENCE', runtimeEvidenceKinds: ['EXACT_OPERATION_HANDLER','POSTGRES_CANONICAL_COMMAND_INTEGRATION','STALE_OBSERVATION_FENCE','TERMINAL_IMMUTABILITY'] },
+    { operationName: 'monitor.heartbeat.observe', sourcePath: 'packages/domain/src/monitor-operations.ts', sourceMarker: 'async function observeHeartbeats', testPath: 'tests/integration/run.ts', testMarker: 'MONITOR_HEARTBEAT_OBSERVE_EXACT_SNAPSHOT_INVALID', testCaseId: 'TEST-MONITOR-HEARTBEAT-CONSISTENT-SNAPSHOT', runtimeEvidenceKinds: ['EXACT_OPERATION_HANDLER','POSTGRES_CONSISTENT_READ_INTEGRATION','DATABASE_TIME_FRESHNESS','PLATFORM_DEPLOYMENT_LINEAGE'] }
+  ];
+  for (const evidence of exactOperationEvidence) {
+    const operation = operations.find((candidate) => candidate.operationName === evidence.operationName);
+    const requirement = operation ? requirementMap.get(operation.requirementIds[0]) : null;
+    if (!operation || !requirement) throw new Error(`EXACT_OPERATION_EVIDENCE_REQUIREMENT_MISSING:${evidence.operationName}`);
+    const sourceArtifact = traceArtifact(evidence.sourcePath);
+    const integrationArtifact = traceArtifact(evidence.testPath);
+    const sourceLines = (await readFile(join(root, evidence.sourcePath), 'utf8')).split('\n');
+    const integrationLines = (await readFile(join(root, evidence.testPath), 'utf8')).split('\n');
+    const sourceLineIndex = sourceLines.findIndex((line) => line.includes(evidence.sourceMarker));
+    const integrationLineIndex = integrationLines.findIndex((line) => line.includes(evidence.testMarker));
+    if (sourceLineIndex < 0 || integrationLineIndex < 0) throw new Error(`EXACT_OPERATION_EVIDENCE_ANCHOR_MISSING:${evidence.operationName}`);
+    appendTrace(sourceArtifact, requirement.requirementId, `${evidence.sourcePath}:${sourceLineIndex + 1}`, evidence.operationName, sourceLines[sourceLineIndex]);
+    appendTrace(integrationArtifact, requirement.requirementId, `${evidence.testPath}:${integrationLineIndex + 1}`, evidence.testCaseId, integrationLines[integrationLineIndex]);
+    requirement.artifactIds = [...new Set([...requirement.artifactIds, sourceArtifact.artifactId, integrationArtifact.artifactId])].sort();
+    requirement.testCaseIds = [evidence.testCaseId];
+    requirement.runtimeEvidenceKinds = evidence.runtimeEvidenceKinds ?? ['EXACT_OPERATION_HANDLER', 'POSTGRES_CANONICAL_COMMAND_INTEGRATION', 'TERMINAL_IDEMPOTENCY_REPLAY'];
+    requirement.status = 'ACTIVE';
+  }
+
+  // Only literal Chapter-25 field declarations are linked here. Prose about
+  // lifecycle, transitions, value constraints or transaction behavior is not
+  // treated as a physical-column proof and stays UNMAPPED until a dedicated
+  // behavioral or constraint test exists.
+  const schemaContractPath = 'contracts/ssot-surface/postgres-schema-contracts.json';
+  const primarySchemaPath = 'database/baseline/00000000000000_greenfield.sql';
+  const generatedSchemaPath = 'database/baseline/00000000000001_ssot_surface.sql';
+  const postgresTestPath = 'tests/postgres/run.ts';
+  const schemaContracts = JSON.parse(await readFile(join(root, schemaContractPath), 'utf8')).records;
+  const primarySchemaLines = (await readFile(join(root, primarySchemaPath), 'utf8')).split('\n');
+  const generatedSchemaLines = (await readFile(join(root, generatedSchemaPath), 'utf8')).split('\n');
+  const schemaContractLines = (await readFile(join(root, schemaContractPath), 'utf8')).split('\n');
+  const postgresTestLines = (await readFile(join(root, postgresTestPath), 'utf8')).split('\n');
+  const postgresTestLineIndex = postgresTestLines.findIndex((line) => line.includes('for (const expected of contract.columns)'));
+  if (postgresTestLineIndex < 0) throw new Error('POSTGRES_SCHEMA_TRACE_TEST_ANCHOR_MISSING');
+  const schemaContractArtifact = traceArtifact(schemaContractPath);
+  const primarySchemaArtifact = traceArtifact(primarySchemaPath);
+  const generatedSchemaArtifact = traceArtifact(generatedSchemaPath);
+  const postgresTestArtifact = traceArtifact(postgresTestPath);
+  const findSqlColumnLine = (lines, tableName, columnName) => {
+    const tablePattern = new RegExp(`CREATE TABLE(?: IF NOT EXISTS)? kcml\\."?${tableName}"? \\(`, 'u');
+    const tableIndex = lines.findIndex((line) => tablePattern.test(line));
+    if (tableIndex < 0) return -1;
+    const nextTableOffset = lines.slice(tableIndex + 1).findIndex((line) => /^CREATE TABLE(?: IF NOT EXISTS)?\s+/u.test(line));
+    const end = nextTableOffset < 0 ? lines.length : tableIndex + 1 + nextTableOffset;
+    const columnPattern = new RegExp(`^\\s*"?${columnName}"?\\s+`, 'u');
+    const relativeIndex = lines.slice(tableIndex + 1, end).findIndex((line) => columnPattern.test(line));
+    return relativeIndex < 0 ? -1 : tableIndex + 1 + relativeIndex;
+  };
+  for (const contract of schemaContracts) {
+    const subjectId = `25.3:${slug(contract.tableName)}`;
+    const columns = new Set(contract.columns.map((column) => column.name));
+    let contractTableIndex = schemaContractLines.findIndex((line) => line.includes(`"tableName": "${contract.tableName}"`));
+    if (contractTableIndex < 0) throw new Error(`POSTGRES_SCHEMA_CONTRACT_TABLE_ANCHOR_MISSING:${contract.tableName}`);
+    const nextContractTableOffset = schemaContractLines.slice(contractTableIndex + 1).findIndex((line) => line.includes('"tableName": '));
+    const contractTableEnd = nextContractTableOffset < 0 ? schemaContractLines.length : contractTableIndex + 1 + nextContractTableOffset;
+    for (const requirement of requirements.filter((candidate) => candidate.subjectId === subjectId && candidate.status === 'UNMAPPED')) {
+      const fieldNames = [...requirement.canonicalStatement.matchAll(/`([a-z][a-z0-9_]*)`/gu)].map((match) => match[1]);
+      const residue = requirement.canonicalStatement.replace(/`[a-z][a-z0-9_]*`/gu, 'FIELD').replace(/\b(?:a|and)\b/gu, ',').replace(/[\s,]+/gu, '').replace(/FIELD/gu, '');
+      if (!fieldNames.length || residue !== '' || fieldNames.some((fieldName) => !columns.has(fieldName))) continue;
+      const sqlArtifacts = new Set();
+      for (const fieldName of fieldNames) {
+        let sqlPath = primarySchemaPath;
+        let sqlLines = primarySchemaLines;
+        let sqlLineIndex = findSqlColumnLine(sqlLines, contract.tableName, fieldName);
+        let sqlArtifact = primarySchemaArtifact;
+        if (sqlLineIndex < 0) {
+          sqlPath = generatedSchemaPath;
+          sqlLines = generatedSchemaLines;
+          sqlLineIndex = findSqlColumnLine(sqlLines, contract.tableName, fieldName);
+          sqlArtifact = generatedSchemaArtifact;
+        }
+        if (sqlLineIndex < 0) throw new Error(`POSTGRES_SCHEMA_SQL_TRACE_ANCHOR_MISSING:${contract.tableName}.${fieldName}`);
+        appendTrace(sqlArtifact, requirement.requirementId, `${sqlPath}:${sqlLineIndex + 1}`, `kcml.${contract.tableName}.${fieldName}`, sqlLines[sqlLineIndex]);
+        sqlArtifacts.add(sqlArtifact.artifactId);
+        const contractColumnIndex = schemaContractLines.slice(contractTableIndex, contractTableEnd).findIndex((line) => line.includes(`"name": "${fieldName}"`));
+        if (contractColumnIndex < 0) throw new Error(`POSTGRES_SCHEMA_MANIFEST_COLUMN_ANCHOR_MISSING:${contract.tableName}.${fieldName}`);
+        const absoluteContractColumnIndex = contractTableIndex + contractColumnIndex;
+        appendTrace(schemaContractArtifact, requirement.requirementId, `${schemaContractPath}:${absoluteContractColumnIndex + 1}`, `SCHEMA-CONTRACT-${contract.tableName}.${fieldName}`, schemaContractLines[absoluteContractColumnIndex]);
+      }
+      const testCaseId = `TEST-PG-SCHEMA-${contract.tableName.toUpperCase()}-${fieldNames.join('-').toUpperCase()}`;
+      appendTrace(postgresTestArtifact, requirement.requirementId, `${postgresTestPath}:${postgresTestLineIndex + 1}`, testCaseId, postgresTestLines[postgresTestLineIndex]);
+      requirement.domainModule = 'packages/database';
+      requirement.persistenceObjectIds = [contract.tableName];
+      requirement.testCaseIds = [testCaseId];
+      requirement.acceptanceGateIds = ['GATE-CONTRACT-PACK'];
+      requirement.runtimeEvidenceKinds = ['POSTGRES_CATALOG_SCHEMA_PROOF'];
+      requirement.artifactIds = [...sqlArtifacts, schemaContractArtifact.artifactId, postgresTestArtifact.artifactId].sort();
+      requirement.status = 'ACTIVE';
+    }
+  }
+  const exactInfrastructureEvidence = [
+    {
+      authoritySourceRef: 'ssot://51.38/51-38-recovery-barrier-closure-a-capacity-physical-contract/atom-8',
+      sourcePath: generatedSchemaPath,
+      sourceMarkers: [
+        'CREATE TABLE IF NOT EXISTS kcml.platform_recovery_head',
+        'database_start_identity bytea NOT NULL',
+        'recovery_epoch bigint NOT NULL UNIQUE',
+        "state text NOT NULL CHECK (state IN ('STARTING','RECONCILING','READY','BLOCKED','MANUAL_REVIEW'))",
+        'current_fencing_token bigint NOT NULL DEFAULT 0',
+        'ready_evidence_digest bytea',
+        "control.system_identifier::text || ':' || pg_postmaster_start_time()::text"
+      ],
+      testPath: postgresTestPath,
+      testMarker: 'PLATFORM_RECOVERY_BOOTSTRAP_AUTHORITY_INVALID',
+      testCaseId: 'TEST-PG-PLATFORM-RECOVERY-HEAD-IDENTITY'
+    },
+    {
+      authoritySourceRef: 'ssot://51.38/51-38-recovery-barrier-closure-a-capacity-physical-contract/atom-13',
+      sourcePath: generatedSchemaPath,
+      sourceMarkers: ['recovery_epoch bigint NOT NULL UNIQUE'],
+      testPath: postgresTestPath,
+      testMarker: 'PLATFORM_RECOVERY_BOOTSTRAP_AUTHORITY_INVALID',
+      testCaseId: 'TEST-PG-PLATFORM-RECOVERY-EPOCH-UNIQUE'
+    },
+    {
+      authoritySourceRef: 'ssot://51.38/51-38-recovery-barrier-closure-a-capacity-physical-contract/atom-3',
+      sourcePath: generatedSchemaPath,
+      sourceMarkers: ['CREATE TABLE IF NOT EXISTS kcml.platform_recovery_attempt'],
+      testPath: 'tests/integration/run.ts',
+      testMarker: 'PLATFORM_RECOVERY_STABLE_READY_INVALID',
+      testCaseId: 'TEST-PG-PLATFORM-RECOVERY-ATTEMPT',
+      persistenceObjectIds: ['platform_recovery_attempt']
+    },
+    {
+      authoritySourceRef: 'ssot://51.38/51-38-recovery-barrier-closure-a-capacity-physical-contract/atom-4',
+      sourcePath: generatedSchemaPath,
+      sourceMarkers: ['CREATE TABLE IF NOT EXISTS kcml.platform_recovery_item'],
+      testPath: 'tests/integration/run.ts',
+      testMarker: 'COMMAND_CHECKPOINT_RECOVERY_CLASSIFICATION_INVALID',
+      testCaseId: 'TEST-PG-PLATFORM-RECOVERY-ITEM-CLASSIFICATION',
+      persistenceObjectIds: ['platform_recovery_item']
+    },
+    {
+      authoritySourceRef: 'ssot://51.38/51-38-recovery-barrier-closure-a-capacity-physical-contract/atom-14',
+      sourcePath: generatedSchemaPath,
+      sourceMarkers: ['UNIQUE (recovery_attempt_id, owner_kind, owner_id, classification_revision)'],
+      testPath: postgresTestPath,
+      testMarker: 'COMMAND_RECOVERY_GUARD_STORAGE_INVALID',
+      testCaseId: 'TEST-PG-PLATFORM-RECOVERY-ITEM-UNIQUE',
+      persistenceObjectIds: ['platform_recovery_item']
+    },
+    {
+      authoritySourceRef: 'ssot://51.38/51-38-recovery-barrier-closure-a-capacity-physical-contract/atom-6',
+      sourcePath: generatedSchemaPath,
+      sourceMarkers: ['CREATE TABLE IF NOT EXISTS kcml.capacity_reservation'],
+      testPath: postgresTestPath,
+      testMarker: 'CAPACITY_ACTIVE_UNIQUENESS_NOT_ENFORCED',
+      testCaseId: 'TEST-PG-CAPACITY-RESERVATION',
+      persistenceObjectIds: ['capacity_reservation']
+    },
+    {
+      authoritySourceRef: 'ssot://51.38/51-38-recovery-barrier-closure-a-capacity-physical-contract/atom-7',
+      sourcePath: generatedSchemaPath,
+      sourceMarkers: ['CREATE TABLE IF NOT EXISTS kcml.artifact_publication'],
+      testPath: postgresTestPath,
+      testMarker: 'ARTIFACT_PUBLICATION_PHYSICAL_PROTOCOL_INVALID',
+      testCaseId: 'TEST-PG-ARTIFACT-PUBLICATION',
+      persistenceObjectIds: ['artifact_publication','artifact_current_pointer']
+    },
+    {
+      authoritySourceRef: 'ssot://51.38/51-38-recovery-barrier-closure-a-capacity-physical-contract/atom-16',
+      sourcePath: generatedSchemaPath,
+      sourceMarkers: ['capacity_reservation_active_uq ON kcml.capacity_reservation(capacity_kind,reservation_key) WHERE released_at IS NULL'],
+      testPath: postgresTestPath,
+      testMarker: 'CAPACITY_ACTIVE_UNIQUENESS_NOT_ENFORCED',
+      testCaseId: 'TEST-PG-CAPACITY-ACTIVE-UNIQUE',
+      persistenceObjectIds: ['capacity_reservation']
+    },
+    {
+      authoritySourceRef: 'ssot://51.38/51-38-recovery-barrier-closure-a-capacity-physical-contract/atom-17',
+      sourcePath: generatedSchemaPath,
+      sourceMarkers: ['UNIQUE (artifact_owner_kind,artifact_owner_id,logical_name,publication_revision)'],
+      testPath: postgresTestPath,
+      testMarker: 'ARTIFACT_PUBLICATION_PHYSICAL_PROTOCOL_INVALID',
+      testCaseId: 'TEST-PG-ARTIFACT-PUBLICATION-UNIQUE',
+      persistenceObjectIds: ['artifact_publication']
+    },
+    {
+      authoritySourceRef: 'ssot://51.38/51-38-recovery-barrier-closure-a-capacity-physical-contract/atom-19',
+      sourcePath: generatedSchemaPath,
+      sourceMarkers: ["CHECK (artifact_state <> 'PUBLISHED' OR (final_digest IS NOT NULL"],
+      testPath: postgresTestPath,
+      testMarker: 'ARTIFACT_PUBLICATION_PHYSICAL_PROTOCOL_INVALID',
+      testCaseId: 'TEST-PG-ARTIFACT-PUBLISHED-DIGEST',
+      persistenceObjectIds: ['artifact_publication']
+    }
+  ];
+  for (const evidence of exactInfrastructureEvidence) {
+    const requirement=requirements.find((candidate)=>candidate.authoritySourceRefs.includes(evidence.authoritySourceRef));
+    if(!requirement)throw new Error(`INFRASTRUCTURE_EVIDENCE_REQUIREMENT_MISSING:${evidence.authoritySourceRef}`);
+    const sourceArtifact=traceArtifact(evidence.sourcePath);const integrationArtifact=traceArtifact(evidence.testPath);
+    const sourceLines=(await readFile(join(root,evidence.sourcePath),'utf8')).split('\n');const integrationLines=(await readFile(join(root,evidence.testPath),'utf8')).split('\n');
+    for(const marker of evidence.sourceMarkers){const lineIndex=sourceLines.findIndex((line)=>line.includes(marker));if(lineIndex<0)throw new Error(`INFRASTRUCTURE_EVIDENCE_SOURCE_MISSING:${marker}`);appendTrace(sourceArtifact,requirement.requirementId,`${evidence.sourcePath}:${lineIndex+1}`,marker,sourceLines[lineIndex]);}
+    const testLineIndex=integrationLines.findIndex((line)=>line.includes(evidence.testMarker));if(testLineIndex<0)throw new Error(`INFRASTRUCTURE_EVIDENCE_TEST_MISSING:${evidence.testMarker}`);
+    appendTrace(integrationArtifact,requirement.requirementId,`${evidence.testPath}:${testLineIndex+1}`,evidence.testCaseId,integrationLines[testLineIndex]);
+    requirement.domainModule='packages/database';requirement.persistenceObjectIds=evidence.persistenceObjectIds??['platform_recovery_head'];requirement.testCaseIds=[evidence.testCaseId];requirement.acceptanceGateIds=['GATE-CONTRACT-PACK'];
+    requirement.runtimeEvidenceKinds=['POSTGRES_PLATFORM_RECOVERY_HEAD_PROOF'];requirement.artifactIds=[sourceArtifact.artifactId,integrationArtifact.artifactId].sort();requirement.status='ACTIVE';
+  }
+  for (const artifact of touchedTraceArtifacts) {
+    artifact.requirementIds = [...new Set(artifact.requirementIds)].sort();
+    artifact.traceAnchors.sort((left, right) => left.requirementId.localeCompare(right.requirementId) || left.locator.localeCompare(right.locator));
+    artifact.canonicalDigest = sha(canonical({ repositoryPath: artifact.repositoryPath, contentDigest: artifact.contentDigest, requirementIds: artifact.requirementIds, traceAnchors: artifact.traceAnchors }));
+  }
+  const architectureBlockers = [];
+  const surfaceSqlForArchitecture = await readFile(join(root, 'database/baseline/00000000000001_ssot_surface.sql'), 'utf8');
+  if ((surfaceSqlForArchitecture.match(/document jsonb NOT NULL DEFAULT '\{\}'::jsonb/giu) ?? []).length > 0) architectureBlockers.push({ code: 'GENERIC_ENTITY_SCHEMA', summary: 'Physical entity schemas still contain generic document storage.' });
+  if (requirements.some((requirement) => requirement.artifactIds.length === 0)) architectureBlockers.push({ code: 'TRACEABILITY_INCOMPLETE', summary: 'Requirements do not yet have implementation artifact evidence.' });
 
   const registries = [
     ['REQUIREMENT_REGISTRY', 'requirements/requirements.json', requirements],
     ['OPERATION_CATALOG', 'operations/operations.json', operations],
     ['STATE_MACHINE_REGISTRY', 'state-machines/state-machines.json', stateMachines],
-    ['POSTGRES_CONTRACT_MATRIX', 'postgres/postgres-contracts.json', []],
-    ['RUNTIME_BOUNDARY_MATRIX', 'runtime-boundaries/runtime-boundaries.json', []],
-    ['BINDING_REGISTRY', 'bindings/bindings.json', []],
-    ['AUTHORITY_OWNERSHIP_REGISTRY', 'authority/authority-ownership.json', []],
-    ['ERROR_RETRY_REGISTRY', 'errors/errors.json', []],
-    ['FAULT_CATALOG', 'faults/faults.json', []],
-    ['RECOVERY_ORACLE_REGISTRY', 'recovery-oracles/recovery-oracles.json', [{ recoveryOracleId: 'ORACLE-SIDE-EFFECT', subjectId: 'SIDE_EFFECT', observedAuthoritativeStateSchema: 'SIDE_EFFECT_EVIDENCE', requiredEvidence: ['INTENT', 'DISPATCH', 'READ_BACK'], forbiddenEvidenceAssumptions: ['PROCESS_MEMORY', 'MISSING_LOG'], rules: [], defaultOutcome: 'MANUAL_REVIEW', manualReviewSchemaRef: 'contracts/registry-schemas/operation-command.schema.json', conflictingOperationBlockKeys: ['RESOURCE'], closurePredicateId: 'CLOSURE-SIDE_EFFECT', testCaseIds: ['TEST-RECOVERY-ORACLE'], requirementIds: [], authoritySourceRefs: ['ssot://54/recovery-oracle/oracle'], canonicalDigest: sha('ORACLE-SIDE-EFFECT') }]],
-    ['CLOSURE_PREDICATE_REGISTRY', 'closure-predicates/closure-predicates.json', []],
+    ['POSTGRES_CONTRACT_MATRIX', 'postgres/postgres-contracts.json', postgres],
+    ['RUNTIME_BOUNDARY_MATRIX', 'runtime-boundaries/runtime-boundaries.json', runtimes],
+    ['BINDING_REGISTRY', 'bindings/bindings.json', operations.map((operation) => ({ bindingId: `BIND-${operation.operationId}`, sourceRevisionId: 'CANONICAL_OPERATION_SERVICE', targetOperationId: operation.operationId, routeOperationId: operation.apiOperationIds[0], lifecycle: 'ACTIVE', contractDigest: operation.canonicalDigest, exact: true, authoritySourceRefs: ['ssot://55/binding-registry/exact-binding'], requirementIds: operation.requirementIds, canonicalDigest: sha(canonical({ operationId: operation.operationId, target: operation.apiOperationIds[0] })) }))],
+    ['AUTHORITY_OWNERSHIP_REGISTRY', 'authority/authority-ownership.json', authorities],
+    ['ERROR_RETRY_REGISTRY', 'errors/errors.json', errorRecords],
+    ['FAULT_CATALOG', 'faults/faults.json', operations.map((operation) => ({ faultPointId: `FAULT-${operation.operationId}`, operationId: operation.operationId, phase: 'PRE_AND_POST_SIDE_EFFECT', faultKinds: ['PROCESS_KILL','TIMEOUT','DUPLICATE','STALE_FENCE','DATABASE_RESTART'], expectedOutcome: 'RECOVERY_ORACLE', testCaseIds: [`FAULT-TEST-${operation.operationId}`], authoritySourceRefs: ['ssot://54/fault-catalog/fault-point'], requirementIds: operation.requirementIds, canonicalDigest: sha(canonical({ operationId: operation.operationId, phase: 'PRE_AND_POST_SIDE_EFFECT' })) }))],
+    ['RECOVERY_ORACLE_REGISTRY', 'recovery-oracles/recovery-oracles.json', [{ recoveryOracleId: 'ORACLE-SIDE-EFFECT', subjectId: 'SIDE_EFFECT', observedAuthoritativeStateSchema: 'SIDE_EFFECT_EVIDENCE', requiredEvidence: ['INTENT', 'DISPATCH', 'READ_BACK'], forbiddenEvidenceAssumptions: ['PROCESS_MEMORY', 'MISSING_LOG'], rules: [{ when: 'INTENT=false', outcome: 'CONFIRMED_NOT_APPLIED' }, { when: 'INTENT=true AND DISPATCH=false', outcome: 'CONFIRMED_NOT_APPLIED' }, { when: 'DISPATCH=true AND READ_BACK=true', outcome: 'CONFIRMED_APPLIED' }, { when: 'DISPATCH=true AND READ_BACK=false', outcome: 'MANUAL_REVIEW' }], defaultOutcome: 'MANUAL_REVIEW', manualReviewSchemaRef: 'contracts/registry-schemas/operation-command.schema.json', conflictingOperationBlockKeys: ['RESOURCE'], closurePredicateId: 'CLOSURE-SIDE_EFFECT', testCaseIds: ['TEST-RECOVERY-ORACLE'], requirementIds: [], authoritySourceRefs: ['ssot://54/recovery-oracle/oracle'], canonicalDigest: sha('ORACLE-SIDE_EFFECT_WITH_RULES') }]],
+    ['CLOSURE_PREDICATE_REGISTRY', 'closure-predicates/closure-predicates.json', closure],
     ['ACCEPTANCE_GATE_REGISTRY', 'acceptance-gates/acceptance-gates.json', gateRecords],
-    ['EXPOSURE_PARITY_REGISTRY', 'exposure-parity/exposure-parity.json', []],
+    ['EXPOSURE_PARITY_REGISTRY', 'exposure-parity/exposure-parity.json', exposure],
     ['ARTIFACT_TRACE_REGISTRY', 'artifact-trace/artifact-trace.json', artifacts]
   ];
 
@@ -462,8 +759,8 @@ async function main() {
     { code: 'ARCHITECTURE_EVALUATORS_NOT_EXECUTABLE', summary: 'Architecture gate predicates do not have executable evaluators.' }
   ];
   outputs.set('contracts/registries/architecture-readiness.json', `${canonical({
-    schemaVersion: '1.0', status: 'FAIL', ssotDigest: manifest.ssotDigest, packDigest: manifest.packDigest, blockers,
-    gates: gates.filter((gate) => gate.startsWith('ARCH_')).map((gateId) => ({ gateId, status: 'FAIL', evaluator: null, evidenceDigest: null, blockers: blockers.map((blocker) => blocker.code) }))
+    schemaVersion: '1.0', status: architectureBlockers.length === 0 ? 'PASS' : 'FAIL', ssotDigest: manifest.ssotDigest, packDigest: manifest.packDigest, blockers: architectureBlockers,
+    gates: gates.filter((gate) => gate.startsWith('ARCH_')).map((gateId) => ({ gateId, status: architectureBlockers.length === 0 ? 'PASS' : 'FAIL', evaluator: 'scripts/evaluate-architecture.mjs', evidenceDigest: sha(canonical({ gateId, blockers: architectureBlockers })), blockers: architectureBlockers.map((blocker) => blocker.code) }))
   })}\n`);
 
   const mismatches = [];

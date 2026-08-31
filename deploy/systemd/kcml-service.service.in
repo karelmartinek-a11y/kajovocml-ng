@@ -1,6 +1,7 @@
 [Unit]
 Description=KájovoCML NG — {{UNIT}}
-After=postgresql.service network-online.target
+Requires=kcml-platform-recovery.service
+After=postgresql.service network-online.target kcml-platform-recovery.service
 Wants=network-online.target
 {{SOCKET_DEPENDENCIES}}
 

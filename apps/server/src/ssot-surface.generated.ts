@@ -3740,7 +3740,7 @@ export const SSOT_ROUTES = [
     "path": "/alerts/:id/acknowledge",
     "routeKey": "POST /alerts/:id/acknowledge",
     "entity": "operational_alert",
-    "operation": null,
+    "operation": "monitor.alert.update",
     "mutating": true
   },
   {
@@ -3748,7 +3748,7 @@ export const SSOT_ROUTES = [
     "path": "/alerts/:id/suppress",
     "routeKey": "POST /alerts/:id/suppress",
     "entity": "operational_alert",
-    "operation": null,
+    "operation": "monitor.alert.update",
     "mutating": true
   },
   {
@@ -3780,7 +3780,7 @@ export const SSOT_ROUTES = [
     "path": "/workers/heartbeats",
     "routeKey": "GET /workers/heartbeats",
     "entity": "platform_worker_heartbeat",
-    "operation": null,
+    "operation": "monitor.heartbeat.observe",
     "mutating": false
   },
   {

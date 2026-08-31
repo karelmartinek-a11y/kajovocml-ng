@@ -1,6 +1,7 @@
 [Unit]
 Description=KájovoCML NG production services
+Requires=kcml-platform-recovery.service
 Wants=kcml-web-api.socket kcml-runtime-gateway.socket kcml-secret-broker.socket kcml-state-broker.socket kcml-egress-gateway.socket
-After=postgresql.service network-online.target
+After=postgresql.service network-online.target kcml-platform-recovery.service
 [Install]
 WantedBy=multi-user.target

@@ -1,4 +1,7 @@
+import { randomUUID } from 'node:crypto';
 import { SequenceGuard } from '@kcml/kcip';
+import { createDatabasePool } from '@kcml/database';
+import { CanonicalOperationService, OperationCatalogService } from '@kcml/domain';
 
 const SCHEDULE_COUNT = 10_000;
 const BASE_SEED = Number(process.env.KCML_CHAOS_SEED ?? 20_260_830);
@@ -89,6 +92,17 @@ function runSchedule(seed: number): void {
 for (let schedule = 0; schedule < SCHEDULE_COUNT; schedule += 1) runSchedule(BASE_SEED + schedule);
 for (let index = 0; index < THREE_WAY_SCHEDULES.length; index += 1) runSchedule(BASE_SEED ^ (0x9e37_79b9 + index));
 
+if (process.env.DATABASE_URL) {
+  const pool = createDatabasePool({ applicationName: 'kcml-chaos-sut', max: 2 });
+  const catalog = await OperationCatalogService.load();
+  const systemUnderTest = new CanonicalOperationService(pool, catalog);
+  await systemUnderTest.execute('audit.integrity.verify', { targetId: null, arguments: {} }, { callerFingerprint: 'KRMAR78', actorId: 'KRMAR78', correlationId: randomUUID() });
+  await pool.end();
+  console.log('MODEL_FAST_CHAOS_SUT: PASS');
+} else {
+  console.log('MODEL_FAST_CHAOS_SUT: NOT_EXECUTED_ENVIRONMENTAL reason=DATABASE_URL missing');
+}
+
 const guard = new SequenceGuard();
 guard.accept('replay', 1n);
 if (guard.accept('replay', 1n) !== 'DUPLICATE') throw new Error('REPLAY_NOT_DEDUPLICATED');
@@ -98,4 +112,4 @@ if (!fenced) throw new Error('SEQUENCE_GAP_NOT_FENCED');
 const backoff = Array.from({ length: 16 }, (_, attempt) => Math.min(300_000, 1_000 * 2 ** attempt));
 if (!backoff.every((value, index) => index === 0 || value >= backoff[index - 1]!)) throw new Error('BACKOFF_NOT_MONOTONIC');
 
-console.log(`MODEL_FAST_CHAOS: PASS schedules=${SCHEDULE_COUNT} seed=${BASE_SEED} threeWay=${THREE_WAY_SCHEDULES.length}`);
+console.log(`MODEL_FAST_CHAOS_MODEL_ONLY: PASS schedules=${SCHEDULE_COUNT} seed=${BASE_SEED} threeWay=${THREE_WAY_SCHEDULES.length}`);

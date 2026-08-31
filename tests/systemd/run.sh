@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+if [[ "$(uname -s)" != "Linux" ]]; then
+  echo 'NOT_EXECUTED_ENVIRONMENTAL: native systemd/seccomp verification requires Linux';
+  exit 0
+fi
 for file in deploy/systemd/*.service deploy/systemd/*.socket deploy/systemd/*.target; do
   grep -Eq '^\[(Unit|Socket)\]' "$file"
 done

@@ -14,6 +14,31 @@ function boundedSection(source, startMarker, endMarker) {
 export function parseSsotEntities(ssot) {
   const section = boundedSection(ssot, '### 25.3 Fixed OWNER authentication entities', '## 26. API kontrakt');
   const matches = [...section.matchAll(/^#### `([^`]+)`\s*$/gm)];
+  // These rows carry an in-place lifecycle before terminalization. Their
+  // contracts may mention immutable terminal states or contain suffixes such
+  // as _event/_snapshot/_attempt, which must not be mistaken for whole-row
+  // immutability.
+  const lifecycleRows = new Set([
+    'mcp_discovery_snapshot','mcp_request_event','mcp_call_run','mcp_input_exchange','mcp_input_request_item',
+    'mcp_subscription','mcp_state_handle','mcp_task','mcp_task_input_request','mcp_idempotency_record',
+    'runtime_process_identity','runtime_ipc_connection','runtime_ipc_call','runtime_cleanup_operation',
+    'browser_action_attempt','browser_automation_run_step','generation_phase_run','generation_contract_candidate',
+    'generation_validation_run','generation_blocker','ai_tool_dispatch','agent_message','agent_tool_call','agent_handoff_run',
+    'agent_approval_request','agent_memory_item','agent_trigger','agent_eval_run','system_chat_message','system_chat_action',
+    'deployment_step','production_acceptance_run','domain_command_activation_domain','activation_domain_barrier','configuration_apply_run','operation_context'
+    ,'browser_session_binding','browser_host_slot','browser_context_instance','browser_page','browser_frame','browser_document','browser_navigation',
+    'browser_preview_ticket','browser_control_lease','browser_control_transfer','browser_irreversible_confirmation','browser_auth_attempt',
+    'browser_bridge_connection','browser_bridge_assignment','browser_profile_lease','browser_dialog','browser_permission_request','browser_teaching_run',
+    'browser_teaching_step','browser_automation_definition','browser_automation_run','browser_challenge'
+  ]);
+  const immutableRows = new Set([
+    'agent_session_compaction','agent_revision','agent_tool_binding','agent_handoff_binding','agent_guardrail',
+    'agent_session_item','agent_run_checkpoint','agent_eval_suite','agent_eval_case','agent_eval_case_result',
+    'self_test_catalog_entry','operational_setting_applied','authority_lineage','operation_intent','content_provenance',
+    'instruction_segment','semantic_action_plan','value_derivation','secret_use_context','agentic_security_event'
+    ,'browser_runtime_build_manifest','browser_preview_frame','browser_preview_event','browser_input_event','browser_action_dispatch_event',
+    'browser_operation_scope','browser_state_bundle_member','browser_automation_revision','browser_automation_artifact','browser_auth_binding'
+  ]);
   return matches.map((match, index) => {
     const name = match[1];
     const start = match.index;
@@ -21,7 +46,7 @@ export function parseSsotEntities(ssot) {
     const contract = section.slice(start, end).trim();
     const explicitlyImmutable = /\bimmutable\b|append-only|neměnn|po commitu je immutable/iu.test(contract);
     const structurallyImmutable = /(?:_revision|_snapshot|_event|_evidence|_checkpoint|_attempt|_result|_artifact|_fact|_decision|_message|_turn|_content_part|_dispatch|_continuation|_history|_notification|_item|_member|_derivation)$/u.test(name);
-    return { name, ordinal: index + 1, contractDigest: sha256(contract), immutable: explicitlyImmutable || structurallyImmutable, contract };
+    return { name, ordinal: index + 1, contractDigest: sha256(contract), immutable: immutableRows.has(name) || (!lifecycleRows.has(name) && (explicitlyImmutable || structurallyImmutable)), contract };
   });
 }
 
@@ -304,6 +329,9 @@ export function operationForRoute(route, operationNames) {
   if (path === '/self-tests/catalog') return 'selfTest.catalog.list';
   if (path === '/audit/integrity/verify') return 'audit.integrity.verify';
   if (path === '/agentic-security/evidence/export') return 'agentic.security.evidence.export';
+  if (path === '/alerts/:id/acknowledge' || path === '/alerts/:id/suppress') return 'monitor.alert.update';
+  if (path === '/alerts/:id/close') return 'monitor.alert.close';
+  if (path === '/workers/heartbeats') return 'monitor.heartbeat.observe';
 
   const family = familyForPath(path);
   if (!family) return null;

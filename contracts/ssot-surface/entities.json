@@ -139,7 +139,7 @@
       "name": "mcp_discovery_snapshot",
       "ordinal": 23,
       "contractDigest": "c5ed4fd4b299ac1fa5f76604628fa1e2166bc97bc3d31ed61cede8b06bbf6ac9",
-      "immutable": true
+      "immutable": false
     },
     {
       "name": "mcp_discovery_item",
@@ -157,13 +157,13 @@
       "name": "mcp_request_event",
       "ordinal": 26,
       "contractDigest": "707da407858420e716f570ce6c241c1047d1d35029416245bc02749d32684624",
-      "immutable": true
+      "immutable": false
     },
     {
       "name": "mcp_call_run",
       "ordinal": 27,
       "contractDigest": "6cb12d1ed3c03f5abd9a957e8b21fee9a416541e07f874bb8cfe0fa96293babb",
-      "immutable": true
+      "immutable": false
     },
     {
       "name": "mcp_call_progress",
@@ -181,7 +181,7 @@
       "name": "mcp_input_request_item",
       "ordinal": 30,
       "contractDigest": "2c467be26f73c761ce9573fc89be6d18acff9e60b4e431b769cf71d849378fb4",
-      "immutable": true
+      "immutable": false
     },
     {
       "name": "mcp_input_response_item",
@@ -211,7 +211,7 @@
       "name": "mcp_task",
       "ordinal": 35,
       "contractDigest": "f7491655f131f4f6391230d000696076a4270ff3b5d0c09fd475cc0d333e55ff",
-      "immutable": true
+      "immutable": false
     },
     {
       "name": "mcp_task_input_request",
@@ -253,7 +253,7 @@
       "name": "runtime_process_identity",
       "ordinal": 42,
       "contractDigest": "6795ff111d219d90787f3081bddbf10d44011a2141faceaba9b36d19fb83b0bb",
-      "immutable": true
+      "immutable": false
     },
     {
       "name": "runtime_ipc_connection",
@@ -655,7 +655,7 @@
       "name": "ai_tool_dispatch",
       "ordinal": 109,
       "contractDigest": "96179860ebe44499aeed0a82f660c668bcc9760229ba6cba262dc8e30b5958fb",
-      "immutable": true
+      "immutable": false
     },
     {
       "name": "ai_model_continuation",
@@ -691,19 +691,19 @@
       "name": "agent_tool_binding",
       "ordinal": 115,
       "contractDigest": "ee383f6be6fd94e747265b1c0d5e6ea4e7071caff64ba442ef2ce57bdf1417a7",
-      "immutable": false
+      "immutable": true
     },
     {
       "name": "agent_handoff_binding",
       "ordinal": 116,
       "contractDigest": "d7d6cb217bda7ccc0fb55a015eff14355aea506c64335b3be6638c500a3c4918",
-      "immutable": false
+      "immutable": true
     },
     {
       "name": "agent_guardrail",
       "ordinal": 117,
       "contractDigest": "7994ecd21afec62e3423503184d8bc972a80ed0cdb17f48a2374c75cbc052536",
-      "immutable": false
+      "immutable": true
     },
     {
       "name": "agent_session",
@@ -733,7 +733,7 @@
       "name": "agent_message",
       "ordinal": 122,
       "contractDigest": "9a1c8d45241bce7b273d68ae06c42ceeba37d67461d5f57516ad6fd14246f078",
-      "immutable": true
+      "immutable": false
     },
     {
       "name": "agent_tool_call",
@@ -763,7 +763,7 @@
       "name": "agent_memory_item",
       "ordinal": 127,
       "contractDigest": "9f401879424e20b004ba9a19eda4d641586d230955bf092454bb825d711271be",
-      "immutable": true
+      "immutable": false
     },
     {
       "name": "agent_trigger",
@@ -775,13 +775,13 @@
       "name": "agent_eval_suite",
       "ordinal": 129,
       "contractDigest": "e96e0323e3ea24af1b4ab8def3c2ce432a48e9672a38a432090ba469d4772aad",
-      "immutable": false
+      "immutable": true
     },
     {
       "name": "agent_eval_case",
       "ordinal": 130,
       "contractDigest": "c6fbfe857eb855595e34f5b4e4f27185fda87b102fe0e8c2aa99cc325efec4bd",
-      "immutable": false
+      "immutable": true
     },
     {
       "name": "agent_eval_run",
@@ -805,7 +805,7 @@
       "name": "system_chat_message",
       "ordinal": 134,
       "contractDigest": "0acb85bc091e968776885604cc5c2f58ee76d20782459b5ad8f5a7d2abbac6c0",
-      "immutable": true
+      "immutable": false
     },
     {
       "name": "system_chat_action",
@@ -877,7 +877,7 @@
       "name": "browser_preview_frame",
       "ordinal": 146,
       "contractDigest": "2c524fdd35d76e21a8664ddda2a6a84cfc6b42bf710ff7111688525d8881123b",
-      "immutable": false
+      "immutable": true
     },
     {
       "name": "browser_preview_ticket",
@@ -925,7 +925,7 @@
       "name": "browser_action_attempt",
       "ordinal": 154,
       "contractDigest": "deae1488f8312c57100c3b3305380ce3d004ca6731c95e6223232235187008e1",
-      "immutable": true
+      "immutable": false
     },
     {
       "name": "browser_action_dispatch_event",
@@ -937,7 +937,7 @@
       "name": "browser_operation_scope",
       "ordinal": 156,
       "contractDigest": "a52213bd68835ebd7168dc5fea3f9342d9f612c9a9d6cc2649ccf6816a8c8384",
-      "immutable": false
+      "immutable": true
     },
     {
       "name": "browser_irreversible_confirmation",
@@ -955,7 +955,7 @@
       "name": "browser_auth_attempt",
       "ordinal": 159,
       "contractDigest": "c45c106ac7b336edcec80c57996c547d22d1be376eb9c63c999e2d6aca1614b8",
-      "immutable": true
+      "immutable": false
     },
     {
       "name": "browser_state_bundle",
@@ -1045,7 +1045,7 @@
       "name": "browser_automation_run",
       "ordinal": 174,
       "contractDigest": "eda12b2e12fff951c28bd0fb39503ecb92da8525eae5906088bb5042be9836b7",
-      "immutable": true
+      "immutable": false
     },
     {
       "name": "browser_automation_run_step",
@@ -1063,7 +1063,7 @@
       "name": "browser_auth_binding",
       "ordinal": 177,
       "contractDigest": "80272d715501f887078fc17038672580bbd942b5c093ca47064bd4d9a4eea215",
-      "immutable": false
+      "immutable": true
     },
     {
       "name": "browser_challenge",
@@ -1087,7 +1087,7 @@
       "name": "self_test_catalog_entry",
       "ordinal": 181,
       "contractDigest": "124b2576f054c198be7230faac0e60bb4268547eebe3b0037407c0cc42a7edf8",
-      "immutable": false
+      "immutable": true
     },
     {
       "name": "application_release",
@@ -1129,7 +1129,7 @@
       "name": "operational_setting_applied",
       "ordinal": 188,
       "contractDigest": "79cce5f19b5745d994681c0bc01d32a8cbb938c7b966f39e7944bff251834f7e",
-      "immutable": false
+      "immutable": true
     },
     {
       "name": "platform_incarnation",
@@ -1297,7 +1297,7 @@
       "name": "operation_context",
       "ordinal": 216,
       "contractDigest": "4877838d1639089b567492c110af0bbde1461cb4f0209af977471578aa9b8333",
-      "immutable": true
+      "immutable": false
     },
     {
       "name": "semantic_action_plan",
@@ -1315,7 +1315,7 @@
       "name": "secret_use_context",
       "ordinal": 219,
       "contractDigest": "9ac19d4a13feb0f1d4b8ad719363733ef536fa1e270b2d605d34c550a62b53ab",
-      "immutable": false
+      "immutable": true
     },
     {
       "name": "agentic_security_event",

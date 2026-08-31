@@ -1,6 +1,7 @@
 [Unit]
 Description=KájovoCML NG runtime host %i
-After=postgresql.service
+Requires=kcml-platform-recovery.service
+After=postgresql.service kcml-platform-recovery.service
 PartOf=kcml.target
 [Service]
 Type=exec

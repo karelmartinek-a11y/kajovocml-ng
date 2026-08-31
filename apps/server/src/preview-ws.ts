@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import type { FastifyInstance } from 'fastify';
 import type { Socket } from 'node:net';
 import type { DatabasePool } from '@kcml/database';
@@ -17,8 +18,8 @@ function wsFrame(payload: string): Buffer {
   return Buffer.concat([header, body]);
 }
 
-function ticketFingerprint(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
+function ticketFingerprint(token: string): Buffer {
+  return createHash('sha256').update(token).digest();
 }
 
 export function installPreviewWebSocket(app: FastifyInstance, pool: DatabasePool, previewKey: Buffer): void {
@@ -42,8 +43,8 @@ export function installPreviewWebSocket(app: FastifyInstance, pool: DatabasePool
       }
       const fingerprint = ticketFingerprint(ticket);
       const consumedRow = await pool.query(`UPDATE kcml.browser_preview_ticket AS t
-        SET lifecycle='CLOSED',document=t.document || jsonb_build_object('usedAt',clock_timestamp()),state_version=t.state_version+1,updated_at=clock_timestamp()
-        WHERE t.stable_key=$1 AND t.lifecycle='ACTIVE' AND (t.document->>'expiresAt')::timestamptz>clock_timestamp() RETURNING id`, [fingerprint]);
+        SET lifecycle='CLOSED',used_at=clock_timestamp(),state_version=t.state_version+1,updated_at=clock_timestamp()
+        WHERE t.token_fingerprint=$1 AND t.lifecycle='ACTIVE' AND t.used_at IS NULL AND t.revoked_at IS NULL AND t.expires_at>clock_timestamp() RETURNING id`, [fingerprint]);
       if (consumedRow.rowCount !== 1) {
         socket.write('HTTP/1.1 409 Conflict\r\nConnection: close\r\n\r\n'); socket.destroy(); return;
       }
@@ -55,13 +56,15 @@ export function installPreviewWebSocket(app: FastifyInstance, pool: DatabasePool
       const send = (value: unknown) => { if (!socket.destroyed) socket.write(wsFrame(JSON.stringify(value, (_key, item) => typeof item === 'bigint' ? item.toString() : item))); };
       send({ kind: 'HELLO', protocol: 'KCML-PREVIEW/1', streamEpoch: streamEpoch.toString(), sessionId });
       const poll = async () => {
-        const frame = await pool.query(`SELECT id,document,state_version,created_at FROM kcml.browser_preview_frame
-          WHERE parent_id=$1 OR document->>'sessionId'=$1 ORDER BY created_at DESC LIMIT 1`, [sessionId]);
+        const frame = await pool.query(`SELECT f.id,f.frame_revision,f.page_id,f.mime_type,f.created_at,a.storage_reference
+          FROM kcml.browser_preview_frame f LEFT JOIN kcml.browser_automation_artifact a ON a.id=f.image_artifact_id
+          WHERE f.session_id=$1 AND f.cleanup_state NOT IN ('REMOVED','FAILED') ORDER BY f.stream_epoch DESC,f.frame_revision DESC LIMIT 1`, [sessionId]);
         const row = frame.rows[0];
-        const revision = row ? `${row.id}:${row.state_version}` : '';
-        if (row && revision !== lastRevision) {
+        const revision = row ? `${row.id}:${row.frame_revision}` : '';
+        if (row?.storage_reference && revision !== lastRevision) {
           lastRevision = revision;
-          send({ kind: 'VIDEO', streamEpoch: streamEpoch.toString(), sequence: (sequence++).toString(), ...(row.document ?? {}), frameId: row.id, createdAt: row.created_at });
+          const image=await readFile(String(row.storage_reference));
+          send({ kind: 'VIDEO', streamEpoch: streamEpoch.toString(), sequence: (sequence++).toString(), pageId:row.page_id,mimeType:row.mime_type,dataBase64:image.toString('base64'),viewportRevision:String(row.frame_revision) });
         } else {
           send({ kind: 'HEARTBEAT', streamEpoch: streamEpoch.toString(), sentAt: new Date().toISOString() });
         }

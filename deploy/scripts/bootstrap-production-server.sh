@@ -19,7 +19,7 @@ corepack enable
 corepack prepare pnpm@11.19.0 --activate
 for group in kcml-platform kcml-runtime-callers kcml-runtime-gateway kcml-browser-worker; do create_group "${group}"; done
 while IFS='|' read -r unit app service_user rest; do [[ -z ${unit} || ${unit:0:1} == '#' ]] && continue; create_user "${service_user}"; done <"${repository_root}/deploy/systemd/services.tsv"
-create_user kcml-runtime-host; create_user kcml-browser-host; create_user kcml-deploy
+create_user kcml-runtime-host; create_user kcml-browser-host; create_user kcml-recovery; create_user kcml-deploy
 usermod --home /var/lib/kajovocml-ng/deploy-home --shell /bin/bash kcml-deploy
 usermod -a -G kcml-runtime-callers,kcml-runtime-gateway kcml-runtime-gateway
 usermod -a -G kcml-runtime-callers kcml-runtime-host

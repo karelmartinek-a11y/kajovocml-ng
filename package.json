@@ -13,8 +13,8 @@
   "scripts": {
     "build": "pnpm run contracts:check && pnpm -r --if-present build",
     "clean": "pnpm -r --if-present run clean",
-    "contracts:build": "node scripts/compile-contract-pack.mjs",
-    "contracts:check": "node scripts/compile-contract-pack.mjs --check && node scripts/validate-contract-pack.mjs",
+    "contracts:build": "node scripts/compile-ssot-surface.mjs && node scripts/compile-contract-pack.mjs",
+    "contracts:check": "node scripts/compile-ssot-surface.mjs --check && node scripts/compile-contract-pack.mjs --check && node scripts/validate-contract-pack.mjs",
     "conformance:audit": "node scripts/compile-ssot-surface.mjs --check && node scripts/compile-contract-pack.mjs --check && node scripts/validate-contract-pack.mjs && node scripts/conformance-audit.mjs",
     "db:migrate": "node --import tsx packages/database/src/cli.ts migrate",
     "db:verify": "node --import tsx packages/database/src/cli.ts verify",

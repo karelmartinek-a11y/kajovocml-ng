@@ -21,6 +21,99 @@ BEGIN
   RAISE EXCEPTION '% is immutable', TG_TABLE_NAME USING ERRCODE = '55000';
 END $$;
 
+CREATE OR REPLACE FUNCTION kcml.guard_mcp_lifecycle() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE
+  v_old text := to_jsonb(OLD)->>TG_ARGV[0];
+  v_new text := CASE WHEN TG_OP = 'UPDATE' THEN to_jsonb(NEW)->>TG_ARGV[0] ELSE NULL END;
+  v_allowed boolean := false;
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    RAISE EXCEPTION '% hard delete is forbidden', TG_TABLE_NAME USING ERRCODE = '55000';
+  END IF;
+  IF NEW.state_version <= OLD.state_version THEN
+    RAISE EXCEPTION 'state_version must increase' USING ERRCODE = '40001';
+  END IF;
+  IF (TG_TABLE_NAME = 'mcp_call_run' AND v_old IN ('SUCCEEDED','FAILED','CANCELLED')) OR
+     (TG_TABLE_NAME = 'mcp_input_exchange' AND v_old IN ('CONSUMED','EXPIRED','INVALIDATED')) OR
+     (TG_TABLE_NAME = 'mcp_task' AND v_old IN ('COMPLETED','FAILED','CANCELLED')) OR
+     (TG_TABLE_NAME = 'mcp_request_event' AND (to_jsonb(OLD)->>'completed_at') IS NOT NULL) THEN
+    RAISE EXCEPTION '% terminal row is immutable', TG_TABLE_NAME USING ERRCODE = '55000';
+  END IF;
+  IF TG_TABLE_NAME = 'mcp_request_event' THEN
+    v_allowed := v_old = v_new OR (v_old = 'PENDING' AND v_new IN ('SUCCEEDED','FAILED','CANCELLED','MANUAL_REVIEW'));
+  ELSIF TG_TABLE_NAME = 'mcp_call_run' THEN
+    v_allowed := v_old = v_new OR
+      (v_old = 'RECEIVED' AND v_new IN ('CLAIMED','CANCELLED','FAILED')) OR
+      (v_old = 'CLAIMED' AND v_new IN ('EXECUTING','CANCEL_REQUESTED','CANCELLED','FAILED')) OR
+      (v_old = 'EXECUTING' AND v_new IN ('WAITING_FOR_INPUT','WAITING_FOR_TASK','RECONCILING','CANCEL_REQUESTED','SUCCEEDED','FAILED','CANCELLED','MANUAL_REVIEW')) OR
+      (v_old IN ('WAITING_FOR_INPUT','WAITING_FOR_TASK') AND v_new IN ('CLAIMED','RECONCILING','CANCEL_REQUESTED','FAILED','CANCELLED','MANUAL_REVIEW')) OR
+      (v_old = 'RECONCILING' AND v_new IN ('CLAIMED','SUCCEEDED','FAILED','CANCELLED','MANUAL_REVIEW')) OR
+      (v_old = 'CANCEL_REQUESTED' AND v_new IN ('RECONCILING','SUCCEEDED','FAILED','CANCELLED','MANUAL_REVIEW')) OR
+      (v_old = 'MANUAL_REVIEW' AND v_new IN ('RECONCILING','FAILED','CANCELLED'));
+  ELSIF TG_TABLE_NAME = 'mcp_input_exchange' THEN
+    v_allowed := v_old = v_new OR
+      (v_old = 'PENDING' AND v_new IN ('PARTIALLY_FULFILLED','FULFILLED','EXPIRED','INVALIDATED')) OR
+      (v_old = 'PARTIALLY_FULFILLED' AND v_new IN ('FULFILLED','EXPIRED','INVALIDATED')) OR
+      (v_old = 'FULFILLED' AND v_new IN ('CONSUMED','INVALIDATED'));
+  ELSIF TG_TABLE_NAME = 'mcp_task' THEN
+    v_allowed := v_old = v_new OR
+      (v_old = 'WORKING' AND v_new IN ('INPUT_REQUIRED','COMPLETED','FAILED','CANCELLED')) OR
+      (v_old = 'INPUT_REQUIRED' AND v_new IN ('WORKING','COMPLETED','FAILED','CANCELLED'));
+  END IF;
+  IF NOT v_allowed THEN
+    RAISE EXCEPTION 'invalid % lifecycle transition % -> %', TG_TABLE_NAME, v_old, v_new USING ERRCODE = '23514';
+  END IF;
+  IF TG_TABLE_NAME = 'mcp_task' THEN NEW.updated_at := clock_timestamp(); END IF;
+  RETURN NEW;
+END $$;
+
+CREATE OR REPLACE FUNCTION kcml.guard_agent_run_lifecycle() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE v_allowed boolean := false;
+BEGIN
+  IF TG_OP = 'DELETE' THEN RAISE EXCEPTION 'agent_run hard delete is forbidden' USING ERRCODE = '55000'; END IF;
+  IF NEW.state_version <= OLD.state_version THEN RAISE EXCEPTION 'state_version must increase' USING ERRCODE = '40001'; END IF;
+  IF OLD.status IN ('SUCCEEDED','FAILED','CANCELLED') THEN RAISE EXCEPTION 'agent_run terminal row is immutable' USING ERRCODE = '55000'; END IF;
+  v_allowed := OLD.status = NEW.status OR
+    (OLD.status = 'QUEUED' AND NEW.status IN ('PREPARING','CANCEL_REQUESTED')) OR
+    (OLD.status = 'PREPARING' AND NEW.status IN ('RUNNING','WAITING_FOR_OWNER','FAILED','CANCEL_REQUESTED')) OR
+    (OLD.status = 'RUNNING' AND NEW.status IN ('WAITING_FOR_MODEL','WAITING_FOR_TOOL','WAITING_FOR_MCP_INPUT','WAITING_FOR_MCP_TASK','WAITING_FOR_AGENT','WAITING_FOR_OWNER','CHALLENGE_REQUIRED','PAUSED','SUCCEEDED','FAILED','CANCEL_REQUESTED','MANUAL_REVIEW')) OR
+    (OLD.status = 'WAITING_FOR_MODEL' AND NEW.status IN ('RUNNING','FAILED','CANCEL_REQUESTED','MANUAL_REVIEW')) OR
+    (OLD.status = 'WAITING_FOR_TOOL' AND NEW.status IN ('RUNNING','WAITING_FOR_MCP_INPUT','WAITING_FOR_MCP_TASK','FAILED','CANCEL_REQUESTED','MANUAL_REVIEW')) OR
+    (OLD.status = 'WAITING_FOR_MCP_INPUT' AND NEW.status IN ('RUNNING','FAILED','CANCEL_REQUESTED')) OR
+    (OLD.status IN ('WAITING_FOR_MCP_TASK','WAITING_FOR_AGENT') AND NEW.status IN ('RUNNING','FAILED','CANCEL_REQUESTED','MANUAL_REVIEW')) OR
+    (OLD.status IN ('WAITING_FOR_OWNER','CHALLENGE_REQUIRED') AND NEW.status IN ('RUNNING','FAILED','CANCEL_REQUESTED')) OR
+    (OLD.status = 'PAUSED' AND NEW.status IN ('RUNNING','CANCEL_REQUESTED','FAILED')) OR
+    (OLD.status = 'CANCEL_REQUESTED' AND NEW.status IN ('CANCELLED','MANUAL_REVIEW')) OR
+    (OLD.status = 'MANUAL_REVIEW' AND NEW.status IN ('RUNNING','FAILED','CANCELLED'));
+  IF NOT v_allowed THEN RAISE EXCEPTION 'invalid agent_run lifecycle transition % -> %', OLD.status, NEW.status USING ERRCODE = '23514'; END IF;
+  NEW.updated_at := clock_timestamp();
+  RETURN NEW;
+END $$;
+
+CREATE OR REPLACE FUNCTION kcml.guard_operation_context_lifecycle() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE v_allowed boolean := false;
+BEGIN
+  IF TG_OP = 'DELETE' THEN RAISE EXCEPTION 'operation_context hard delete is forbidden' USING ERRCODE = '55000'; END IF;
+  IF NEW.state_version <= OLD.state_version THEN RAISE EXCEPTION 'state_version must increase' USING ERRCODE = '40001'; END IF;
+  IF OLD.state IN ('TERMINAL','INVALIDATED') THEN RAISE EXCEPTION 'operation_context terminal row is immutable' USING ERRCODE = '55000'; END IF;
+  IF ROW(NEW.authority_lineage_id,NEW.authority_lineage_digest,NEW.operation_intent_id,NEW.operation_intent_digest,NEW.canonical_payload,NEW.context_digest,NEW.provenance_manifest_digest)
+     IS DISTINCT FROM ROW(OLD.authority_lineage_id,OLD.authority_lineage_digest,OLD.operation_intent_id,OLD.operation_intent_digest,OLD.canonical_payload,OLD.context_digest,OLD.provenance_manifest_digest) THEN
+    RAISE EXCEPTION 'operation_context canonical meaning is immutable' USING ERRCODE = '55000';
+  END IF;
+  v_allowed := OLD.state = NEW.state OR
+    (OLD.state = 'COMPILED' AND NEW.state IN ('VALIDATED','INVALIDATED')) OR
+    (OLD.state = 'VALIDATED' AND NEW.state IN ('DISPATCH_RESERVED','INVALIDATED')) OR
+    (OLD.state = 'DISPATCH_RESERVED' AND NEW.state IN ('DISPATCHED','MANUAL_REVIEW','INVALIDATED')) OR
+    (OLD.state = 'DISPATCHED' AND NEW.state IN ('TERMINAL','MANUAL_REVIEW')) OR
+    (OLD.state = 'MANUAL_REVIEW' AND NEW.state IN ('DISPATCH_RESERVED','TERMINAL','INVALIDATED'));
+  IF NOT v_allowed THEN RAISE EXCEPTION 'invalid operation_context lifecycle transition % -> %', OLD.state, NEW.state USING ERRCODE = '23514'; END IF;
+  NEW.updated_at := clock_timestamp();
+  RETURN NEW;
+END $$;
+
 
 CREATE OR REPLACE FUNCTION kcml.protect_secret_version() RETURNS trigger
 LANGUAGE plpgsql AS $$
@@ -56,7 +149,7 @@ BEGIN
 END $$;
 
 CREATE OR REPLACE FUNCTION kcml.canonical_digest(value bytea) RETURNS bytea
-LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE AS $$ SELECT digest(value, 'sha256') $$;
+LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE AS $$ SELECT public.digest(value, 'sha256') $$;
 
 CREATE TABLE IF NOT EXISTS kcml.platform_incarnation (
   singleton_key smallint PRIMARY KEY DEFAULT 1 CHECK (singleton_key = 1),
@@ -213,6 +306,7 @@ ALTER TABLE kcml.secret_record ADD CONSTRAINT secret_record_active_version_fk
 
 CREATE UNIQUE INDEX IF NOT EXISTS secret_version_one_active_uq ON kcml.secret_version(secret_id) WHERE lifecycle = 'ACTIVE';
 DROP TRIGGER IF EXISTS protect_secret_version_row ON kcml.secret_version;
+DROP TRIGGER IF EXISTS protect_secret_version_row ON kcml.secret_version;
 CREATE TRIGGER protect_secret_version_row BEFORE UPDATE OR DELETE ON kcml.secret_version FOR EACH ROW EXECUTE FUNCTION kcml.protect_secret_version();
 
 CREATE TABLE IF NOT EXISTS kcml.owner_api_credential (
@@ -289,6 +383,9 @@ CREATE TABLE IF NOT EXISTS kcml.domain_command (
   activation_epoch bigint NOT NULL,
   platform_incarnation_id uuid NOT NULL,
   application_deployment_epoch bigint NOT NULL,
+  recovery_epoch bigint NOT NULL DEFAULT 1 CHECK (recovery_epoch > 0),
+  concurrency_claim_id uuid,
+  concurrency_fencing_token bigint CHECK (concurrency_fencing_token IS NULL OR concurrency_fencing_token > 0),
   UNIQUE (logical_operation_id)
 );
 CREATE INDEX IF NOT EXISTS domain_command_target_idx ON kcml.domain_command(target_id, accepted_at DESC);
@@ -302,7 +399,8 @@ CREATE TABLE IF NOT EXISTS kcml.activation_domain_head (
   updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   state_version bigint NOT NULL DEFAULT 1,
   platform_incarnation_id uuid NOT NULL,
-  application_deployment_epoch bigint NOT NULL
+  application_deployment_epoch bigint NOT NULL,
+  recovery_epoch bigint NOT NULL DEFAULT 1 CHECK (recovery_epoch > 0)
 );
 
 CREATE TABLE IF NOT EXISTS kcml.queue_item (
@@ -323,15 +421,19 @@ CREATE TABLE IF NOT EXISTS kcml.queue_item (
   updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   state_version bigint NOT NULL DEFAULT 1 CHECK (state_version > 0),
   platform_incarnation_id uuid NOT NULL,
-  application_deployment_epoch bigint NOT NULL
+  application_deployment_epoch bigint NOT NULL,
+  recovery_epoch bigint NOT NULL DEFAULT 1 CHECK (recovery_epoch > 0),
+  concurrency_claim_id uuid,
+  concurrency_fencing_token bigint CHECK (concurrency_fencing_token IS NULL OR concurrency_fencing_token > 0)
 );
 CREATE INDEX IF NOT EXISTS queue_claim_idx ON kcml.queue_item(queue_name, priority, available_at, id) WHERE status = 'READY';
 CREATE UNIQUE INDEX IF NOT EXISTS queue_command_active_uq ON kcml.queue_item(command_id) WHERE command_id IS NOT NULL AND status IN ('READY','CLAIMED');
 
 CREATE TABLE IF NOT EXISTS kcml.concurrency_claim (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  id uuid NOT NULL UNIQUE DEFAULT gen_random_uuid(),
   scope_kind text NOT NULL,
   scope_key text NOT NULL,
+  scope_key_digest bytea NOT NULL CHECK (octet_length(scope_key_digest) = 32),
   logical_operation_id uuid NOT NULL,
   owner_instance_id uuid NOT NULL,
   fencing_token bigint NOT NULL,
@@ -341,9 +443,11 @@ CREATE TABLE IF NOT EXISTS kcml.concurrency_claim (
   released_at timestamptz,
   state_version bigint NOT NULL DEFAULT 1,
   platform_incarnation_id uuid NOT NULL,
-  application_deployment_epoch bigint NOT NULL
+  application_deployment_epoch bigint NOT NULL,
+  recovery_epoch bigint NOT NULL DEFAULT 1 CHECK (recovery_epoch > 0),
+  PRIMARY KEY (scope_kind, scope_key_digest)
 );
-CREATE UNIQUE INDEX IF NOT EXISTS concurrency_claim_current_uq ON kcml.concurrency_claim(scope_kind, scope_key) WHERE released_at IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS concurrency_claim_scope_uq ON kcml.concurrency_claim(scope_kind, scope_key);
 
 CREATE TABLE IF NOT EXISTS kcml.sequence_allocator (
   sequence_namespace text NOT NULL,
@@ -376,6 +480,7 @@ CREATE TABLE IF NOT EXISTS kcml.transactional_outbox (
   created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   delivered_at timestamptz,
   state_version bigint NOT NULL DEFAULT 1,
+  recovery_epoch bigint NOT NULL DEFAULT 1 CHECK (recovery_epoch > 0),
   UNIQUE (stream_key, stream_sequence),
   UNIQUE (side_effect_operation_id, side_effect_attempt_sequence, id)
 );
@@ -414,6 +519,7 @@ CREATE TABLE IF NOT EXISTS kcml.side_effect_operation (
   state_version bigint NOT NULL DEFAULT 1,
   platform_incarnation_id uuid NOT NULL,
   application_deployment_epoch bigint NOT NULL,
+  recovery_epoch bigint NOT NULL DEFAULT 1 CHECK (recovery_epoch > 0),
   UNIQUE(command_id, step_key)
 );
 
@@ -485,12 +591,12 @@ DECLARE
   v_head kcml.audit_head%ROWTYPE;
   v_id uuid := gen_random_uuid();
   v_sequence bigint;
-  v_payload_digest bytea := digest(p_payload_canonical_bytes, 'sha256');
+  v_payload_digest bytea := public.digest(p_payload_canonical_bytes, 'sha256');
   v_event_hash bytea;
 BEGIN
   SELECT * INTO STRICT v_head FROM kcml.audit_head WHERE singleton_key = 1 FOR UPDATE;
   v_sequence := v_head.last_sequence + 1;
-  v_event_hash := digest(v_head.last_hash || int8send(v_sequence) || convert_to(p_event_type, 'UTF8') || v_payload_digest, 'sha256');
+  v_event_hash := public.digest(v_head.last_hash || int8send(v_sequence) || convert_to(p_event_type, 'UTF8') || v_payload_digest, 'sha256');
   INSERT INTO kcml.audit_event(id, chain_sequence, event_type, actor_kind, actor_id, aggregate_type, aggregate_id,
     correlation_id, causation_id, payload, payload_canonical_bytes, payload_digest, previous_hash, event_hash)
   VALUES (v_id, v_sequence, p_event_type, p_actor_kind, p_actor_id, p_aggregate_type, p_aggregate_id,
@@ -568,21 +674,52 @@ CREATE TABLE IF NOT EXISTS kcml.generation_activation_set (
 
 CREATE TABLE IF NOT EXISTS kcml.runtime_instance (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  component_id uuid,
-  release_id text NOT NULL,
-  runtime_generation bigint NOT NULL,
-  process_identity jsonb NOT NULL,
+  runtime_generation bigint NOT NULL CHECK (runtime_generation > 0),
+  component_id uuid NOT NULL,
+  runtime_target_id uuid NOT NULL,
+  source_revision_id uuid NOT NULL,
+  release_id uuid NOT NULL,
+  artifact_digest bytea NOT NULL,
+  runtime_digest bytea NOT NULL,
+  dependency_lock_digest bytea NOT NULL,
+  binding_set_revision_id uuid NOT NULL,
+  activation_epoch bigint NOT NULL CHECK (activation_epoch >= 0),
+  platform_incarnation_id uuid NOT NULL,
+  application_deployment_epoch bigint NOT NULL CHECK (application_deployment_epoch >= 0),
+  desired_state text NOT NULL CHECK (desired_state IN ('STOPPED','STARTING','READY','DRAINING','RESTARTING')),
+  effective_state text NOT NULL CHECK (effective_state IN ('ABSENT','STARTING','READY','DRAINING','STOPPED','FAILED','UNKNOWN')),
+  systemd_unit_name text NOT NULL,
+  expected_service_class text NOT NULL,
+  launch_manifest_digest bytea NOT NULL,
+  systemd_invocation_id uuid,
+  host_boot_id uuid,
+  main_pid integer CHECK (main_pid IS NULL OR main_pid > 0),
+  process_start_ticks bigint CHECK (process_start_ticks IS NULL OR process_start_ticks >= 0),
+  linux_uid integer NOT NULL CHECK (linux_uid >= 0),
+  linux_gid integer NOT NULL CHECK (linux_gid >= 0),
   cgroup_path text NOT NULL,
-  socket_path text NOT NULL,
-  capability_manifest_digest bytea NOT NULL,
-  status text NOT NULL CHECK (status IN ('STARTING','READY','DRAINING','STOPPED','FAILED','UNKNOWN')),
+  resource_profile_digest bytea NOT NULL,
+  namespace_profile_digest bytea NOT NULL,
+  seccomp_profile_digest bytea NOT NULL,
+  environment_profile_digest bytea NOT NULL,
+  fd_profile_digest bytea NOT NULL,
+  runtime_gateway_connection_id uuid,
+  ready_sequence bigint NOT NULL DEFAULT 0 CHECK (ready_sequence >= 0),
+  heartbeat_sequence bigint NOT NULL DEFAULT 0 CHECK (heartbeat_sequence >= 0),
+  effective_at timestamptz,
+  drain_logical_operation_id uuid,
+  stop_logical_operation_id uuid,
+  restart_logical_operation_id uuid,
+  cleanup_logical_operation_id uuid,
+  terminal_cleanup_state text NOT NULL DEFAULT 'NOT_STARTED',
   started_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   stopped_at timestamptz,
   heartbeat_at timestamptz,
   state_version bigint NOT NULL DEFAULT 1,
-  platform_incarnation_id uuid NOT NULL,
-  application_deployment_epoch bigint NOT NULL,
-  UNIQUE(component_id, runtime_generation)
+  canonical_digest bytea NOT NULL,
+  correlation_id uuid,
+  UNIQUE(component_id, runtime_generation),
+  UNIQUE(id, runtime_generation)
 );
 
 CREATE TABLE IF NOT EXISTS kcml.platform_worker_heartbeat (
@@ -591,65 +728,152 @@ CREATE TABLE IF NOT EXISTS kcml.platform_worker_heartbeat (
   release_id text NOT NULL,
   source_sha text NOT NULL,
   deployment_epoch bigint NOT NULL,
+  platform_incarnation_id uuid NOT NULL,
+  heartbeat_sequence bigint NOT NULL CHECK (heartbeat_sequence > 0),
+  nonce text NOT NULL CHECK (length(nonce) > 0),
   status text NOT NULL CHECK (status IN ('STARTING','READY','DEGRADED','DRAINING','FAILED')),
   details jsonb NOT NULL DEFAULT '{}',
   observed_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   expires_at timestamptz NOT NULL,
+  CHECK (expires_at > observed_at),
   PRIMARY KEY(service_name, instance_id)
 );
 CREATE INDEX IF NOT EXISTS service_heartbeat_fresh_idx ON kcml.platform_worker_heartbeat(service_name, expires_at DESC);
 
 CREATE TABLE IF NOT EXISTS kcml.mcp_call_run (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  component_id uuid NOT NULL,
+  request_event_id uuid NOT NULL,
   logical_operation_id uuid NOT NULL,
-  request_id_type text NOT NULL CHECK (request_id_type IN ('STRING','NUMBER','NULL')),
-  request_id_canonical text NOT NULL,
-  protocol_version text NOT NULL,
-  method text NOT NULL,
-  name text,
-  request_metadata jsonb NOT NULL,
-  request_payload jsonb NOT NULL,
-  request_digest bytea NOT NULL,
-  result_type text CHECK (result_type IN ('complete','task','input_required')),
-  response_payload jsonb,
-  response_digest bytea,
-  status text NOT NULL DEFAULT 'RECEIVED' CHECK (status IN ('RECEIVED','RUNNING','WAITING_INPUT','TASK_CREATED','COMPLETED','FAILED_FINAL','CANCELLED')),
+  idempotency_record_id uuid,
+  server_component_id uuid NOT NULL,
+  tool_key text,
+  server_revision_id uuid NOT NULL,
+  server_contract_digest bytea NOT NULL,
+  source_execution_context_id uuid,
+  binding_decision jsonb NOT NULL,
+  canonical_arguments jsonb NOT NULL,
+  arguments_digest bytea NOT NULL,
+  native_input_schema_digest bytea,
+  native_output_schema_digest bytea,
+  openai_projection_digest bytea,
+  side_effect_classification text NOT NULL,
+  retry_classification text NOT NULL,
+  idempotency_classification text NOT NULL,
+  concurrency_classification text NOT NULL,
+  ordering_classification text NOT NULL,
+  idempotency_key text,
+  concurrency_claim jsonb,
+  state text NOT NULL DEFAULT 'RECEIVED' CHECK (state IN ('RECEIVED','CLAIMED','EXECUTING','WAITING_FOR_INPUT','WAITING_FOR_TASK','RECONCILING','CANCEL_REQUESTED','SUCCEEDED','FAILED','CANCELLED','MANUAL_REVIEW')),
+  platform_incarnation_id uuid NOT NULL,
+  application_deployment_epoch bigint NOT NULL CHECK (application_deployment_epoch >= 0),
+  activation_epoch bigint NOT NULL CHECK (activation_epoch >= 0),
+  lease_owner uuid,
+  lease_fencing_token bigint,
+  lease_expires_at timestamptz,
+  heartbeat_at timestamptz,
+  cancellation_version bigint NOT NULL DEFAULT 0 CHECK (cancellation_version >= 0),
+  latest_checkpoint_id uuid,
+  side_effect_operation_ids uuid[] NOT NULL DEFAULT '{}',
+  reconciliation_outcome jsonb,
+  effective_deadline_at timestamptz NOT NULL,
+  idle_timeout_ms bigint NOT NULL CHECK (idle_timeout_ms > 0),
+  started_at timestamptz,
+  raw_attempt_output jsonb,
+  raw_attempt_output_digest bytea,
+  structured_result jsonb,
+  structured_content jsonb,
+  result_digest bytea,
+  jsonrpc_error jsonb,
+  tool_error jsonb,
+  retry_directive text,
+  audit_event_id uuid,
+  correlation_id uuid NOT NULL,
+  terminal_response jsonb,
+  response_delivery_state text NOT NULL DEFAULT 'NOT_MATERIALIZED',
+  canonical_digest bytea NOT NULL,
   created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   completed_at timestamptz,
   state_version bigint NOT NULL DEFAULT 1,
-  UNIQUE(component_id, request_id_type, request_id_canonical)
+  CHECK ((state IN ('SUCCEEDED','FAILED','CANCELLED')) = (completed_at IS NOT NULL))
 );
 
 CREATE TABLE IF NOT EXISTS kcml.mcp_input_exchange (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  mcp_call_id uuid NOT NULL REFERENCES kcml.mcp_call_run(id),
-  request_state text NOT NULL,
-  request_payload jsonb NOT NULL,
-  request_digest bytea NOT NULL,
-  response_payload jsonb,
-  response_digest bytea,
-  status text NOT NULL DEFAULT 'REQUESTED' CHECK (status IN ('REQUESTED','RESPONDED','CONSUMED','EXPIRED','CANCELLED')),
-  requested_at timestamptz NOT NULL DEFAULT clock_timestamp(),
-  responded_at timestamptz,
-  consumed_at timestamptz,
+  call_run_id uuid NOT NULL REFERENCES kcml.mcp_call_run(id),
+  logical_operation_id uuid NOT NULL,
+  exchange_sequence bigint NOT NULL CHECK (exchange_sequence > 0),
+  initial_result_request_id text NOT NULL,
+  retry_request_event_id uuid,
+  input_requests jsonb,
+  input_requests_digest bytea,
+  request_state_ciphertext bytea,
+  request_state_lookup_digest bytea,
+  original_method text NOT NULL,
+  original_arguments jsonb NOT NULL,
+  source_access_context jsonb NOT NULL,
+  server_revision_id uuid NOT NULL,
+  tool_revision_id uuid NOT NULL,
+  binding_set_revision_id uuid NOT NULL,
+  activation_epoch bigint NOT NULL CHECK (activation_epoch >= 0),
+  contract_digest_snapshot bytea NOT NULL,
+  status text NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING','PARTIALLY_FULFILLED','FULFILLED','EXPIRED','CONSUMED','INVALIDATED')),
+  consume_idempotency_key text,
   expires_at timestamptz NOT NULL,
-  state_version bigint NOT NULL DEFAULT 1
+  fulfilled_at timestamptz,
+  consumed_at timestamptz,
+  owner_approval_request_id uuid,
+  challenge_id uuid,
+  current_outcome jsonb,
+  terminal_outcome jsonb,
+  state_version bigint NOT NULL DEFAULT 1,
+  canonical_digest bytea NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+  CHECK (input_requests IS NOT NULL OR request_state_ciphertext IS NOT NULL),
+  UNIQUE(call_run_id,exchange_sequence)
 );
 
 CREATE TABLE IF NOT EXISTS kcml.mcp_task (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  mcp_call_id uuid NOT NULL REFERENCES kcml.mcp_call_run(id),
-  public_lookup_digest bytea NOT NULL UNIQUE,
-  status text NOT NULL DEFAULT 'WORKING' CHECK (status IN ('WORKING','INPUT_REQUIRED','COMPLETED','FAILED','CANCELLED')),
-  result jsonb,
-  event_sequence bigint NOT NULL DEFAULT 0,
+  server_component_id uuid NOT NULL,
+  tool_key text NOT NULL,
+  server_revision_id uuid NOT NULL,
+  original_call_run_id uuid NOT NULL REFERENCES kcml.mcp_call_run(id),
+  public_task_id text NOT NULL UNIQUE,
+  lookup_digest bytea NOT NULL UNIQUE,
+  logical_operation_id uuid NOT NULL,
+  source_execution_context_id uuid,
+  access_context jsonb NOT NULL,
+  binding_revision bigint NOT NULL,
+  activation_epoch bigint NOT NULL CHECK (activation_epoch >= 0),
+  original_request_digest bytea NOT NULL,
+  idempotency_key text,
+  wire_status text NOT NULL CHECK (wire_status IN ('working','input_required','completed','failed','cancelled')),
+  state text NOT NULL DEFAULT 'WORKING' CHECK (state IN ('WORKING','INPUT_REQUIRED','COMPLETED','FAILED','CANCELLED')),
+  cancellation_intent jsonb,
+  cancellation_version bigint NOT NULL DEFAULT 0 CHECK (cancellation_version >= 0),
+  expiry_intent jsonb,
+  platform_incarnation_id uuid NOT NULL,
+  application_deployment_epoch bigint NOT NULL CHECK (application_deployment_epoch >= 0),
   created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+  ttl_ms bigint NOT NULL CHECK (ttl_ms > 0),
   expires_at timestamptz NOT NULL,
+  poll_interval_ms bigint NOT NULL CHECK (poll_interval_ms > 0),
+  latest_checkpoint_id uuid,
+  pending_side_effect_ids uuid[] NOT NULL DEFAULT '{}',
+  final_method_result jsonb,
+  final_jsonrpc_error jsonb,
+  final_digest bytea,
+  lease_owner uuid,
+  lease_fencing_token bigint,
+  lease_expires_at timestamptz,
+  heartbeat_at timestamptz,
+  tombstoned_at timestamptz,
+  purged_at timestamptz,
   state_version bigint NOT NULL DEFAULT 1,
-  platform_incarnation_id uuid NOT NULL,
-  application_deployment_epoch bigint NOT NULL
+  canonical_digest bytea NOT NULL,
+  CHECK (expires_at = created_at + (ttl_ms * interval '1 millisecond')),
+  CHECK ((state IN ('COMPLETED','FAILED','CANCELLED')) = (final_digest IS NOT NULL))
 );
 
 CREATE TABLE IF NOT EXISTS kcml.ai_model_call (
@@ -657,6 +881,7 @@ CREATE TABLE IF NOT EXISTS kcml.ai_model_call (
   parent_run_id uuid NOT NULL,
   attempt_sequence bigint NOT NULL,
   model text NOT NULL,
+  request_descriptor_id uuid,
   request_descriptor jsonb NOT NULL,
   request_digest bytea NOT NULL,
   input_digest bytea NOT NULL,
@@ -731,18 +956,50 @@ CREATE TABLE IF NOT EXISTS kcml.agent_run (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   agent_definition_id uuid NOT NULL,
   agent_revision_id uuid NOT NULL,
+  agent_graph_snapshot_digest bytea NOT NULL,
+  tool_snapshot_digest bytea NOT NULL,
+  guardrail_snapshot_digest bytea NOT NULL,
+  source_execution_context_id uuid,
+  trigger_id uuid,
+  client_run_id text NOT NULL,
   logical_operation_id uuid NOT NULL,
+  idempotency_key text NOT NULL,
   mode text NOT NULL CHECK (mode IN ('INTERACTIVE','TRIGGERED','EVALUATION','REPAIR')),
-  status text NOT NULL DEFAULT 'QUEUED' CHECK (status IN ('QUEUED','RUNNING','WAITING_FOR_OWNER','WAITING_FOR_MCP_INPUT','WAITING_FOR_BROWSER','COMPLETED','FAILED_FINAL','CANCELLED_FINAL','MANUAL_REVIEW')),
+  status text NOT NULL DEFAULT 'QUEUED' CHECK (status IN ('QUEUED','PREPARING','RUNNING','WAITING_FOR_MODEL','WAITING_FOR_TOOL','WAITING_FOR_MCP_INPUT','WAITING_FOR_MCP_TASK','WAITING_FOR_AGENT','WAITING_FOR_OWNER','CHALLENGE_REQUIRED','PAUSED','SUCCEEDED','FAILED','CANCEL_REQUESTED','CANCELLED','MANUAL_REVIEW')),
   input jsonb NOT NULL,
+  input_digest bytea NOT NULL,
   output jsonb,
-  checkpoint_sequence bigint NOT NULL DEFAULT 0,
-  cancellation_version bigint NOT NULL DEFAULT 0,
+  output_digest bytea,
+  session_id uuid,
+  context_snapshot jsonb NOT NULL,
+  budget jsonb NOT NULL,
+  usage jsonb NOT NULL DEFAULT '{}',
+  cost_microunits bigint NOT NULL DEFAULT 0 CHECK (cost_microunits >= 0),
+  lease_owner uuid,
+  lease_fencing_token bigint,
+  lease_expires_at timestamptz,
+  heartbeat_at timestamptz,
+  cancellation_version bigint NOT NULL DEFAULT 0 CHECK (cancellation_version >= 0),
+  latest_checkpoint_id uuid,
+  checkpoint_sequence bigint NOT NULL DEFAULT 0 CHECK (checkpoint_sequence >= 0),
+  pending_side_effect_ids uuid[] NOT NULL DEFAULT '{}',
+  correlation_id uuid NOT NULL,
+  trace_id text,
   created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+  started_at timestamptz,
+  completed_at timestamptz,
   updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+  error jsonb,
+  manual_review_relation jsonb,
   state_version bigint NOT NULL DEFAULT 1,
   platform_incarnation_id uuid NOT NULL,
-  application_deployment_epoch bigint NOT NULL
+  application_deployment_epoch bigint NOT NULL,
+  activation_epoch bigint NOT NULL CHECK (activation_epoch >= 0),
+  canonical_digest bytea NOT NULL,
+  UNIQUE(agent_definition_id,client_run_id),
+  UNIQUE(agent_definition_id,idempotency_key),
+  CHECK ((status IN ('SUCCEEDED','FAILED','CANCELLED')) = (completed_at IS NOT NULL)),
+  CHECK ((status = 'SUCCEEDED') = (output_digest IS NOT NULL))
 );
 
 CREATE TABLE IF NOT EXISTS kcml.browser_account_binding (
@@ -917,21 +1174,44 @@ CREATE TABLE IF NOT EXISTS kcml.monitoring_probe (
 
 CREATE TABLE IF NOT EXISTS kcml.operational_alert (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  episode_id uuid NOT NULL DEFAULT gen_random_uuid() UNIQUE,
+  source_object_type text NOT NULL,
+  source_object_id uuid NOT NULL,
+  alert_type text NOT NULL,
+  condition_digest bytea NOT NULL CHECK (octet_length(condition_digest) = 32),
   fingerprint text NOT NULL,
-  severity text NOT NULL CHECK (severity IN ('INFO','WARNING','CRITICAL')),
+  severity text NOT NULL CHECK (severity IN ('WARNING','HIGH','CRITICAL')),
   status text NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN','ACKNOWLEDGED','SUPPRESSED','CLOSED')),
   title text NOT NULL,
+  detail text NOT NULL,
   evidence jsonb NOT NULL,
+  correlation_id uuid NOT NULL,
   first_seen_at timestamptz NOT NULL,
   last_seen_at timestamptz NOT NULL,
-  occurrence_count bigint NOT NULL DEFAULT 1,
+  occurrence_count bigint NOT NULL DEFAULT 1 CHECK (occurrence_count > 0),
+  latest_source_sequence bigint NOT NULL CHECK (latest_source_sequence > 0),
+  latest_observation_digest bytea NOT NULL CHECK (octet_length(latest_observation_digest) = 32),
+  source_release_id uuid,
+  source_activation_epoch bigint NOT NULL CHECK (source_activation_epoch >= 0),
+  suppressed_until timestamptz,
+  acknowledged_at timestamptz,
+  closed_at timestamptz,
+  recommended_action jsonb,
+  repair_reference text,
+  logical_operation_id uuid NOT NULL,
+  canonical_digest bytea NOT NULL CHECK (octet_length(canonical_digest) = 32),
   created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   state_version bigint NOT NULL DEFAULT 1,
   platform_incarnation_id uuid NOT NULL,
-  application_deployment_epoch bigint NOT NULL
+  application_deployment_epoch bigint NOT NULL CHECK (application_deployment_epoch >= 0),
+  recovery_epoch bigint NOT NULL CHECK (recovery_epoch > 0),
+  CHECK (first_seen_at <= last_seen_at),
+  CHECK ((status = 'CLOSED') = (closed_at IS NOT NULL)),
+  CHECK (status <> 'SUPPRESSED' OR suppressed_until IS NOT NULL)
 );
-CREATE UNIQUE INDEX IF NOT EXISTS alert_open_fingerprint_uq ON kcml.operational_alert(fingerprint) WHERE status IN ('OPEN','ACKNOWLEDGED');
+CREATE UNIQUE INDEX IF NOT EXISTS alert_open_fingerprint_uq ON kcml.operational_alert(fingerprint) WHERE status IN ('OPEN','ACKNOWLEDGED','SUPPRESSED');
+CREATE INDEX IF NOT EXISTS operational_alert_source_episode_idx ON kcml.operational_alert(source_object_type,source_object_id,alert_type,condition_digest,last_seen_at DESC);
 
 CREATE TABLE IF NOT EXISTS kcml.self_test_run (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1036,6 +1316,7 @@ CREATE TABLE IF NOT EXISTS kcml.schema_migration (
   CHECK (lease_expires_at IS NULL OR lease_acquired_at IS NULL OR lease_expires_at > lease_acquired_at)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uq_schema_migration_active ON kcml.schema_migration((1)) WHERE terminal_at IS NULL;
+DROP TRIGGER IF EXISTS touch_schema_migration ON kcml.schema_migration;
 CREATE TRIGGER touch_schema_migration BEFORE UPDATE ON kcml.schema_migration FOR EACH ROW EXECUTE FUNCTION kcml.touch_mutable_row();
 
 CREATE TABLE IF NOT EXISTS kcml.backup_record (
@@ -1108,5 +1389,14 @@ BEGIN
     EXECUTE format('CREATE TRIGGER immutable_row BEFORE UPDATE OR DELETE ON kcml.%I FOR EACH ROW EXECUTE FUNCTION kcml.reject_mutation()', table_name);
   END LOOP;
 END $$;
+
+DROP TRIGGER IF EXISTS guard_mcp_call_lifecycle ON kcml.mcp_call_run;
+CREATE TRIGGER guard_mcp_call_lifecycle BEFORE UPDATE OR DELETE ON kcml.mcp_call_run FOR EACH ROW EXECUTE FUNCTION kcml.guard_mcp_lifecycle('state');
+DROP TRIGGER IF EXISTS guard_mcp_input_lifecycle ON kcml.mcp_input_exchange;
+CREATE TRIGGER guard_mcp_input_lifecycle BEFORE UPDATE OR DELETE ON kcml.mcp_input_exchange FOR EACH ROW EXECUTE FUNCTION kcml.guard_mcp_lifecycle('status');
+DROP TRIGGER IF EXISTS guard_mcp_task_lifecycle ON kcml.mcp_task;
+CREATE TRIGGER guard_mcp_task_lifecycle BEFORE UPDATE OR DELETE ON kcml.mcp_task FOR EACH ROW EXECUTE FUNCTION kcml.guard_mcp_lifecycle('state');
+DROP TRIGGER IF EXISTS guard_agent_run_lifecycle ON kcml.agent_run;
+CREATE TRIGGER guard_agent_run_lifecycle BEFORE UPDATE OR DELETE ON kcml.agent_run FOR EACH ROW EXECUTE FUNCTION kcml.guard_agent_run_lifecycle();
 
 COMMIT;

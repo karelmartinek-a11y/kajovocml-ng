@@ -51,12 +51,12 @@ async function appendBrokerAudit(client: DatabaseClient, eventType: string, exec
 async function stateRead(pool: ReturnType<typeof createDatabasePool>, executionId: string, payload: JsonObject): Promise<unknown> {
   const key = String(payload.key ?? '');
   if (!key || key.length > 512) throw new Error('RUNTIME_STATE_KEY_INVALID');
-  const result = await pool.query(`SELECT id,document,state_version,activation_epoch,application_deployment_epoch
+  const result = await pool.query(`SELECT id,persistent_state,state_version,activation_epoch,application_deployment_epoch
     FROM kcml.component_runtime_target
     WHERE stable_key=$1 AND lifecycle='ACTIVE' AND deleted_at IS NULL`, [runtimeStateKey(executionId)]);
   const row = result.rows[0];
   if (!row) return null;
-  const document = (row.document ?? {}) as JsonObject;
+  const document = (row.persistent_state ?? {}) as JsonObject;
   const values = (document.values ?? {}) as JsonObject;
   const record = values[key] as JsonObject | undefined;
   if (!record || record.deleted === true) return null;
@@ -86,8 +86,8 @@ async function stateWrite(pool: ReturnType<typeof createDatabasePool>, execution
     let row = (await client.query(`SELECT * FROM kcml.component_runtime_target WHERE stable_key=$1 FOR UPDATE`, [stableKey])).rows[0];
     if (!row) {
       if (operation !== 'create' && operation !== 'put') throw new Error('RUNTIME_STATE_NOT_FOUND');
-      row = (await client.query(`INSERT INTO kcml.component_runtime_target(stable_key,display_name,lifecycle,document,activation_epoch,platform_incarnation_id,application_deployment_epoch)
-        VALUES($1,$2,'ACTIVE',$3,$4,$5,$6) RETURNING *`, [
+      row = (await client.query(`INSERT INTO kcml.component_runtime_target(stable_key,display_name,lifecycle,transport,execution_mode,readiness_mode,persistent_state,activation_epoch,platform_incarnation_id,application_deployment_epoch)
+        VALUES($1,$2,'ACTIVE','RUNTIME_GATEWAY_UDS','PERSISTENT_STATE','HEALTHCHECK',$3,$4,$5,$6) RETURNING *`, [
         stableKey,
         `Persistent state ${executionId}`,
         { executionId, persistentState: true, namespaceVersion: 1, values: {} },
@@ -97,7 +97,7 @@ async function stateWrite(pool: ReturnType<typeof createDatabasePool>, execution
       ])).rows[0];
     }
 
-    const document = { ...((row.document ?? {}) as JsonObject) };
+    const document = { ...((row.persistent_state ?? {}) as JsonObject) };
     const values = { ...((document.values ?? {}) as JsonObject) };
     const current = values[key] as JsonObject | undefined;
     const currentVersion = current ? BigInt(String(current.stateVersion ?? 0)) : 0n;
@@ -119,7 +119,7 @@ async function stateWrite(pool: ReturnType<typeof createDatabasePool>, execution
     document.namespaceVersion = (BigInt(row.state_version) + 1n).toString();
     document.lastCorrelationId = typeof payload.correlationId === 'string' ? payload.correlationId : null;
     const updated = (await client.query(`UPDATE kcml.component_runtime_target AS t
-      SET document=$2,state_version=t.state_version+1,activation_epoch=$3,application_deployment_epoch=$4,updated_at=clock_timestamp()
+      SET persistent_state=$2,state_version=t.state_version+1,activation_epoch=$3,application_deployment_epoch=$4,updated_at=clock_timestamp()
       WHERE t.id=$1 RETURNING *`, [row.id, document, heads.activation_epoch, heads.current_epoch])).rows[0];
     await appendBrokerAudit(client, `runtime.state.${operation}`, executionId, 'COMPONENT_RUNTIME_TARGET', row.id, { key, stateVersion: nextVersion.toString(), valueDigest: sha256(value), correlationId: payload.correlationId ?? null });
     return {
@@ -138,10 +138,10 @@ async function stateWrite(pool: ReturnType<typeof createDatabasePool>, execution
 async function egressRequest(pool: ReturnType<typeof createDatabasePool>, executionId: string, payload: JsonObject): Promise<unknown> {
   const bindingId = String(payload.bindingId ?? '');
   if (!bindingId) throw new Error('EXTERNAL_BINDING_REQUIRED');
-  const binding = await pool.query(`SELECT id,document,lifecycle,state_version FROM kcml.external_target WHERE id::text=$1 OR stable_key=$1 LIMIT 1`, [bindingId]);
+  const binding = await pool.query(`SELECT id,target_key,base_url,allowed_paths,allowed_methods,timeout_ms,retry_policy,rate_limit,circuit_state,auth_binding_id,monitoring,lifecycle,state_version FROM kcml.external_target WHERE id::text=$1 OR stable_key=$1 OR target_key=$1 LIMIT 1`, [bindingId]);
   const row = binding.rows[0];
   if (!row || row.lifecycle !== 'ACTIVE') throw new Error('EXTERNAL_BINDING_NOT_READY');
-  const definition = (row.document ?? {}) as JsonObject;
+  const definition = row as JsonObject;
   const outgoing = (payload.request ?? {}) as JsonObject;
   const baseUrl = definition.baseUrl ?? definition.base_url;
   if (typeof baseUrl !== 'string') throw new Error('EXTERNAL_TARGET_BASE_URL_MISSING');
@@ -191,21 +191,33 @@ export async function runService(options: ServiceOptions): Promise<void> {
   const logger = new StructuredLogger(options.serviceName);
   const pool = createDatabasePool({ applicationName: options.serviceName });
   const instanceId = randomUUID();
+  const processAuthority = (await pool.query(`SELECT p.platform_incarnation_id,d.current_epoch AS application_deployment_epoch
+    FROM kcml.platform_incarnation p CROSS JOIN kcml.application_deployment_head d
+    WHERE p.singleton_key=1 AND d.singleton_key=1`)).rows[0];
+  if (!processAuthority) throw new Error('PLATFORM_WORKER_AUTHORITY_MISSING');
   let stopping = false;
 
   const heartbeat = async (status: 'STARTING' | 'READY' | 'DRAINING' | 'FAILED', details: Record<string, unknown> = {}) => {
-    const epoch = await pool.query(`SELECT current_epoch FROM kcml.application_deployment_head WHERE singleton_key=1`);
-    await pool.query(`INSERT INTO kcml.platform_worker_heartbeat(service_name,instance_id,release_id,source_sha,deployment_epoch,status,details,expires_at)
-      VALUES($1,$2,$3,$4,$5,$6,$7,clock_timestamp()+interval '30 seconds')
-      ON CONFLICT(service_name,instance_id) DO UPDATE SET status=EXCLUDED.status,details=EXCLUDED.details,observed_at=clock_timestamp(),expires_at=EXCLUDED.expires_at`, [
+    const written = await pool.query(`INSERT INTO kcml.platform_worker_heartbeat(service_name,instance_id,release_id,source_sha,deployment_epoch,platform_incarnation_id,heartbeat_sequence,nonce,status,details,expires_at)
+      SELECT $1,$2,$3,$4,$5,$6,1,$7,$8,$9,clock_timestamp()+interval '30 seconds'
+      WHERE EXISTS (SELECT 1 FROM kcml.platform_incarnation p CROSS JOIN kcml.application_deployment_head d WHERE p.singleton_key=1 AND d.singleton_key=1 AND p.platform_incarnation_id=$6 AND d.current_epoch=$5)
+      ON CONFLICT(service_name,instance_id) DO UPDATE SET
+        status=EXCLUDED.status,details=EXCLUDED.details,observed_at=clock_timestamp(),expires_at=EXCLUDED.expires_at,
+        heartbeat_sequence=kcml.platform_worker_heartbeat.heartbeat_sequence+1,nonce=EXCLUDED.nonce
+      WHERE kcml.platform_worker_heartbeat.platform_incarnation_id=EXCLUDED.platform_incarnation_id
+        AND kcml.platform_worker_heartbeat.deployment_epoch=EXCLUDED.deployment_epoch
+      RETURNING heartbeat_sequence`, [
       options.serviceName,
       instanceId,
       process.env.KCML_RELEASE_ID ?? 'development',
       requiredSourceSha(),
-      epoch.rows[0].current_epoch,
+      processAuthority.application_deployment_epoch,
+      processAuthority.platform_incarnation_id,
+      randomUUID(),
       status,
       details
     ]);
+    if (written.rowCount !== 1) throw new Error('PLATFORM_WORKER_HEARTBEAT_AUTHORITY_STALE');
   };
 
   await heartbeat('STARTING');

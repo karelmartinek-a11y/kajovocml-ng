@@ -4400,7 +4400,7 @@
       "routeKey": "POST /alerts/:id/acknowledge",
       "contractDigest": "a66545e33898f89b6e9daeab6e3a3712abf43ecc40933ecc0aa8975e18f39798",
       "entity": "operational_alert",
-      "operation": null,
+      "operation": "monitor.alert.update",
       "mutating": true
     },
     {
@@ -4410,7 +4410,7 @@
       "routeKey": "POST /alerts/:id/suppress",
       "contractDigest": "c5b9204df6e68d02579bd52e867f72a5a82d6078cd13d916628a2747157305d3",
       "entity": "operational_alert",
-      "operation": null,
+      "operation": "monitor.alert.update",
       "mutating": true
     },
     {
@@ -4450,7 +4450,7 @@
       "routeKey": "GET /workers/heartbeats",
       "contractDigest": "97eda6c8272beec48fce7fb08f23f1a16d5b3271603945eac9a9a6d650c15b51",
       "entity": "platform_worker_heartbeat",
-      "operation": null,
+      "operation": "monitor.heartbeat.observe",
       "mutating": false
     },
     {
