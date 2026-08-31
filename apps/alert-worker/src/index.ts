@@ -1,0 +1,1 @@
+import { runService } from '@kcml/worker-runtime'; await runService({serviceName:process.env.KCML_ALERT_ASSIGNMENT==='backup'?'kcml-alert-backup-worker':'kcml-alert-primary-worker',queueNames:['kcml-monitor']});

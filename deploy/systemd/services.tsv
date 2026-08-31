@@ -1,0 +1,24 @@
+# unit|app|user|address-families|read-write-paths|socket-dependencies|enabled
+kcml-web-api|server|kcml-web-api|AF_UNIX|/run/kajovocml-ng /var/lib/kajovocml-ng/data|Requires=kcml-web-api.socket After=kcml-web-api.socket|yes
+kcml-runtime-gateway|runtime-gateway|kcml-runtime-gateway|AF_UNIX|/run/kajovocml-ng/gateway /var/lib/kajovocml-ng/runtime|Requires=kcml-runtime-gateway.socket After=kcml-runtime-gateway.socket|yes
+kcml-central-chat-worker|central-chat-worker|kcml-chat|AF_UNIX AF_INET AF_INET6|/var/lib/kajovocml-ng/data| |yes
+kcml-generation-coordinator|generation-coordinator|kcml-gen-coord|AF_UNIX|/var/lib/kajovocml-ng/generation| |yes
+kcml-generation-openai-worker|generation-openai-worker|kcml-gen-openai|AF_UNIX AF_INET AF_INET6|/var/lib/kajovocml-ng/generation| |yes
+kcml-generation-workspace-worker|generation-workspace-worker|kcml-gen-work|AF_UNIX|/var/lib/kajovocml-ng/generation /var/lib/kajovocml-ng/components| |yes
+kcml-generation-integration-worker|generation-integration-worker|kcml-gen-int|AF_UNIX|/var/lib/kajovocml-ng/generation /var/lib/kajovocml-ng/components| |yes
+kcml-generation-validation-worker|generation-validation-worker|kcml-gen-val|AF_UNIX AF_INET AF_INET6|/var/lib/kajovocml-ng/generation /var/lib/kajovocml-ng/components| |yes
+kcml-generation-activation-worker|generation-activation-worker|kcml-gen-act|AF_UNIX|/var/lib/kajovocml-ng/generation /var/lib/kajovocml-ng/components| |yes
+kcml-agent-worker|agent-worker|kcml-agent|AF_UNIX AF_INET AF_INET6|/var/lib/kajovocml-ng/data| |yes
+kcml-browser-worker|browser-worker|kcml-browser-worker|AF_UNIX|/var/lib/kajovocml-ng/browser| |yes
+kcml-browser-bridge-gateway|browser-bridge-gateway|kcml-browser-bridge|AF_UNIX AF_INET AF_INET6|/var/lib/kajovocml-ng/browser| |yes
+kcml-component-control-worker|component-control-worker|kcml-comp-ctl|AF_UNIX|/var/lib/kajovocml-ng/components| |yes
+kcml-component-e2e-worker|component-e2e-worker|kcml-comp-e2e|AF_UNIX AF_INET AF_INET6|/var/lib/kajovocml-ng/components| |yes
+kcml-monitor-worker|monitor-worker|kcml-monitor|AF_UNIX AF_INET AF_INET6|/var/lib/kajovocml-ng/data| |yes
+kcml-alert-primary-worker|alert-worker|kcml-alert-p|AF_UNIX AF_INET AF_INET6|/var/lib/kajovocml-ng/data|Environment=KCML_ALERT_ASSIGNMENT=primary|yes
+kcml-alert-backup-worker|alert-worker|kcml-alert-b|AF_UNIX AF_INET AF_INET6|/var/lib/kajovocml-ng/data|Environment=KCML_ALERT_ASSIGNMENT=backup|yes
+kcml-secret-broker|secret-broker|kcml-secret-broker|AF_UNIX|/run/kajovocml-ng/brokers /var/lib/kajovocml-ng/data|Requires=kcml-secret-broker.socket After=kcml-secret-broker.socket|yes
+kcml-state-broker|state-broker|kcml-state-broker|AF_UNIX|/run/kajovocml-ng/brokers /var/lib/kajovocml-ng/runtime|Requires=kcml-state-broker.socket After=kcml-state-broker.socket|yes
+kcml-egress-gateway|egress-gateway|kcml-egress-gateway|AF_UNIX AF_INET AF_INET6|/run/kajovocml-ng/brokers /var/lib/kajovocml-ng/data|Requires=kcml-egress-gateway.socket After=kcml-egress-gateway.socket|yes
+kcml-audit-archiver|audit-archiver|kcml-audit|AF_UNIX|/var/lib/kajovocml-ng/audit| |yes
+kcml-self-test-worker|self-test-runtime|kcml-selftest|AF_UNIX AF_INET AF_INET6|/var/lib/kajovocml-ng/data /var/lib/kajovocml-ng/browser| |yes
+kcml-acceptance-runner|acceptance-runner|kcml-accept|AF_UNIX AF_INET AF_INET6|/var/lib/kajovocml-ng/data /var/lib/kajovocml-ng/browser| |no

@@ -1,0 +1,14 @@
+[Unit]
+Description=KájovoCML NG web API socket
+
+[Socket]
+ListenStream=/run/kajovocml-ng/web-api.sock
+SocketUser=kcml-web-api
+SocketGroup=www-data
+SocketMode=0660
+DirectoryMode=0750
+Accept=no
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target

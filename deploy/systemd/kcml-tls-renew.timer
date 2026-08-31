@@ -1,0 +1,9 @@
+[Unit]
+Description=KájovoCML NG bounded TLS renewal schedule
+[Timer]
+OnCalendar=*-*-* 03,15:41:00 UTC
+RandomizedDelaySec=1200
+Persistent=true
+Unit=kcml-tls-renew.service
+[Install]
+WantedBy=timers.target

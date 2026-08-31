@@ -1,0 +1,45 @@
+name: Release build
+on:
+  workflow_call:
+    inputs:
+      source_sha: { required: true, type: string }
+    secrets:
+      RELEASE_SIGNING_KEY: { required: true }
+    outputs:
+      release_id:
+        value: ${{ jobs.build.outputs.release_id }}
+  workflow_dispatch:
+permissions: { contents: read }
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    outputs:
+      release_id: ${{ steps.metadata.outputs.release_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: '${{ inputs.source_sha || github.sha }}' }
+      - name: Verify exact source
+        run: test "$(git rev-parse HEAD)" = "${SOURCE_SHA}"
+        env: { SOURCE_SHA: '${{ inputs.source_sha || github.sha }}' }
+      - uses: pnpm/action-setup@v4
+        with: { version: 11.19.0, run_install: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: '24.11.1', cache: pnpm }
+      - run: sudo apt-get update && sudo apt-get install -y minisign
+      - run: pnpm install --frozen-lockfile
+      - name: Materialize signing identity
+        run: install -m 0600 /dev/null "$RUNNER_TEMP/release.key" && printf '%s' "$RELEASE_SIGNING_KEY" > "$RUNNER_TEMP/release.key"
+        env: { RELEASE_SIGNING_KEY: '${{ secrets.RELEASE_SIGNING_KEY }}' }
+      - name: Build reproducible signed bundle
+        run: deploy/scripts/build-release.sh release-output
+        env:
+          GITHUB_SHA: '${{ inputs.source_sha || github.sha }}'
+          KCML_MINISIGN_SECRET_KEY_FILE: '${{ runner.temp }}/release.key'
+      - id: metadata
+        run: echo "release_id=$(cat release-output/RELEASE_ID)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kcml-release-${{ steps.metadata.outputs.release_id }}
+          path: release-output/
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,1327 @@
+{
+  "schemaVersion": "1.0",
+  "authority": "SSOT_CURRENT.md",
+  "fingerprint": "d1e1020ff347a9aea8bcf21f4443759b2ae165757b7a53112a2d9f6e0c9c4eb7",
+  "records": [
+    {
+      "name": "owner_identity",
+      "ordinal": 1,
+      "contractDigest": "5202b65805b025284e4b1232c1871032ca5680aa8d63e07936221e436efb4102",
+      "immutable": false
+    },
+    {
+      "name": "owner_session",
+      "ordinal": 2,
+      "contractDigest": "2e00afc47eb9c9ac1c1440193cec671dc36013b0a41ade64d48955c1ea331001",
+      "immutable": false
+    },
+    {
+      "name": "owner_login_throttle",
+      "ordinal": 3,
+      "contractDigest": "837a190e5e933072bfc2a21b75ca724ab83b708ec4220aefd7b11cfa04fb41df",
+      "immutable": false
+    },
+    {
+      "name": "owner_recovery_code",
+      "ordinal": 4,
+      "contractDigest": "1aba1f84117b2678c660adab9fab8a427efe1cfd7b21c0773a5f0c43bb68c159",
+      "immutable": false
+    },
+    {
+      "name": "owner_mfa_enrollment",
+      "ordinal": 5,
+      "contractDigest": "0b4b2d1ded79f44f98e69ea4745f4f903885ae0d059f75da8a4f534bc1e1ed34",
+      "immutable": false
+    },
+    {
+      "name": "owner_api_credential",
+      "ordinal": 6,
+      "contractDigest": "fa75399249a9e52da54974468e1b81843a0b70798ae6394e5dc23a3d68f0358e",
+      "immutable": false
+    },
+    {
+      "name": "component",
+      "ordinal": 7,
+      "contractDigest": "384f38971ccbda3155fff0dc9b3eedea0ab0474092944a23858074b39ae2dec7",
+      "immutable": false
+    },
+    {
+      "name": "component_revision",
+      "ordinal": 8,
+      "contractDigest": "d9cd12ffbb61af96b00aa6b76c257f88ca5dde1b56ce96180b16bd2eda05d661",
+      "immutable": true
+    },
+    {
+      "name": "component_tool_contract",
+      "ordinal": 9,
+      "contractDigest": "4b8ef4561ccb88f6eaa9bcd3b701f4a74ad9deac7331ae948c618ea9b01b6bd8",
+      "immutable": false
+    },
+    {
+      "name": "component_resource_contract",
+      "ordinal": 10,
+      "contractDigest": "a4f6769f249d7a9670cfbfa035ea18c40f3e3c7b5dad44549257eacce64a4467",
+      "immutable": false
+    },
+    {
+      "name": "component_prompt_contract",
+      "ordinal": 11,
+      "contractDigest": "a533854a025952e3381016de98835981f16a10d27edcd127dd2b6b2282a8866f",
+      "immutable": false
+    },
+    {
+      "name": "component_endpoint_contract",
+      "ordinal": 12,
+      "contractDigest": "d82ef64a692d386a1d8be5095dd75d1467fdac604268971af66a7a6789791482",
+      "immutable": false
+    },
+    {
+      "name": "component_pulse_contract",
+      "ordinal": 13,
+      "contractDigest": "e8ad3aa8670870d69f16faeb2291cc9f5d76803417c2a8c7168d9508906c04dc",
+      "immutable": false
+    },
+    {
+      "name": "component_state_contract",
+      "ordinal": 14,
+      "contractDigest": "e64f6b144b05d8e4d5afac8b6f6450c1a6d15f12ad629de8e5fa1efe30b2c255",
+      "immutable": false
+    },
+    {
+      "name": "component_state_transition",
+      "ordinal": 15,
+      "contractDigest": "71893302b34b5487d2903936cda1afc0501b80d6795a5bedf4ff5349231d99b1",
+      "immutable": false
+    },
+    {
+      "name": "component_runtime_target",
+      "ordinal": 16,
+      "contractDigest": "6105997913a989391316d141ce9ca341c312b3f933939297c71e8682f1956581",
+      "immutable": false
+    },
+    {
+      "name": "component_contract_binding",
+      "ordinal": 17,
+      "contractDigest": "192ecef3b97652d5724a583c84dfb60a94b321cfbe16bb3944cb683bcef5faa3",
+      "immutable": false
+    },
+    {
+      "name": "component_release",
+      "ordinal": 18,
+      "contractDigest": "9c89428a76d6169596ed5a9799591bb2a2aeff0f99c7a5c0d5bae7c45bdc8981",
+      "immutable": false
+    },
+    {
+      "name": "component_readiness_gate",
+      "ordinal": 19,
+      "contractDigest": "9f206372c2a20d7342fdd96eb7d087b39fdd45081959efece9ae63d9c1d05867",
+      "immutable": false
+    },
+    {
+      "name": "component_e2e_run",
+      "ordinal": 20,
+      "contractDigest": "33d71c863387acc99b87d77447eec4fc1a615e9f425a821168daa9afd1c425bf",
+      "immutable": false
+    },
+    {
+      "name": "mcp_server_revision_profile",
+      "ordinal": 21,
+      "contractDigest": "83da6b86fce011752e3e6c8a541c41588befafbe81655aaa230ed7c99a1ffb72",
+      "immutable": false
+    },
+    {
+      "name": "mcp_registration_probe",
+      "ordinal": 22,
+      "contractDigest": "e468d094f6ac95e997588bfb5c3e127d59d52b2597fd939bda2070a6a49fe678",
+      "immutable": false
+    },
+    {
+      "name": "mcp_discovery_snapshot",
+      "ordinal": 23,
+      "contractDigest": "c5ed4fd4b299ac1fa5f76604628fa1e2166bc97bc3d31ed61cede8b06bbf6ac9",
+      "immutable": true
+    },
+    {
+      "name": "mcp_discovery_item",
+      "ordinal": 24,
+      "contractDigest": "baaa5a8daaad8061cef6b1dba53d08a68157acf0d368d6edbc606dce14a3d6ec",
+      "immutable": true
+    },
+    {
+      "name": "mcp_tool_alias",
+      "ordinal": 25,
+      "contractDigest": "394235517224957b3c82b85f859ec881fbd44baac6268ef942a8290aeb25d9d7",
+      "immutable": false
+    },
+    {
+      "name": "mcp_request_event",
+      "ordinal": 26,
+      "contractDigest": "707da407858420e716f570ce6c241c1047d1d35029416245bc02749d32684624",
+      "immutable": true
+    },
+    {
+      "name": "mcp_call_run",
+      "ordinal": 27,
+      "contractDigest": "6cb12d1ed3c03f5abd9a957e8b21fee9a416541e07f874bb8cfe0fa96293babb",
+      "immutable": true
+    },
+    {
+      "name": "mcp_call_progress",
+      "ordinal": 28,
+      "contractDigest": "239de41d0451ac62e44e6ac6d0a8d65e8ca8209bc83200b3629a351f755e2a76",
+      "immutable": false
+    },
+    {
+      "name": "mcp_input_exchange",
+      "ordinal": 29,
+      "contractDigest": "99df47f873f575e5cc672a46e1ff7a41e73bf6893d108d25c39d984cbb8a824a",
+      "immutable": false
+    },
+    {
+      "name": "mcp_input_request_item",
+      "ordinal": 30,
+      "contractDigest": "2c467be26f73c761ce9573fc89be6d18acff9e60b4e431b769cf71d849378fb4",
+      "immutable": true
+    },
+    {
+      "name": "mcp_input_response_item",
+      "ordinal": 31,
+      "contractDigest": "ee080670b8fc3637fe9fcb07cef4495beb6d8ac00f03d2ce842361af9e486b05",
+      "immutable": true
+    },
+    {
+      "name": "mcp_subscription",
+      "ordinal": 32,
+      "contractDigest": "abc369393b7f3c909c153e5b54b2be1609927ccf7c89ea0acf72caba10630537",
+      "immutable": false
+    },
+    {
+      "name": "mcp_subscription_notification",
+      "ordinal": 33,
+      "contractDigest": "30c85f0dfcd970145329a84fd5d94040f784dde2591c09853a730f8680dd7b7a",
+      "immutable": true
+    },
+    {
+      "name": "mcp_state_handle",
+      "ordinal": 34,
+      "contractDigest": "b283296d265635bacdb183c8b2ffb2853ce470eaff367e1de3aa2e12f91eaa91",
+      "immutable": false
+    },
+    {
+      "name": "mcp_task",
+      "ordinal": 35,
+      "contractDigest": "f7491655f131f4f6391230d000696076a4270ff3b5d0c09fd475cc0d333e55ff",
+      "immutable": true
+    },
+    {
+      "name": "mcp_task_input_request",
+      "ordinal": 36,
+      "contractDigest": "cee47e54a6a6e45b343712a3d4d173be4cfc2186d3fd4fc826a8788427c912c9",
+      "immutable": false
+    },
+    {
+      "name": "mcp_task_input_response",
+      "ordinal": 37,
+      "contractDigest": "2ae5c09e3d62802a41728417d0cf021734584ab96acffed840d788a6bb4dc420",
+      "immutable": false
+    },
+    {
+      "name": "mcp_task_event",
+      "ordinal": 38,
+      "contractDigest": "0d63c0b87e8afb8c1b3c7290e4acebb37893b7b760bae7502215ccfd585a2312",
+      "immutable": true
+    },
+    {
+      "name": "mcp_idempotency_record",
+      "ordinal": 39,
+      "contractDigest": "245fc8327b4b013bb51787b28d1cb1d1affd1cdb700667bca2332b23d83808b9",
+      "immutable": false
+    },
+    {
+      "name": "runtime_execution_context",
+      "ordinal": 40,
+      "contractDigest": "c0a19c31011d12795b5030d0c71c4e1c441e205ac8446d0e07961b9662f56e1c",
+      "immutable": true
+    },
+    {
+      "name": "runtime_instance",
+      "ordinal": 41,
+      "contractDigest": "24e8b589e594804bd70a168418110937013a5b382e6f5e67b36fc20fbc6d728c",
+      "immutable": false
+    },
+    {
+      "name": "runtime_process_identity",
+      "ordinal": 42,
+      "contractDigest": "6795ff111d219d90787f3081bddbf10d44011a2141faceaba9b36d19fb83b0bb",
+      "immutable": true
+    },
+    {
+      "name": "runtime_ipc_connection",
+      "ordinal": 43,
+      "contractDigest": "665817a8f896bf729784807c7b3d4de81fac0e3598fed278291ae8e15dd88cd3",
+      "immutable": false
+    },
+    {
+      "name": "runtime_ipc_call",
+      "ordinal": 44,
+      "contractDigest": "d1959ac652f7b17e747f4a8104592a0b844fef753e6fbba1daa3efc4b42f5804",
+      "immutable": false
+    },
+    {
+      "name": "runtime_credential_generation",
+      "ordinal": 45,
+      "contractDigest": "6fc9e8753e0998af07c24f17d1cddf957ba0616ac080d35dadabb5976ccfa2eb",
+      "immutable": false
+    },
+    {
+      "name": "runtime_cleanup_operation",
+      "ordinal": 46,
+      "contractDigest": "4d7f47d281b0a906a3962976750bebbc10f2aa1f7fa03ebc10e44e2e9e738f83",
+      "immutable": false
+    },
+    {
+      "name": "external_auth_binding",
+      "ordinal": 47,
+      "contractDigest": "ee5a20e69c3f234a8561de45bd0d89b40f3b414a1c02725f0ccfff8d7577e755",
+      "immutable": false
+    },
+    {
+      "name": "secret_record",
+      "ordinal": 48,
+      "contractDigest": "6809b7e9e627599b71f1bfdf2ad184137595b855178dad9a052b106561d550fb",
+      "immutable": false
+    },
+    {
+      "name": "secret_version",
+      "ordinal": 49,
+      "contractDigest": "f57592de545ca70dfd4b3f4b8567ca64eb3cca4c5d17551a7e7deb18a55b634a",
+      "immutable": true
+    },
+    {
+      "name": "secret_binding",
+      "ordinal": 50,
+      "contractDigest": "0e48e2f299a2ef3bdc532a3803c972d8e5670a7ab74894326b86450a4aad0786",
+      "immutable": false
+    },
+    {
+      "name": "secret_resolution",
+      "ordinal": 51,
+      "contractDigest": "a74f1ed839c706326a3ba14b2bcd9927fcb97c56add8cfad245330e17eff1f06",
+      "immutable": false
+    },
+    {
+      "name": "secret_access_event",
+      "ordinal": 52,
+      "contractDigest": "74567accad4aaaa5f503ee19c3a327532f1c9b9e832db969a5529c4829eb9619",
+      "immutable": true
+    },
+    {
+      "name": "external_target",
+      "ordinal": 53,
+      "contractDigest": "920fc071f3ff232cef12bd2ba89765e2386fe259f2670ac32210338b20906c62",
+      "immutable": false
+    },
+    {
+      "name": "external_target_binding",
+      "ordinal": 54,
+      "contractDigest": "96e11636803ab2981900aafc4c1a56801eb45a0328d9de2d9090eaf565251abe",
+      "immutable": false
+    },
+    {
+      "name": "external_request_event",
+      "ordinal": 55,
+      "contractDigest": "9f2ab4c49c8084702b1aedf468f493f00622fc9be7d960c675123fc7d0048de7",
+      "immutable": true
+    },
+    {
+      "name": "webhook_endpoint",
+      "ordinal": 56,
+      "contractDigest": "733413d7e3e904a8cbb4fdeb10c7fbbb55b210a8c0252f6b57722ddf063d5d55",
+      "immutable": false
+    },
+    {
+      "name": "dashboard_workspace",
+      "ordinal": 57,
+      "contractDigest": "abfc206b277d763a108869ecd60160c2845e6f44dcf95bb081d7f17d7870ead5",
+      "immutable": false
+    },
+    {
+      "name": "dashboard_node_position",
+      "ordinal": 58,
+      "contractDigest": "b350ca6c2a92dab5d2ee9fb98243f4fb51a55069a118665e7c08e9abaff32830",
+      "immutable": false
+    },
+    {
+      "name": "dashboard_connection",
+      "ordinal": 59,
+      "contractDigest": "b81e6bb4f3aa0e941d2e0694792298b584a8a08c52bb192d2f1a7b213a161f1c",
+      "immutable": false
+    },
+    {
+      "name": "dashboard_runtime_event",
+      "ordinal": 60,
+      "contractDigest": "0115591f784cdf2bfbb3aeaeb5a39118bb76830c0692871c12a71b3c09085a92",
+      "immutable": true
+    },
+    {
+      "name": "monitoring_profile",
+      "ordinal": 61,
+      "contractDigest": "f777ad5320596f849a852c1d4d05260c80b15c2fbaa8def63b5d71cdc7757133",
+      "immutable": false
+    },
+    {
+      "name": "monitoring_probe",
+      "ordinal": 62,
+      "contractDigest": "a27d7412d473a13b019a07163567bf0baf485fd93fb8f24c2964f5136e7d8c16",
+      "immutable": false
+    },
+    {
+      "name": "component_state_history",
+      "ordinal": 63,
+      "contractDigest": "81a9c066766115bfdcdcd12ba494bef2518f303d4152372946c5945db41ceacb",
+      "immutable": true
+    },
+    {
+      "name": "operational_alert",
+      "ordinal": 64,
+      "contractDigest": "caa4ceca8ccac15fd6c6ca9d3965a61b8253fa3daa5f238357d7d486876b4504",
+      "immutable": false
+    },
+    {
+      "name": "alert_delivery",
+      "ordinal": 65,
+      "contractDigest": "443375f741163c5bf58d997cf18f853094dbcd27c3ad64233bfaadf06601bf7f",
+      "immutable": false
+    },
+    {
+      "name": "monitoring_scheduler_heartbeat",
+      "ordinal": 66,
+      "contractDigest": "7ed4504b9e9aa0a9b67f5318db46c60e9f60a2efebead3bc4a634f88d845ed14",
+      "immutable": false
+    },
+    {
+      "name": "platform_worker_heartbeat",
+      "ordinal": 67,
+      "contractDigest": "7bf0d94676ef2803ed6d763491725f7ec98bcdf7c3646e993e2678ac7ebd435f",
+      "immutable": false
+    },
+    {
+      "name": "audit_event",
+      "ordinal": 68,
+      "contractDigest": "960fdf4a2e6b087766298b4bf6756cd769bb5c5efdc2062069e78c669c423c9b",
+      "immutable": true
+    },
+    {
+      "name": "audit_head",
+      "ordinal": 69,
+      "contractDigest": "e48128802aae7326f79c04d0b546ba320813c172c9f55ca9b458d5e78d0ebb32",
+      "immutable": false
+    },
+    {
+      "name": "audit_archive_outbox",
+      "ordinal": 70,
+      "contractDigest": "82d1b1729c99fcb33f7ddc7b0c470c3f8bd9d9ab3ed3b0d15c6f343caeb32e79",
+      "immutable": false
+    },
+    {
+      "name": "component_audit_stream",
+      "ordinal": 71,
+      "contractDigest": "25e2b8b088ca8711b483677eff21f7a0875521d5981283874c94546d95296bbf",
+      "immutable": false
+    },
+    {
+      "name": "component_audit_event",
+      "ordinal": 72,
+      "contractDigest": "3f9343f3b2711ab19cea9071007f959a9ba484695f0fdb1dc46ca5f6917bd610",
+      "immutable": true
+    },
+    {
+      "name": "debug_log_event",
+      "ordinal": 73,
+      "contractDigest": "484cb2a251702276ca326db3c79838cc1930df192f3f40bfbd0bc9a0ef6374c5",
+      "immutable": true
+    },
+    {
+      "name": "generation_job",
+      "ordinal": 74,
+      "contractDigest": "c80f35874cba13e216c55bfd09c52c70dde7afdd13bf60e67516ca33ae0494c9",
+      "immutable": true
+    },
+    {
+      "name": "generation_source",
+      "ordinal": 75,
+      "contractDigest": "17e8bec823b186bcc979a4725319f7d8f2cf75c33de85337361ebe2f12b4df12",
+      "immutable": false
+    },
+    {
+      "name": "generation_fact",
+      "ordinal": 76,
+      "contractDigest": "3e820d05a588257f79b52dac354482f3f831ba46fbe6c7e581b615303b5355f2",
+      "immutable": true
+    },
+    {
+      "name": "generation_owner_decision",
+      "ordinal": 77,
+      "contractDigest": "9ade52f97b34411d6ca54a1e321f8ef129706e3ec439f75f25330e485f71f96d",
+      "immutable": true
+    },
+    {
+      "name": "generation_message",
+      "ordinal": 78,
+      "contractDigest": "48d5cb4bd0e7f7492ee78d0a2973ce9f95df76a3daa70a4251e2fbad7b599c12",
+      "immutable": true
+    },
+    {
+      "name": "generation_turn",
+      "ordinal": 79,
+      "contractDigest": "ef4bc462bb46ff1bc3d591c92f296a8b0fa98b46f268006f9f6c0dc3ef6783c2",
+      "immutable": true
+    },
+    {
+      "name": "generation_spec_revision",
+      "ordinal": 80,
+      "contractDigest": "09a5437b2f00fb5e124ccff112333f26307bdd9b62684c48052d9bc1143cafb4",
+      "immutable": true
+    },
+    {
+      "name": "generation_execution_authority",
+      "ordinal": 81,
+      "contractDigest": "d9c3a6f94461d14af5521246d6098388b44a9e0936c2956df15d3e1123534b14",
+      "immutable": false
+    },
+    {
+      "name": "generation_capability_snapshot",
+      "ordinal": 82,
+      "contractDigest": "6b8e32474462ab0177b9171278b9131f6afe3714066235ac7b8fe4414cf62d5e",
+      "immutable": true
+    },
+    {
+      "name": "generation_capability_match",
+      "ordinal": 83,
+      "contractDigest": "5c632cef35fbe94bf1a2223aefef2ccc566384334a99e1d83900a5aa968b5267",
+      "immutable": false
+    },
+    {
+      "name": "generation_plan",
+      "ordinal": 84,
+      "contractDigest": "c690c63f06ce24bc612ffb0d08257b5653856356786ad8457ea44f9edf28cbde",
+      "immutable": false
+    },
+    {
+      "name": "generation_plan_node",
+      "ordinal": 85,
+      "contractDigest": "d7d72d44211d0db10ed8fcf385b660e3f5f720176685d43b4f8e6c8e1bee7a2e",
+      "immutable": false
+    },
+    {
+      "name": "generation_plan_edge",
+      "ordinal": 86,
+      "contractDigest": "c1db14c613b4f0babcea7eba774868769398118e2f3c56a67a094f9a7d03dcb9",
+      "immutable": false
+    },
+    {
+      "name": "generation_phase_run",
+      "ordinal": 87,
+      "contractDigest": "d4eb317d01e0c41666ac8f98452977eb8505016f3445ac7ca78aa98eceea2454",
+      "immutable": false
+    },
+    {
+      "name": "generation_checkpoint",
+      "ordinal": 88,
+      "contractDigest": "b366d5e068ae1499ed5a2712c460f08f5797ad02c39ec674006831dedd4c8f71",
+      "immutable": true
+    },
+    {
+      "name": "generation_tool_event",
+      "ordinal": 89,
+      "contractDigest": "efc24ac170776e7697722398fdb30b7fc9c8a15a3458d4c1a1e4ba63ab9417bf",
+      "immutable": true
+    },
+    {
+      "name": "generation_workspace_revision",
+      "ordinal": 90,
+      "contractDigest": "0fd83fdc63f79eebba63295dd63890bdbf562641a21bf0c1dcac94b298b78373",
+      "immutable": true
+    },
+    {
+      "name": "generation_workspace_file",
+      "ordinal": 91,
+      "contractDigest": "a8f5dcd3d62d0dbce1623b654465b0d8f7782947d7d0895512f7a501fe4fd603",
+      "immutable": false
+    },
+    {
+      "name": "generation_workspace_patch",
+      "ordinal": 92,
+      "contractDigest": "a4c69361b3e2d6bb25a3732a42a04c73c914c6c851b6bfb3b6ca4e42363a6d20",
+      "immutable": false
+    },
+    {
+      "name": "generation_artifact_manifest",
+      "ordinal": 93,
+      "contractDigest": "e0b61eac76b0e1945c40611dfb0bc400b7dedd6189dd046c03dbd6ec5030bfaa",
+      "immutable": false
+    },
+    {
+      "name": "generation_artifact",
+      "ordinal": 94,
+      "contractDigest": "a549c1996712afd7277aa8d5ed05f694945f372060f87c62e8b7543f8a41e3ff",
+      "immutable": true
+    },
+    {
+      "name": "generation_contract_candidate",
+      "ordinal": 95,
+      "contractDigest": "bf34f162ea749f152130c7d9e425270ef1feec4c94821752f82113e207ab3585",
+      "immutable": false
+    },
+    {
+      "name": "generation_validation_run",
+      "ordinal": 96,
+      "contractDigest": "c27b4009039b5df43026f8ffe831fde603d800175bb471f1861c35ed639440a7",
+      "immutable": false
+    },
+    {
+      "name": "generation_validation_result",
+      "ordinal": 97,
+      "contractDigest": "0d4819ff105b2412e3ca1f0f41914ee24e77c1bd953ba78fe2f58025d6774513",
+      "immutable": true
+    },
+    {
+      "name": "generation_repair_iteration",
+      "ordinal": 98,
+      "contractDigest": "e52a087bbf3379882dcba9124cb4eea613d468e9ec0fdcbe64ab4f1836609b72",
+      "immutable": false
+    },
+    {
+      "name": "generation_blocker",
+      "ordinal": 99,
+      "contractDigest": "71b7ba69920be43367f8bd5f8c95e2b517204e4c174150ededf962b1eb6b9fd7",
+      "immutable": false
+    },
+    {
+      "name": "generation_activation_set",
+      "ordinal": 100,
+      "contractDigest": "1aa2f841e089f97e4aa560dbbea5c91340ee0964f4aa7a23f1e5752c8ae092c1",
+      "immutable": true
+    },
+    {
+      "name": "generation_activation_member",
+      "ordinal": 101,
+      "contractDigest": "18210f30137a2d7da1332d71ce8c0b5f6b06361ee38a74c1a93f4a7df019f456",
+      "immutable": true
+    },
+    {
+      "name": "generation_event",
+      "ordinal": 102,
+      "contractDigest": "709b244cff790629e7964e625fc2e74854641be1cc8dda704ba2ec3ad8296141",
+      "immutable": true
+    },
+    {
+      "name": "openai_model_capability_snapshot",
+      "ordinal": 103,
+      "contractDigest": "9381d5e270096a3b63be2995f5612e8ee30c4dd4ad947d4082113d5f9a63167a",
+      "immutable": true
+    },
+    {
+      "name": "openai_request_descriptor",
+      "ordinal": 104,
+      "contractDigest": "3509574e873fe06a3da3c7a0dd8cf32a92ee33a6ca269039ec21ded11df0a792",
+      "immutable": true
+    },
+    {
+      "name": "ai_model_call",
+      "ordinal": 105,
+      "contractDigest": "d4f06f7f2bc44908c7efa7a9ce07dcff75f79878ff1cd7669efdbac6f775e884",
+      "immutable": false
+    },
+    {
+      "name": "ai_model_event",
+      "ordinal": 106,
+      "contractDigest": "7c470c5ba69ba5cf1ddb12b33e4545254c10d23ebe625ba9f7901b29bc634bd2",
+      "immutable": true
+    },
+    {
+      "name": "ai_model_output_item",
+      "ordinal": 107,
+      "contractDigest": "cdb438b936d95900f518d698cf2a644a0a31214c98d1f85cac09939e9885ef07",
+      "immutable": true
+    },
+    {
+      "name": "ai_model_output_content_part",
+      "ordinal": 108,
+      "contractDigest": "7431b11ba459ca3730ff5d30f90882ec88715cc225a378c6fa624bb2d8d7d5c0",
+      "immutable": true
+    },
+    {
+      "name": "ai_tool_dispatch",
+      "ordinal": 109,
+      "contractDigest": "96179860ebe44499aeed0a82f660c668bcc9760229ba6cba262dc8e30b5958fb",
+      "immutable": true
+    },
+    {
+      "name": "ai_model_continuation",
+      "ordinal": 110,
+      "contractDigest": "39b6065a94cad409cef5f618cb0226796e01c515108c36a7e1a59eaf38e7740b",
+      "immutable": true
+    },
+    {
+      "name": "ai_run_state_checkpoint",
+      "ordinal": 111,
+      "contractDigest": "b8d7dd9fd3e687689a94f936a0f1c519bbcd9234572b884c06bd25a42e5112c7",
+      "immutable": true
+    },
+    {
+      "name": "agent_session_compaction",
+      "ordinal": 112,
+      "contractDigest": "678e11743137d72ce56b15a283dfba8ffdd1732a0df53f31012a6af5485dee81",
+      "immutable": true
+    },
+    {
+      "name": "agent_definition",
+      "ordinal": 113,
+      "contractDigest": "6e4bd6d6a12d4cfad2b9597def7b9facb4ec8de9b6eb15a86f8adde9af50c317",
+      "immutable": false
+    },
+    {
+      "name": "agent_revision",
+      "ordinal": 114,
+      "contractDigest": "62214f9a953c907b1aac5cfda24ea736322ea82914454a7ffe3fc01505daca8d",
+      "immutable": true
+    },
+    {
+      "name": "agent_tool_binding",
+      "ordinal": 115,
+      "contractDigest": "ee383f6be6fd94e747265b1c0d5e6ea4e7071caff64ba442ef2ce57bdf1417a7",
+      "immutable": false
+    },
+    {
+      "name": "agent_handoff_binding",
+      "ordinal": 116,
+      "contractDigest": "d7d6cb217bda7ccc0fb55a015eff14355aea506c64335b3be6638c500a3c4918",
+      "immutable": false
+    },
+    {
+      "name": "agent_guardrail",
+      "ordinal": 117,
+      "contractDigest": "7994ecd21afec62e3423503184d8bc972a80ed0cdb17f48a2374c75cbc052536",
+      "immutable": false
+    },
+    {
+      "name": "agent_session",
+      "ordinal": 118,
+      "contractDigest": "282531b1163eb07453e581796d3b03a30fc70b6f84116d83f063d1f6158b3014",
+      "immutable": false
+    },
+    {
+      "name": "agent_session_item",
+      "ordinal": 119,
+      "contractDigest": "10a1f4deff9cdce2da560ec839e0fe939f035e202c0a6b7c69946af02c5286ba",
+      "immutable": true
+    },
+    {
+      "name": "agent_run",
+      "ordinal": 120,
+      "contractDigest": "7b331d24edb9f021bdf727176e8f589753764096baa3ace1ff5aa46d83205b06",
+      "immutable": true
+    },
+    {
+      "name": "agent_run_checkpoint",
+      "ordinal": 121,
+      "contractDigest": "a0163bbc6cf806d1a662c3ed20490de7f1393de899e1ed6e01f8b34323e9b51a",
+      "immutable": true
+    },
+    {
+      "name": "agent_message",
+      "ordinal": 122,
+      "contractDigest": "9a1c8d45241bce7b273d68ae06c42ceeba37d67461d5f57516ad6fd14246f078",
+      "immutable": true
+    },
+    {
+      "name": "agent_tool_call",
+      "ordinal": 123,
+      "contractDigest": "275ff1824e8d5bf0338fc06dcbf944e9fe84e28797399fc7de209f1149e51434",
+      "immutable": false
+    },
+    {
+      "name": "agent_handoff_run",
+      "ordinal": 124,
+      "contractDigest": "6e25ef87f5877c2d4db729e32ab4b4ac85dd34d6cee6a2b546dcfee06d96f480",
+      "immutable": false
+    },
+    {
+      "name": "agent_approval_request",
+      "ordinal": 125,
+      "contractDigest": "fa805e1f33208e83e7dda4c8165782af18ee765e47a7805100153c37fcab353c",
+      "immutable": false
+    },
+    {
+      "name": "agent_memory_namespace",
+      "ordinal": 126,
+      "contractDigest": "f44431c2f49f7c3b53e2ae448a1231a36fa69426e2fb431ecda04ebf3138242e",
+      "immutable": false
+    },
+    {
+      "name": "agent_memory_item",
+      "ordinal": 127,
+      "contractDigest": "9f401879424e20b004ba9a19eda4d641586d230955bf092454bb825d711271be",
+      "immutable": true
+    },
+    {
+      "name": "agent_trigger",
+      "ordinal": 128,
+      "contractDigest": "73cd99dc7bdc4d03d3b06e4d9e07bc80c1f1b9ecda1a4f0d5f9dc5639ed45a56",
+      "immutable": false
+    },
+    {
+      "name": "agent_eval_suite",
+      "ordinal": 129,
+      "contractDigest": "e96e0323e3ea24af1b4ab8def3c2ce432a48e9672a38a432090ba469d4772aad",
+      "immutable": false
+    },
+    {
+      "name": "agent_eval_case",
+      "ordinal": 130,
+      "contractDigest": "c6fbfe857eb855595e34f5b4e4f27185fda87b102fe0e8c2aa99cc325efec4bd",
+      "immutable": false
+    },
+    {
+      "name": "agent_eval_run",
+      "ordinal": 131,
+      "contractDigest": "60082c6a18ccd829498638072a61e4806a62eaaffc03ae6dbda9b072bf8677f7",
+      "immutable": false
+    },
+    {
+      "name": "agent_eval_case_result",
+      "ordinal": 132,
+      "contractDigest": "b3017aba6da9774a51b688e48de102f0aa7fdb68dc1ef9d5a22ed9587236ea77",
+      "immutable": true
+    },
+    {
+      "name": "system_chat_conversation",
+      "ordinal": 133,
+      "contractDigest": "9822ca4ebc1e5f6cbefff4cf541c3b606172ca65e91633338e6319abc4893744",
+      "immutable": false
+    },
+    {
+      "name": "system_chat_message",
+      "ordinal": 134,
+      "contractDigest": "0acb85bc091e968776885604cc5c2f58ee76d20782459b5ad8f5a7d2abbac6c0",
+      "immutable": true
+    },
+    {
+      "name": "system_chat_action",
+      "ordinal": 135,
+      "contractDigest": "bf0aa03487a2698a8a2a8ff3799e70afd67eaf38270d8e2a618f76c89cf735d3",
+      "immutable": false
+    },
+    {
+      "name": "browser_runtime_build_manifest",
+      "ordinal": 136,
+      "contractDigest": "0f54d76a64a550846b173897a8cf63d24a96e8a4b7e5c90ea248e21d4a976864",
+      "immutable": true
+    },
+    {
+      "name": "browser_session",
+      "ordinal": 137,
+      "contractDigest": "f028bb414b843be5dac4ad263dd61934073b3027ed25f824fe3cead7fe166d9c",
+      "immutable": false
+    },
+    {
+      "name": "browser_session_binding",
+      "ordinal": 138,
+      "contractDigest": "b600c45d72391f933a18fa1cda3dbe7c56beefee0703aa80c7c58023f9b9aab9",
+      "immutable": false
+    },
+    {
+      "name": "browser_host_slot",
+      "ordinal": 139,
+      "contractDigest": "03f76107d623e84943ebd45038051b7304a051a3c4b97abdd7303716f0919287",
+      "immutable": false
+    },
+    {
+      "name": "browser_context_instance",
+      "ordinal": 140,
+      "contractDigest": "17e21be04a8045f4787290f17c5ae17999ec464a8f87b214fb7803d0d112ba4b",
+      "immutable": false
+    },
+    {
+      "name": "browser_page",
+      "ordinal": 141,
+      "contractDigest": "60fafa41219f47d1a8370b53c5f8b7300e5a7ccc1400ae2c6edadab4f5ca06ff",
+      "immutable": false
+    },
+    {
+      "name": "browser_frame",
+      "ordinal": 142,
+      "contractDigest": "8562f6250fb7aaa6fe1deb65c51d9c5eec52aadc83cafb68763bc1e21dddf3cc",
+      "immutable": false
+    },
+    {
+      "name": "browser_document",
+      "ordinal": 143,
+      "contractDigest": "d73b7b15afc7c0016dbe481c072ade0c542f92c249531414674b95d182c95ea3",
+      "immutable": false
+    },
+    {
+      "name": "browser_navigation",
+      "ordinal": 144,
+      "contractDigest": "fe05af2cda7861d7bf4e7702665c0ecf3a1a3f5cfe42679f933aa6ea7f489271",
+      "immutable": false
+    },
+    {
+      "name": "browser_observation",
+      "ordinal": 145,
+      "contractDigest": "efe443a3958b570308f472853eb75a67427505320949d62e95373ccb2d917af3",
+      "immutable": false
+    },
+    {
+      "name": "browser_preview_frame",
+      "ordinal": 146,
+      "contractDigest": "2c524fdd35d76e21a8664ddda2a6a84cfc6b42bf710ff7111688525d8881123b",
+      "immutable": false
+    },
+    {
+      "name": "browser_preview_ticket",
+      "ordinal": 147,
+      "contractDigest": "a25f8771acd8bf47c577a748879e44d004820ee69c557c6e6e851c06a1feacfe",
+      "immutable": false
+    },
+    {
+      "name": "browser_preview_event",
+      "ordinal": 148,
+      "contractDigest": "28b1d10fefaaaca6c6961da9965a03163da91540d49a945cf9fb16bb0cc81f14",
+      "immutable": true
+    },
+    {
+      "name": "browser_control_lease",
+      "ordinal": 149,
+      "contractDigest": "11777922fb20a2be1a8ff0120a05c776c004b4a83bc6436193b1e8ff439f1384",
+      "immutable": false
+    },
+    {
+      "name": "browser_control_transfer",
+      "ordinal": 150,
+      "contractDigest": "163fb268295d1a19f8911e1abfb6d04c295c8c2d4dd732b0a6e139f19eb32db2",
+      "immutable": false
+    },
+    {
+      "name": "browser_input_event",
+      "ordinal": 151,
+      "contractDigest": "e9e81bcebe9c3aa9aa3e5c502f48a8a1ec94fa06536b8777843584938e9d8e73",
+      "immutable": true
+    },
+    {
+      "name": "browser_target_reference",
+      "ordinal": 152,
+      "contractDigest": "da87ee3e2a7760e4bb7925679f4c049fe9822912ac7fcaf18422ca563a6070cb",
+      "immutable": false
+    },
+    {
+      "name": "browser_action_run",
+      "ordinal": 153,
+      "contractDigest": "ac70c339f38599132977a8d624d12f0841d1f0e0c103a890a69040a14abafd88",
+      "immutable": true
+    },
+    {
+      "name": "browser_action_attempt",
+      "ordinal": 154,
+      "contractDigest": "deae1488f8312c57100c3b3305380ce3d004ca6731c95e6223232235187008e1",
+      "immutable": true
+    },
+    {
+      "name": "browser_action_dispatch_event",
+      "ordinal": 155,
+      "contractDigest": "68a1fcdfa0375f5e2515e65816df81b465ae5221dd97ce4d767f256727ba0c5c",
+      "immutable": true
+    },
+    {
+      "name": "browser_operation_scope",
+      "ordinal": 156,
+      "contractDigest": "a52213bd68835ebd7168dc5fea3f9342d9f612c9a9d6cc2649ccf6816a8c8384",
+      "immutable": false
+    },
+    {
+      "name": "browser_irreversible_confirmation",
+      "ordinal": 157,
+      "contractDigest": "f26f5fb04557f24f00ea4d96c45d0f0b2ad7ed1acd66ad38d3bde8be900c847f",
+      "immutable": false
+    },
+    {
+      "name": "browser_account_binding",
+      "ordinal": 158,
+      "contractDigest": "f9875ca55d13b3ccdaeb5c65ee2a50812a024b8967a48950c40a6a157edc706a",
+      "immutable": false
+    },
+    {
+      "name": "browser_auth_attempt",
+      "ordinal": 159,
+      "contractDigest": "c45c106ac7b336edcec80c57996c547d22d1be376eb9c63c999e2d6aca1614b8",
+      "immutable": true
+    },
+    {
+      "name": "browser_state_bundle",
+      "ordinal": 160,
+      "contractDigest": "1d4d28d8a62edaee6aeb05c9bea99bc482a5c692ee8814bee54221e5066fb04d",
+      "immutable": true
+    },
+    {
+      "name": "browser_state_bundle_member",
+      "ordinal": 161,
+      "contractDigest": "d1cfd1efa3339be3ac23607fa9266065cb3882eb04930b4707d67c7268845728",
+      "immutable": true
+    },
+    {
+      "name": "browser_local_bridge",
+      "ordinal": 162,
+      "contractDigest": "f4280d70634831c7d4a5715dfbfe78dbaabe07cdf83ff71aeed72bf84163b16a",
+      "immutable": false
+    },
+    {
+      "name": "browser_bridge_connection",
+      "ordinal": 163,
+      "contractDigest": "9011b9cd24d2563dd275d05a3b4a35c3cf489d3f54be02e59687f0591d4929f8",
+      "immutable": false
+    },
+    {
+      "name": "browser_bridge_assignment",
+      "ordinal": 164,
+      "contractDigest": "924a092864218f14f87792d1d2d96c9eb56a1fd1c2827a99e2adb7bcf6fd35be",
+      "immutable": false
+    },
+    {
+      "name": "browser_profile_lease",
+      "ordinal": 165,
+      "contractDigest": "d813cf29424bce63dcd797dbb88313298c03058c332daa7434f6e2b25dfa6130",
+      "immutable": false
+    },
+    {
+      "name": "browser_dialog",
+      "ordinal": 166,
+      "contractDigest": "11cd64e8b0aa67ff6053fd436879091dac4517ca16b5a98e36067fd1daa8d9f1",
+      "immutable": false
+    },
+    {
+      "name": "browser_permission_request",
+      "ordinal": 167,
+      "contractDigest": "2467931e8ee27e8e6c206a4fc149dd7552d0e3d423888e66401028b6848bf6a4",
+      "immutable": false
+    },
+    {
+      "name": "browser_upload_handle",
+      "ordinal": 168,
+      "contractDigest": "0e0c8dcc2d8b878c304a2b2fa71f0f8641cc65df48a858c75363834767d8159e",
+      "immutable": false
+    },
+    {
+      "name": "browser_download",
+      "ordinal": 169,
+      "contractDigest": "728ebdb29befd619ac8b113cabf182a7dc5f4104f3d9b04856cc874ee7302045",
+      "immutable": false
+    },
+    {
+      "name": "browser_teaching_run",
+      "ordinal": 170,
+      "contractDigest": "3dce69c80a191fda83a89edd466591aa5d5152ace4b4833fcaa6992a5dbbda6b",
+      "immutable": false
+    },
+    {
+      "name": "browser_teaching_step",
+      "ordinal": 171,
+      "contractDigest": "4e10efb019d1fdfdfdfcf307222f637bb0913cea8844bb6fdf8936a946657883",
+      "immutable": false
+    },
+    {
+      "name": "browser_automation_definition",
+      "ordinal": 172,
+      "contractDigest": "28e33b260ffe2751a453c910eeb32ffdfec89ce5c1dda66bbc63cfc95c0bf776",
+      "immutable": false
+    },
+    {
+      "name": "browser_automation_revision",
+      "ordinal": 173,
+      "contractDigest": "76a3a8c03ab1997eefaeec7ef23f5438e80ada9f8335c7e0981c728568545b2e",
+      "immutable": true
+    },
+    {
+      "name": "browser_automation_run",
+      "ordinal": 174,
+      "contractDigest": "eda12b2e12fff951c28bd0fb39503ecb92da8525eae5906088bb5042be9836b7",
+      "immutable": true
+    },
+    {
+      "name": "browser_automation_run_step",
+      "ordinal": 175,
+      "contractDigest": "b858df59cd96a1b01d22f859e98defc0eac7dce2a47a1e8436b21558990b96cf",
+      "immutable": false
+    },
+    {
+      "name": "browser_automation_artifact",
+      "ordinal": 176,
+      "contractDigest": "4df2fd57f7b79201c513cfe48b817c2a6d44c9b7f9f72bb1e80ccba561c65bc1",
+      "immutable": true
+    },
+    {
+      "name": "browser_auth_binding",
+      "ordinal": 177,
+      "contractDigest": "80272d715501f887078fc17038672580bbd942b5c093ca47064bd4d9a4eea215",
+      "immutable": false
+    },
+    {
+      "name": "browser_challenge",
+      "ordinal": 178,
+      "contractDigest": "870cd8fc26d49235192bfe6dc362930448f70d68c4f61a139bf4fc634e873bea",
+      "immutable": false
+    },
+    {
+      "name": "self_test_run",
+      "ordinal": 179,
+      "contractDigest": "88438342bb0fb73cece5f6eb92667d1763a8e073ff281712a882fb33e1cbe0f1",
+      "immutable": false
+    },
+    {
+      "name": "self_test_case_result",
+      "ordinal": 180,
+      "contractDigest": "a2d323f303bd6a1646c17c5fb59628ad5f946c9a9bd75bdc34e6585b882ecf9d",
+      "immutable": true
+    },
+    {
+      "name": "self_test_catalog_entry",
+      "ordinal": 181,
+      "contractDigest": "124b2576f054c198be7230faac0e60bb4268547eebe3b0037407c0cc42a7edf8",
+      "immutable": false
+    },
+    {
+      "name": "application_release",
+      "ordinal": 182,
+      "contractDigest": "de22195b8824a29d77a35acd044ed21c7b56df32a0b2ed34a912396c72bc2fd1",
+      "immutable": true
+    },
+    {
+      "name": "deployment_run",
+      "ordinal": 183,
+      "contractDigest": "2bb3f6a80b70a9adcb7ac0a7729920cbbf825544ab682beaf2ed5a5a7198e2ea",
+      "immutable": false
+    },
+    {
+      "name": "deployment_step",
+      "ordinal": 184,
+      "contractDigest": "45d3486c55065e0c6863f3cfafad8035cdd136936d7b26e13aa4b233310d9528",
+      "immutable": false
+    },
+    {
+      "name": "backup_record",
+      "ordinal": 185,
+      "contractDigest": "a92095ee87e2e71e84fc39d8ac019129b1b884b5bc66858c3ff2eaa98c2e7d61",
+      "immutable": false
+    },
+    {
+      "name": "production_acceptance_run",
+      "ordinal": 186,
+      "contractDigest": "0f7cf2ca8971f3ee7d45f791b6dcbdc8bb8ba4af1703897857969fa8415dbdcd",
+      "immutable": false
+    },
+    {
+      "name": "operational_setting",
+      "ordinal": 187,
+      "contractDigest": "eeb39fe1fbbf784fc5dfb15c258eb5ac9828cfa57455a80b564bae80189fb5c0",
+      "immutable": false
+    },
+    {
+      "name": "operational_setting_applied",
+      "ordinal": 188,
+      "contractDigest": "79cce5f19b5745d994681c0bc01d32a8cbb938c7b966f39e7944bff251834f7e",
+      "immutable": false
+    },
+    {
+      "name": "platform_incarnation",
+      "ordinal": 189,
+      "contractDigest": "08fec80f6eb0e3a2498958f41e8639cf5fc7592e2b88b4a98872fe0a614ba771",
+      "immutable": false
+    },
+    {
+      "name": "domain_command",
+      "ordinal": 190,
+      "contractDigest": "609c4a0fc16095f48fcbf36c0e598f9bdf4ee56d0ab23e1558eed0d2177cd406",
+      "immutable": false
+    },
+    {
+      "name": "domain_idempotency_record",
+      "ordinal": 191,
+      "contractDigest": "a5c5278b625cfde630f3a5bd8b336ba023d2ef0c2935774c2e5367d9fac9de24",
+      "immutable": false
+    },
+    {
+      "name": "side_effect_operation",
+      "ordinal": 192,
+      "contractDigest": "0770f6d05b7aaaa0324019f30cdcab6d64c8061127b1dd2429f36b8cffcc674e",
+      "immutable": false
+    },
+    {
+      "name": "side_effect_attempt",
+      "ordinal": 193,
+      "contractDigest": "49fa54da416b3ea4182ce14cc66c0e7b1e231564b15336aef197a0820efc5514",
+      "immutable": true
+    },
+    {
+      "name": "side_effect_attempt_state",
+      "ordinal": 194,
+      "contractDigest": "b7c68b424b30fa11d69476c5a20bf9e723364b42e1fbe82720e236b07bff7601",
+      "immutable": false
+    },
+    {
+      "name": "side_effect_attempt_evidence",
+      "ordinal": 195,
+      "contractDigest": "c89af772d7c28c23d1c10f447fa98f2dd4b9b23d01248b8254f08c655aefb2c1",
+      "immutable": true
+    },
+    {
+      "name": "transactional_outbox",
+      "ordinal": 196,
+      "contractDigest": "13f85ab106a6ba5a4e5ef71fd94c7baf48e70f122b4fe83f0c7837613a97d785",
+      "immutable": true
+    },
+    {
+      "name": "transactional_inbox",
+      "ordinal": 197,
+      "contractDigest": "b9e588d887f82ae8d4945e9c66451e68900db163e94ac71dc2bd05fc309ce8d1",
+      "immutable": true
+    },
+    {
+      "name": "queue_item",
+      "ordinal": 198,
+      "contractDigest": "469c87ab4175a759315fcd971985ffc7c3022ded5bfd524291bfed35d3d2ff8c",
+      "immutable": true
+    },
+    {
+      "name": "concurrency_claim",
+      "ordinal": 199,
+      "contractDigest": "13644a06f6e2391eeb27d034ef85ddc51767660fe95019d0b0fd0cc984a17761",
+      "immutable": false
+    },
+    {
+      "name": "binding_set",
+      "ordinal": 200,
+      "contractDigest": "ec1d2d1d0a9049c3f26816997da5c36d46634983386a2498a3da24a9cce4f98b",
+      "immutable": false
+    },
+    {
+      "name": "binding_set_revision",
+      "ordinal": 201,
+      "contractDigest": "0e44e024b8e4953916b8826bbd88cbc4786e17cb63b96415eb418ce5f19d9e1b",
+      "immutable": true
+    },
+    {
+      "name": "binding_set_member",
+      "ordinal": 202,
+      "contractDigest": "8d7b2acae2505766f3074466ba06cde09daf6e21db9933fdf31e16bd78120c3b",
+      "immutable": true
+    },
+    {
+      "name": "activation_domain_head",
+      "ordinal": 203,
+      "contractDigest": "0cfc77642a0075039e0238180cf485c8be87fb31442921caa4fea2362a7a3df2",
+      "immutable": false
+    },
+    {
+      "name": "domain_command_activation_domain",
+      "ordinal": 204,
+      "contractDigest": "4095d4e65738384a041b12788d0dd5ba45d7b94c5ea1a9a67dfad7439e276090",
+      "immutable": false
+    },
+    {
+      "name": "activation_head",
+      "ordinal": 205,
+      "contractDigest": "e49671422cc4a80fc0ad406b57a37e48f49347f700580fe90a7776f2922be36b",
+      "immutable": false
+    },
+    {
+      "name": "application_deployment_head",
+      "ordinal": 206,
+      "contractDigest": "5d7ea0297f5d2753937c141c1e828627183a7583bd2b1096738d25da48afdbfe",
+      "immutable": false
+    },
+    {
+      "name": "activation_domain_barrier",
+      "ordinal": 207,
+      "contractDigest": "0d233d2472cc607bda897c5fea0f2adebf08842dc8c519db8bc1382492a68677",
+      "immutable": false
+    },
+    {
+      "name": "cleanup_operation",
+      "ordinal": 208,
+      "contractDigest": "645439536b35c103b9cfbded1c9f3377fe119ca0b1328846a939730a22b78140",
+      "immutable": false
+    },
+    {
+      "name": "cleanup_resource",
+      "ordinal": 209,
+      "contractDigest": "6ec94385f12957894ccda9deb6aee7a0c5e6b586323af028725722c96a217902",
+      "immutable": false
+    },
+    {
+      "name": "configuration_apply_run",
+      "ordinal": 210,
+      "contractDigest": "d28208a42a2007ff9a93b2727d6281497675a58436e3c778b2ce63a0855cc57e",
+      "immutable": false
+    },
+    {
+      "name": "schema_migration",
+      "ordinal": 211,
+      "contractDigest": "46490de006bf231b5020a43266031a191c511d765ee408ac2e4f781f7c3814cf",
+      "immutable": true
+    },
+    {
+      "name": "authority_lineage",
+      "ordinal": 212,
+      "contractDigest": "5e883b29817188cebae5fc8b7af78e5ec616a83420f0db96621fe822f9fec611",
+      "immutable": true
+    },
+    {
+      "name": "operation_intent",
+      "ordinal": 213,
+      "contractDigest": "47745df438e63f306b426675e406f6bd0b51b428bde0610726b1e34e0f365086",
+      "immutable": true
+    },
+    {
+      "name": "content_provenance",
+      "ordinal": 214,
+      "contractDigest": "bc24e8c5b1662178905bf21a976c6f6699b5ec29c9b6a3d617357b74f8635beb",
+      "immutable": true
+    },
+    {
+      "name": "instruction_segment",
+      "ordinal": 215,
+      "contractDigest": "52d0afcba0e640501234f99d826f32d8a5613f3ae60cc7e97f02c35ba95a49da",
+      "immutable": true
+    },
+    {
+      "name": "operation_context",
+      "ordinal": 216,
+      "contractDigest": "4877838d1639089b567492c110af0bbde1461cb4f0209af977471578aa9b8333",
+      "immutable": true
+    },
+    {
+      "name": "semantic_action_plan",
+      "ordinal": 217,
+      "contractDigest": "3a054b5fc3abd8088b943d7c791ed33f72ac89adeac1754b2d08623dfa865c57",
+      "immutable": true
+    },
+    {
+      "name": "value_derivation",
+      "ordinal": 218,
+      "contractDigest": "bc794cc8d42b3bc45be4a05c4beb380daa9223ffd09e543e6779cdd3d904a493",
+      "immutable": true
+    },
+    {
+      "name": "secret_use_context",
+      "ordinal": 219,
+      "contractDigest": "9ac19d4a13feb0f1d4b8ad719363733ef536fa1e270b2d605d34c550a62b53ab",
+      "immutable": false
+    },
+    {
+      "name": "agentic_security_event",
+      "ordinal": 220,
+      "contractDigest": "f980c06761bf38664bd1a0d2402d1e1525ef9290fcdf8fa0a80eef54bdcdef03",
+      "immutable": true
+    }
+  ]
+}

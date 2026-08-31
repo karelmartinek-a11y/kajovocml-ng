@@ -1,0 +1,1 @@
+import { runService } from '@kcml/worker-runtime'; await runService({serviceName:'kcml-secret-broker',queueNames:['kcml-secret','kcml-ownerapikey'],broker:'secret',socketPath:'/run/kajovocml-ng/brokers/secret-broker.sock'});

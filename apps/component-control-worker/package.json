@@ -1,0 +1,1 @@
+{"name":"@kcml/component-control-worker","version":"2026.8.30-8","private":true,"type":"module","scripts":{"build":"tsc -p tsconfig.json","start":"node dist/index.js"},"dependencies":{"@kcml/worker-runtime":"workspace:*"}}

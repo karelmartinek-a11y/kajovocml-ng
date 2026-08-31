@@ -1,0 +1,1 @@
+{"$id":"kcml://operation/response","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":true,"properties":{"correlationId":{"format":"uuid","type":"string"},"logicalOperationId":{"format":"uuid","type":"string"},"resultDigest":{"type":"string"}},"required":["correlationId","logicalOperationId","resultDigest"],"type":"object"}

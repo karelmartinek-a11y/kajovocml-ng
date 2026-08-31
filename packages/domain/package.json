@@ -1,0 +1,27 @@
+{
+  "name": "@kcml/domain",
+  "version": "2026.8.30-8",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "@kcml/agentic-authority": "workspace:*",
+    "@kcml/contract-pack": "workspace:*",
+    "@kcml/database": "workspace:*",
+    "@kcml/observability": "workspace:*",
+    "@kcml/schemas": "workspace:*",
+    "argon2": "catalog:",
+    "zod": "catalog:"
+  }
+}

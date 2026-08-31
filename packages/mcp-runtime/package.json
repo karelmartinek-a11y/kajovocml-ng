@@ -1,0 +1,25 @@
+{
+  "name": "@kcml/mcp-runtime",
+  "version": "2026.8.30-8",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "@kcml/database": "workspace:*",
+    "@kcml/domain": "workspace:*",
+    "@kcml/kcip": "workspace:*",
+    "@kcml/schemas": "workspace:*",
+    "zod": "catalog:"
+  }
+}

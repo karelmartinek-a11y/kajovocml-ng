@@ -1,0 +1,12 @@
+[Unit]
+Description=KájovoCML NG unattended DNS-01 TLS renewal
+After=network-online.target
+[Service]
+Type=oneshot
+User=root
+ExecStart=/opt/kajovocml-ng/current/deploy/scripts/renew-tls.sh
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/etc/letsencrypt /etc/kajovocml-ng/tls /var/lib/letsencrypt /var/log/letsencrypt

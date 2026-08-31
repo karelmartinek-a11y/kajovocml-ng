@@ -1,0 +1,5037 @@
+{
+  "schemaVersion": "1.0",
+  "authority": "SSOT_CURRENT.md",
+  "fingerprint": "d1e1020ff347a9aea8bcf21f4443759b2ae165757b7a53112a2d9f6e0c9c4eb7",
+  "records": [
+    {
+      "method": "GET",
+      "path": "/operations/catalog",
+      "ordinal": 1,
+      "routeKey": "GET /operations/catalog",
+      "contractDigest": "d51b076de475e2a0085f53b74a47e1a06f19c75ac4025c64b65cf5a1da7c079f",
+      "entity": "operation_context",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/operations/:operationKey/invoke",
+      "ordinal": 2,
+      "routeKey": "POST /operations/:operationKey/invoke",
+      "contractDigest": "f0a57e2bc586dc8cb3a39f335c62e695319d74d0e06d25becac37775e606d18c",
+      "entity": "operation_context",
+      "operation": "__DYNAMIC_OPERATION__",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/auth/login",
+      "ordinal": 3,
+      "routeKey": "POST /auth/login",
+      "contractDigest": "48bad10a894cc8658e13d493d1e64dfccb1d87809712cfb6e57748d38876239e",
+      "entity": "owner_login_throttle",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/auth/login/mfa",
+      "ordinal": 4,
+      "routeKey": "POST /auth/login/mfa",
+      "contractDigest": "de34a5ce68acb2a79bfb890ac409a811f49d2d12a7d4e06404bf69ebb5d84201",
+      "entity": "owner_login_throttle",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/auth/logout",
+      "ordinal": 5,
+      "routeKey": "POST /auth/logout",
+      "contractDigest": "0bc48f1a1774bc1e68c7c0fa6343e08f45bbf4ad16fe4daf53f0a222ef30da9d",
+      "entity": "owner_session",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/auth/api-key-session",
+      "ordinal": 6,
+      "routeKey": "POST /auth/api-key-session",
+      "contractDigest": "beb6a7cb788a0506c37e4afa471ac75135f76918904aa0748bc11d33b6abfddf",
+      "entity": "owner_session",
+      "operation": "ownerApiKey.session.exchange",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/session",
+      "ordinal": 7,
+      "routeKey": "GET /session",
+      "contractDigest": "168f3d216407d2c0534b11b7f6f9d76b9a730700c3e082abfa99f3ea15715468",
+      "entity": "owner_session",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/session/reauthenticate",
+      "ordinal": 8,
+      "routeKey": "POST /session/reauthenticate",
+      "contractDigest": "59bb31b32095c36d0e907e4f2dfe8d9c96cdd043dbc6c37761b895f057d7afd7",
+      "entity": "owner_session",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/owner/security",
+      "ordinal": 9,
+      "routeKey": "GET /owner/security",
+      "contractDigest": "a1f94429b2b176d8bd2fca4c645fd9805cf5fc7b9da216a8f1fcd82e4d899706",
+      "entity": "owner_identity",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/owner/mfa/enroll",
+      "ordinal": 10,
+      "routeKey": "POST /owner/mfa/enroll",
+      "contractDigest": "1465fdb5ed33619d934012764466dda93c864bb957d16b4f804b2f5431407ce8",
+      "entity": "owner_mfa_enrollment",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/owner/mfa/verify",
+      "ordinal": 11,
+      "routeKey": "POST /owner/mfa/verify",
+      "contractDigest": "2753c89654980623eae401f1314033a7e4b53220753eefc10d7d513848d3409d",
+      "entity": "owner_mfa_enrollment",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/owner/recovery-codes/rotate",
+      "ordinal": 12,
+      "routeKey": "POST /owner/recovery-codes/rotate",
+      "contractDigest": "0a7a02bc9ccb74fff74fd1a299b436166966a2ea0a8a59b5101b7ce2f0a71d35",
+      "entity": "owner_recovery_code",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/owner/sessions",
+      "ordinal": 13,
+      "routeKey": "GET /owner/sessions",
+      "contractDigest": "a7630e9d6a7f0e8dedde40de8c2e47b32b3c021b28d559e06a06f8234d5419a8",
+      "entity": "owner_session",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "DELETE",
+      "path": "/owner/sessions/:id",
+      "ordinal": 14,
+      "routeKey": "DELETE /owner/sessions/:id",
+      "contractDigest": "6b78bf145fa0961cdd569c12ddf4b0d6a6744fe2abb6c2d5f3d381f2e05a082e",
+      "entity": "owner_session",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/owner/sessions/revoke-others",
+      "ordinal": 15,
+      "routeKey": "POST /owner/sessions/revoke-others",
+      "contractDigest": "935c133d250df231ffd4b45674d01a9d31a7a72216eec83f69fc7728b124fa33",
+      "entity": "owner_session",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/owner/sessions/revoke-all",
+      "ordinal": 16,
+      "routeKey": "POST /owner/sessions/revoke-all",
+      "contractDigest": "b0537ac67468a35bd447b837e0a6c5e61933d253ae4456ce871bc578e35855da",
+      "entity": "owner_session",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/owner/api-key",
+      "ordinal": 17,
+      "routeKey": "GET /owner/api-key",
+      "contractDigest": "06c31aab68b2768baa07beff4ca78b5b3dc25bb2bb4155d7e72b53ec06015d7b",
+      "entity": "owner_api_credential",
+      "operation": "ownerApiKey.read",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/owner/api-key/value",
+      "ordinal": 18,
+      "routeKey": "GET /owner/api-key/value",
+      "contractDigest": "ae7cdc1f00cbdd9e1a951d1f5fb7367a994ee97322a3f62008c7883357c48b06",
+      "entity": "owner_api_credential",
+      "operation": "ownerApiKey.reveal",
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/owner/api-key/rotate",
+      "ordinal": 19,
+      "routeKey": "POST /owner/api-key/rotate",
+      "contractDigest": "8204ffa66cb7495c78f2f275e478ecf2b7e247deebaf7bdf436bea2bd5b1e42c",
+      "entity": "owner_api_credential",
+      "operation": "ownerApiKey.rotate",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/owner/api-key/usage",
+      "ordinal": 20,
+      "routeKey": "GET /owner/api-key/usage",
+      "contractDigest": "3be9197820b604fd0577fd4495c8ea02fd4ecb80d5693caa4dd4adc967f25a1a",
+      "entity": "owner_api_credential",
+      "operation": "ownerApiKey.read",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard/topology",
+      "ordinal": 21,
+      "routeKey": "GET /dashboard/topology",
+      "contractDigest": "7d9a36928b496c24051f036d975f5da08a6e4a5f0870f4077f723296053c0adf",
+      "entity": "dashboard_workspace",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "PUT",
+      "path": "/dashboard/layout",
+      "ordinal": 22,
+      "routeKey": "PUT /dashboard/layout",
+      "contractDigest": "3c561613991e3d4c2ff30a330d2c66c5db3f1408415e5c07f81f8a636d2f18f6",
+      "entity": "dashboard_node_position",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard/events",
+      "ordinal": 23,
+      "routeKey": "GET /dashboard/events",
+      "contractDigest": "8f2fac4e1df1139526926301f7126870b330862e91eaf2d495246bf05e34dba9",
+      "entity": "dashboard_runtime_event",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard/identity-cards",
+      "ordinal": 24,
+      "routeKey": "GET /dashboard/identity-cards",
+      "contractDigest": "3006e27cc44860c481f0c23ff96f0e751b10164cfbb8b4b79707a8e7606f6063",
+      "entity": "dashboard_workspace",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/dashboard/connections/preview",
+      "ordinal": 25,
+      "routeKey": "POST /dashboard/connections/preview",
+      "contractDigest": "2ba5225d752cd9b67a5b49c0b2cd8d69bf33ac0d43ea07b9c00a824691bfea19",
+      "entity": "dashboard_connection",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/dashboard/connections",
+      "ordinal": 26,
+      "routeKey": "POST /dashboard/connections",
+      "contractDigest": "dc3994163f7663c47894514ad4faf472cbc239cdcdbf05208c8ff5670a455b2f",
+      "entity": "dashboard_connection",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "PUT",
+      "path": "/dashboard/connections/:id/binding",
+      "ordinal": 27,
+      "routeKey": "PUT /dashboard/connections/:id/binding",
+      "contractDigest": "a98f044a142bcb20193aa400169e5ea80f466dd41470c77904630364b3504a65",
+      "entity": "dashboard_connection",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/dashboard/connections/:id",
+      "ordinal": 28,
+      "routeKey": "DELETE /dashboard/connections/:id",
+      "contractDigest": "652ceda3d26c66925b6c4f283337c04f88536ca3c8b31e7bbd0dd635115d50d5",
+      "entity": "dashboard_connection",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "PUT",
+      "path": "/dashboard/nodes/:id/suspension",
+      "ordinal": 29,
+      "routeKey": "PUT /dashboard/nodes/:id/suspension",
+      "contractDigest": "f8e5510126f360cc355325a28dfae52090982ce9c9e62cd0bff78e7f17d3a5d2",
+      "entity": "component",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard/nodes/:id/deregistration-preview",
+      "ordinal": 30,
+      "routeKey": "GET /dashboard/nodes/:id/deregistration-preview",
+      "contractDigest": "951c2ce46ca49c1f04ac0835165759bb5183613112928fc0ccaf4797c49e250c",
+      "entity": "component",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/dashboard/nodes/:id/deregister",
+      "ordinal": 31,
+      "routeKey": "POST /dashboard/nodes/:id/deregister",
+      "contractDigest": "1293c725187475ec6d62f9daecdd2fcd2a0ab5ecf2ea8ed5dc09832f3fcdb709",
+      "entity": "component",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/dashboard/secrets/:secretId/bindings",
+      "ordinal": 32,
+      "routeKey": "POST /dashboard/secrets/:secretId/bindings",
+      "contractDigest": "dd072015cffc9179c43f0c4ddabafeadd793727f5185091692ed6c7ef8c01e63",
+      "entity": "secret_binding",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/dashboard/secrets/:secretId/bindings/:nodeId",
+      "ordinal": 33,
+      "routeKey": "DELETE /dashboard/secrets/:secretId/bindings/:nodeId",
+      "contractDigest": "695c3e5222fce4908ff7125e4356ec5f182e0e6e8cab1398ba1b32f421c7a959",
+      "entity": "secret_binding",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard/secrets/:secretId/bindings/bulk-preview",
+      "ordinal": 34,
+      "routeKey": "GET /dashboard/secrets/:secretId/bindings/bulk-preview",
+      "contractDigest": "1e7b783007b13730a12bb4d91be5391666ec457626dabaa5b9b5baf267900907",
+      "entity": "secret_binding",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/dashboard/secrets/:secretId/bindings/bulk",
+      "ordinal": 35,
+      "routeKey": "POST /dashboard/secrets/:secretId/bindings/bulk",
+      "contractDigest": "68ebe5bf01f6cf7f58123d0e7aac7159c6532b86b808157293bf900993c7265d",
+      "entity": "secret_binding",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/components",
+      "ordinal": 36,
+      "routeKey": "GET /components",
+      "contractDigest": "57c72392e9b027b131f0b31830f4367c5425a5a3121b7600e128cbb87d6ca7f6",
+      "entity": "component",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/components",
+      "ordinal": 37,
+      "routeKey": "POST /components",
+      "contractDigest": "3b82fd5ce60a0ad1d6275937a5a7a04db6a9d4246c94a61fd680cf7843673d48",
+      "entity": "component",
+      "operation": "component.register",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/components/:id",
+      "ordinal": 38,
+      "routeKey": "GET /components/:id",
+      "contractDigest": "f071b96ed1a0414361fc06faa95e2da2149a4854b9c31fa7c0d5179d23acca0f",
+      "entity": "component",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "PATCH",
+      "path": "/components/:id",
+      "ordinal": 39,
+      "routeKey": "PATCH /components/:id",
+      "contractDigest": "b492f73c2ab77031596c881e2a6525d9f0ac4643a57cda078eb4c9cb611c9246",
+      "entity": "component",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/components/:id/revisions",
+      "ordinal": 40,
+      "routeKey": "GET /components/:id/revisions",
+      "contractDigest": "f0098c80b1c6d730e5ad812c82ae6b70b953d936fe328c9d38e461145759d034",
+      "entity": "component_revision",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/components/:id/revisions",
+      "ordinal": 41,
+      "routeKey": "POST /components/:id/revisions",
+      "contractDigest": "afd7c8972962213732acc48a889015a53d7b8ca40fe2ee21e8204ed7a25c53c8",
+      "entity": "component_revision",
+      "operation": "component.register",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/components/:id/releases",
+      "ordinal": 42,
+      "routeKey": "GET /components/:id/releases",
+      "contractDigest": "ccd9e27c6d89a55ac8354d5204d7765c1e4f9c2ca90b4ed4c2165a520d362f37",
+      "entity": "component_release",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/components/:id/validate",
+      "ordinal": 43,
+      "routeKey": "POST /components/:id/validate",
+      "contractDigest": "cb3b17e5d3227ae858ec006c7711fa322c318adadf5841124b6d98a67bdd7981",
+      "entity": "component",
+      "operation": "component.validate",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/components/:id/verify",
+      "ordinal": 44,
+      "routeKey": "POST /components/:id/verify",
+      "contractDigest": "f0df08c111658d805f90f5abb0b168b5d6ee66a003d3a6305f8928b42256682f",
+      "entity": "component",
+      "operation": "component.verify",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/components/:id/activate",
+      "ordinal": 45,
+      "routeKey": "POST /components/:id/activate",
+      "contractDigest": "8635d7b9e54c834be3c604146d8a89813158de8e1c8bc169388f5d3bfd744f1b",
+      "entity": "component",
+      "operation": "component.activate",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/components/:id/enable",
+      "ordinal": 46,
+      "routeKey": "POST /components/:id/enable",
+      "contractDigest": "79313fcd49ce3b9aa478fb50692b68d6baaab475bf146e7f14fb510dd208dd18",
+      "entity": "component",
+      "operation": "component.enable",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/components/:id/disable",
+      "ordinal": 47,
+      "routeKey": "POST /components/:id/disable",
+      "contractDigest": "e1b0ba910dbca4bfa5e7f022f16dbd442beed56ffe4eb031af95502cb65d9459",
+      "entity": "component",
+      "operation": "component.disable",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/components/:id/suspend",
+      "ordinal": 48,
+      "routeKey": "POST /components/:id/suspend",
+      "contractDigest": "040e32b4f9d01709ffe2220b5d6d578c8e36c8ef0a50f229bace2d846893dffe",
+      "entity": "component",
+      "operation": "component.suspend",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/components/:id/quarantine",
+      "ordinal": 49,
+      "routeKey": "POST /components/:id/quarantine",
+      "contractDigest": "554436e1452660ecbece9895038729c01288dc06bf5645fee76b1ac774e74756",
+      "entity": "component",
+      "operation": "component.quarantine",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/components/:id/restore",
+      "ordinal": 50,
+      "routeKey": "POST /components/:id/restore",
+      "contractDigest": "3b456c8b516e41ec80f01f4af5557f93c39aaf41b07af7ed40e009fbfcaf90c1",
+      "entity": "component",
+      "operation": "component.restore",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/components/:id/rollback",
+      "ordinal": 51,
+      "routeKey": "POST /components/:id/rollback",
+      "contractDigest": "dd11ccbc45ee1c969d186ac2b1053d2081b36b82b9fa6385721f8e95e4b1f565",
+      "entity": "component",
+      "operation": "component.rollback",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/components/:id/repair",
+      "ordinal": 52,
+      "routeKey": "POST /components/:id/repair",
+      "contractDigest": "45caf2eadb687533b45984434f42168af586e71d30bd83e834ef0ddaa1ec1d0b",
+      "entity": "component",
+      "operation": "component.register",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/components/:id/recertify",
+      "ordinal": 53,
+      "routeKey": "POST /components/:id/recertify",
+      "contractDigest": "edb3c8d610e888bacaea556267049e1efa16d7df33346d4be11500f752a7851f",
+      "entity": "component",
+      "operation": "component.recertify",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/components/:id/e2e-runs",
+      "ordinal": 54,
+      "routeKey": "POST /components/:id/e2e-runs",
+      "contractDigest": "18067127a7e83cdc59fa663d09b61909b63215da2c9ef1fe3546b4388519c6dc",
+      "entity": "component_e2e_run",
+      "operation": "component.register",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/components/:id/state-queries",
+      "ordinal": 55,
+      "routeKey": "POST /components/:id/state-queries",
+      "contractDigest": "20f9031f273717dca51d23212e7e6b46caeebd19bbb8200cc30065f4ce2c157f",
+      "entity": "component_state_history",
+      "operation": "component.register",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/components/:id/heartbeat-challenges",
+      "ordinal": 56,
+      "routeKey": "POST /components/:id/heartbeat-challenges",
+      "contractDigest": "8a8091a719ce1c7b18944077d77af44a02a7cd053f83e88835351f78f0566a0c",
+      "entity": "component_pulse_contract",
+      "operation": "component.register",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/components/:id/logs",
+      "ordinal": 57,
+      "routeKey": "GET /components/:id/logs",
+      "contractDigest": "96c6a87163d83c0aa3168ffa97b914872bd46922e10925d80407c3d5fd0b6497",
+      "entity": "debug_log_event",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/components/:id/audit",
+      "ordinal": 58,
+      "routeKey": "GET /components/:id/audit",
+      "contractDigest": "293df0e78242ff41f7539912e799f1ba3899f77656094ec51a853cebdd575d46",
+      "entity": "component_audit_event",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/components/:id/bindings",
+      "ordinal": 59,
+      "routeKey": "GET /components/:id/bindings",
+      "contractDigest": "8fed325987fbb85b537fd0fbadb844ab1b9294fd1b833706644fb5da7a1f47d8",
+      "entity": "component_contract_binding",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/components/:id/secrets",
+      "ordinal": 60,
+      "routeKey": "GET /components/:id/secrets",
+      "contractDigest": "fed16e321ffb7d05cc0e54c1cbd6457c10a7a67649bd597d3c2ea3e27c11f97e",
+      "entity": "secret_binding",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/components/:id/usage",
+      "ordinal": 61,
+      "routeKey": "GET /components/:id/usage",
+      "contractDigest": "30659053c6e098e012b710776b2d137a7a829809795a911856667bdddc9f6874",
+      "entity": "component",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-servers",
+      "ordinal": 62,
+      "routeKey": "GET /mcp-servers",
+      "contractDigest": "b16614513814de7b82b96b65b9961515e28e24cac93bcfdf6e6659f900963acb",
+      "entity": "mcp_server_revision_profile",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-servers",
+      "ordinal": 63,
+      "routeKey": "POST /mcp-servers",
+      "contractDigest": "6036c40e92f8a3d3812db71cda7d178ac839f6c4111e747c99390b783680bcd0",
+      "entity": "mcp_server_revision_profile",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-servers/:id",
+      "ordinal": 64,
+      "routeKey": "GET /mcp-servers/:id",
+      "contractDigest": "d00b54df1e4ffb7f9ec839ae5ca0fc1cae2dd24a157c95aa0990b4705b94a52a",
+      "entity": "mcp_server_revision_profile",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "PATCH",
+      "path": "/mcp-servers/:id",
+      "ordinal": 65,
+      "routeKey": "PATCH /mcp-servers/:id",
+      "contractDigest": "6604f2e934b2026f53fc445ee66fb4e8edce7ee2ef29b257b52fe9e20eaf7326",
+      "entity": "mcp_server_revision_profile",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-servers/:id/revisions",
+      "ordinal": 66,
+      "routeKey": "GET /mcp-servers/:id/revisions",
+      "contractDigest": "616730a52d0f2d9f068a6bcd396fd7cfd71517e9e68f6c7defcac2ab0ff7b40a",
+      "entity": "mcp_server_revision_profile",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-servers/:id/revisions",
+      "ordinal": 67,
+      "routeKey": "POST /mcp-servers/:id/revisions",
+      "contractDigest": "4b73c6345e60c28022b9a06752b02200d3e13c94bf722197496e9c03c5cc0fdb",
+      "entity": "mcp_server_revision_profile",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-servers/:id/revisions/:revisionId",
+      "ordinal": 68,
+      "routeKey": "GET /mcp-servers/:id/revisions/:revisionId",
+      "contractDigest": "86bb4e4d18e395e0f061fafad03461771b79ec58ef19abd2e993ab18126c143d",
+      "entity": "mcp_server_revision_profile",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-servers/:id/revisions/:revisionId/validate",
+      "ordinal": 69,
+      "routeKey": "POST /mcp-servers/:id/revisions/:revisionId/validate",
+      "contractDigest": "c3a760e2ffe6c4dbbe041a0344a9cc818ad39667ff0bbc1f78af74af40182692",
+      "entity": "mcp_server_revision_profile",
+      "operation": "mcp.contract.validate",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-servers/:id/revisions/:revisionId/verify",
+      "ordinal": 70,
+      "routeKey": "POST /mcp-servers/:id/revisions/:revisionId/verify",
+      "contractDigest": "a1bbc311f5bdc9c7cbb6b547c39aba9868c2b7367610555c404f211a787ab77f",
+      "entity": "mcp_server_revision_profile",
+      "operation": "mcp.wire.verify",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-servers/:id/revisions/:revisionId/activate",
+      "ordinal": 71,
+      "routeKey": "POST /mcp-servers/:id/revisions/:revisionId/activate",
+      "contractDigest": "41606130c54a74fee4ab587b5c8219b98525ddedc8b43f45c1fecc9448defbcf",
+      "entity": "mcp_server_revision_profile",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-servers/:id/revisions/:revisionId/compatibility",
+      "ordinal": 72,
+      "routeKey": "POST /mcp-servers/:id/revisions/:revisionId/compatibility",
+      "contractDigest": "a54b67ef5d2e06f6bda4e6ab154cbc94247e96ada4a85dde6848ce35d825f4ba",
+      "entity": "mcp_server_revision_profile",
+      "operation": "mcp.contract.compatibility",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-servers/:id/discovery-snapshots",
+      "ordinal": 73,
+      "routeKey": "GET /mcp-servers/:id/discovery-snapshots",
+      "contractDigest": "26116e164f6dc09dbf0dc8cc0a13fe18d0512b593b9602cf3cf0d59891352c89",
+      "entity": "mcp_discovery_snapshot",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-servers/:id/discovery-snapshots",
+      "ordinal": 74,
+      "routeKey": "POST /mcp-servers/:id/discovery-snapshots",
+      "contractDigest": "d9cab5c1c88b8fea2ac54865a530483dab0fa5cd717c872da252abee151a1560",
+      "entity": "mcp_discovery_snapshot",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-servers/:id/discovery-snapshots/:snapshotId",
+      "ordinal": 75,
+      "routeKey": "GET /mcp-servers/:id/discovery-snapshots/:snapshotId",
+      "contractDigest": "61018fd8032db6c61fe6d987cdab868fb26e1233961110f29ec1f2395724cb2e",
+      "entity": "mcp_discovery_snapshot",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-servers/:id/discovery-snapshots/:snapshotId/diff",
+      "ordinal": 76,
+      "routeKey": "GET /mcp-servers/:id/discovery-snapshots/:snapshotId/diff",
+      "contractDigest": "71d271488899a96188536c9a119edcbf7da6e60d7863a47a8537d820a9ca1c92",
+      "entity": "mcp_discovery_snapshot",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-servers/:id/registration-probes",
+      "ordinal": 77,
+      "routeKey": "GET /mcp-servers/:id/registration-probes",
+      "contractDigest": "ec97c6c5c14da1b34443f8524cda5adef20940ce75df5bf4d0dd89bb2b941af9",
+      "entity": "mcp_registration_probe",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-servers/:id/era-probe",
+      "ordinal": 78,
+      "routeKey": "POST /mcp-servers/:id/era-probe",
+      "contractDigest": "9f542a664dab281bb518cc9b36f7e93196cba9209250173e475417489dad0811",
+      "entity": "mcp_server_revision_profile",
+      "operation": "mcp.era.probe",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-servers/:id/server-discover-test",
+      "ordinal": 79,
+      "routeKey": "POST /mcp-servers/:id/server-discover-test",
+      "contractDigest": "01d747408c64f6ddd8ca78fbcf8b4250f6eff4ffd3bd558665cbebd8cdc7d3fe",
+      "entity": "mcp_server_revision_profile",
+      "operation": "mcp.server.discover",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-servers/:id/request-metadata-test",
+      "ordinal": 80,
+      "routeKey": "POST /mcp-servers/:id/request-metadata-test",
+      "contractDigest": "51257c5893e582df5bfec3869b2e78b002e69a9b8456c3dd70b468dd70c1a0ff",
+      "entity": "mcp_server_revision_profile",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-servers/:id/streamable-http-test",
+      "ordinal": 81,
+      "routeKey": "POST /mcp-servers/:id/streamable-http-test",
+      "contractDigest": "3380b638419bd35b1c5c698bd6e352f18056eda95457ed0f403909ab26c41e8d",
+      "entity": "mcp_server_revision_profile",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-servers/:id/cache-pagination-test",
+      "ordinal": 82,
+      "routeKey": "POST /mcp-servers/:id/cache-pagination-test",
+      "contractDigest": "c1f610f7275df99ec3208159f783ff6970c08d836d1f83d1ea23aac9e1626ccc",
+      "entity": "mcp_server_revision_profile",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-servers/:id/mrtr-test",
+      "ordinal": 83,
+      "routeKey": "POST /mcp-servers/:id/mrtr-test",
+      "contractDigest": "36e9915e27449c1508c9d7b2be482353856601e8a4a276d0a971f4c0bd131c48",
+      "entity": "mcp_server_revision_profile",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-servers/:id/tasks-test",
+      "ordinal": 84,
+      "routeKey": "POST /mcp-servers/:id/tasks-test",
+      "contractDigest": "029a2a289dffeb9667cd7e3a5df22b694e0eb3d59fb735c839d4128bad6c7bc5",
+      "entity": "mcp_server_revision_profile",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-servers/:id/wire-edge-matrix",
+      "ordinal": 85,
+      "routeKey": "POST /mcp-servers/:id/wire-edge-matrix",
+      "contractDigest": "bd6406abb2d62ea2ed2b1adaeb4885e48d13b92f60611f167b33ce23c05315d6",
+      "entity": "mcp_server_revision_profile",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-servers/:id/tools/list-test",
+      "ordinal": 86,
+      "routeKey": "POST /mcp-servers/:id/tools/list-test",
+      "contractDigest": "ca57dbed3b33a1ad7178da98fb20b6e7d8907b8bab80170aca2f8c957ed320cf",
+      "entity": "mcp_server_revision_profile",
+      "operation": "mcp.tools.list",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-servers/:id/resources/list-test",
+      "ordinal": 87,
+      "routeKey": "POST /mcp-servers/:id/resources/list-test",
+      "contractDigest": "42576eeb1f1fa096dca79b1dea4af970b581b6b77ab4c41fb4aad4f6f66eaeee",
+      "entity": "mcp_server_revision_profile",
+      "operation": "mcp.resources.list",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-servers/:id/resources/templates/list-test",
+      "ordinal": 88,
+      "routeKey": "POST /mcp-servers/:id/resources/templates/list-test",
+      "contractDigest": "7df2999f7fdbe4b65b8c438d9a2ba2eb8ac6fad29bd1e2f4b711e2eccb5b9e54",
+      "entity": "mcp_server_revision_profile",
+      "operation": "mcp.resources.templates.list",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-servers/:id/prompts/list-test",
+      "ordinal": 89,
+      "routeKey": "POST /mcp-servers/:id/prompts/list-test",
+      "contractDigest": "188861e07084314534f72f04d5d17d704f42f2b53358acaa233a05e2122b94a2",
+      "entity": "mcp_server_revision_profile",
+      "operation": "mcp.prompts.list",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-servers/:id/tools/:toolName/call-test",
+      "ordinal": 90,
+      "routeKey": "POST /mcp-servers/:id/tools/:toolName/call-test",
+      "contractDigest": "94703487ca2cb7e4f64ceef1fb0fd8fd9b5d456f17f679d443bf1b4db335de33",
+      "entity": "mcp_server_revision_profile",
+      "operation": "mcp.tools.call",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-servers/:id/subscriptions/list-test",
+      "ordinal": 91,
+      "routeKey": "POST /mcp-servers/:id/subscriptions/list-test",
+      "contractDigest": "8aca59d58816956ca8eb39bdd7a7d298fad70a4b892bbb4b1effd4e0dd1fb208",
+      "entity": "mcp_server_revision_profile",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-request-events",
+      "ordinal": 92,
+      "routeKey": "GET /mcp-request-events",
+      "contractDigest": "78792112b5415087eea50a728c8e44b264ffb4bf2359843f62bad0ecf5207dd1",
+      "entity": "mcp_request_event",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-request-events/:requestEventId",
+      "ordinal": 93,
+      "routeKey": "GET /mcp-request-events/:requestEventId",
+      "contractDigest": "a30e6d43b6f21d8a89507af610292f6ba180f63adb976de5b6d24b297a36e972",
+      "entity": "mcp_request_event",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-request-events/:requestEventId/raw",
+      "ordinal": 94,
+      "routeKey": "GET /mcp-request-events/:requestEventId/raw",
+      "contractDigest": "2eb7c8256dfdebfff948e989811d7c1a364a3b28f997853fc8863469d411a878",
+      "entity": "mcp_request_event",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-call-runs",
+      "ordinal": 95,
+      "routeKey": "GET /mcp-call-runs",
+      "contractDigest": "b485f6e33d54f1883dea911a22fa7b7fc5185bae305cf39c2fb6b6b59becf41c",
+      "entity": "mcp_call_run",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-call-runs/:callId",
+      "ordinal": 96,
+      "routeKey": "GET /mcp-call-runs/:callId",
+      "contractDigest": "9089ba90088c636a7693c45af6e5aa07bfcf9be74645e0663274d6a6f4f87f0d",
+      "entity": "mcp_call_run",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-call-runs/:callId/events",
+      "ordinal": 97,
+      "routeKey": "GET /mcp-call-runs/:callId/events",
+      "contractDigest": "bd995a2c44a36e308eb3a654a2b416f03572a99b0489f1353104668212ce5291",
+      "entity": "mcp_call_run",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-call-runs/:callId/outcome",
+      "ordinal": 98,
+      "routeKey": "GET /mcp-call-runs/:callId/outcome",
+      "contractDigest": "5135d4fe493b41d6193ec516adb162a0ce9b1228136d3ba17528b0bb59a2ac00",
+      "entity": "mcp_call_run",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-call-runs/:callId/cancel",
+      "ordinal": 99,
+      "routeKey": "POST /mcp-call-runs/:callId/cancel",
+      "contractDigest": "5ebf63ced06abcb1d0a481c9ea323c7fc43a791ceb61c8fb9f55166835040d50",
+      "entity": "mcp_call_run",
+      "operation": "mcp.tools.cancel",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-call-runs/:callId/reconcile",
+      "ordinal": 100,
+      "routeKey": "POST /mcp-call-runs/:callId/reconcile",
+      "contractDigest": "14ed2de0364285b4d7338a1d0fb52906b4f5435482ab6b52314b4004d17569ca",
+      "entity": "mcp_call_run",
+      "operation": "mcp.tools.reconcile",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-call-runs/:callId/input-exchanges",
+      "ordinal": 101,
+      "routeKey": "GET /mcp-call-runs/:callId/input-exchanges",
+      "contractDigest": "ed16f134ff9ba30aa00038289b8ee8f8fa42341bccec59acfa0287f0fd48933b",
+      "entity": "mcp_input_exchange",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-input-exchanges/:exchangeId",
+      "ordinal": 102,
+      "routeKey": "GET /mcp-input-exchanges/:exchangeId",
+      "contractDigest": "2ffda8f2f3c2fe9cdfeab9ce2455700d9cca4de4503fae3813011d5e93c34a0b",
+      "entity": "mcp_input_exchange",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-input-exchanges/:exchangeId/respond",
+      "ordinal": 103,
+      "routeKey": "POST /mcp-input-exchanges/:exchangeId/respond",
+      "contractDigest": "f4ea30671924b586403f41502df17f567fd2d18722fbfbbfe2c1a41becb12ae7",
+      "entity": "mcp_input_exchange",
+      "operation": "mcp.input.respond",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-subscriptions",
+      "ordinal": 104,
+      "routeKey": "GET /mcp-subscriptions",
+      "contractDigest": "599b9eacbde8bf1a4b6c2979458a7180683ef9031b4eb301780d8a04226896cc",
+      "entity": "mcp_subscription",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-subscriptions/:subscriptionId",
+      "ordinal": 105,
+      "routeKey": "GET /mcp-subscriptions/:subscriptionId",
+      "contractDigest": "f88e0b25ee2187bfb6921f62ad29a9ac1dcb001900a704d1574c11b390b6cccf",
+      "entity": "mcp_subscription",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-subscriptions/:subscriptionId/cancel",
+      "ordinal": 106,
+      "routeKey": "POST /mcp-subscriptions/:subscriptionId/cancel",
+      "contractDigest": "f3063e9fdf9006d92e571e00b4b096540f71ea226f3e863bd94249c71e848f37",
+      "entity": "mcp_subscription",
+      "operation": "mcp.tools.cancel",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-subscriptions/:subscriptionId/notifications",
+      "ordinal": 107,
+      "routeKey": "GET /mcp-subscriptions/:subscriptionId/notifications",
+      "contractDigest": "6dd7596e39cae6ba00d783de84a6bc3342565666a8a83e960a00bb7cbf843ff7",
+      "entity": "mcp_subscription_notification",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-state-handles",
+      "ordinal": 108,
+      "routeKey": "GET /mcp-state-handles",
+      "contractDigest": "a9cc4a0df16d595c26a8828d9ee8cfd99c649688bc8b277e1c8b7303d940884e",
+      "entity": "mcp_state_handle",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-state-handles/:handleId",
+      "ordinal": 109,
+      "routeKey": "GET /mcp-state-handles/:handleId",
+      "contractDigest": "e4b5fde56d1ce92fb8f387ccf823f055d330488ea415954f76c19f07d4240d4c",
+      "entity": "mcp_state_handle",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-state-handles/:handleId/close",
+      "ordinal": 110,
+      "routeKey": "POST /mcp-state-handles/:handleId/close",
+      "contractDigest": "919a004fdff11c2f379672a3e7f0f75f3a0245d1471fd8aa2553caef018b1c10",
+      "entity": "mcp_state_handle",
+      "operation": "mcp.stateHandle.close",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-tasks",
+      "ordinal": 111,
+      "routeKey": "GET /mcp-tasks",
+      "contractDigest": "8ec63600a3bc1c548456cf5295996572352f407a88084367ba10b8e79bf60ea9",
+      "entity": "mcp_task",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-tasks/:taskId",
+      "ordinal": 112,
+      "routeKey": "GET /mcp-tasks/:taskId",
+      "contractDigest": "77b16d733bdc85d52daf5050d79939fe17ad7cbba4a7833945132194b232fd14",
+      "entity": "mcp_task",
+      "operation": "mcp.task.get",
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-tasks/:taskId/update",
+      "ordinal": 113,
+      "routeKey": "POST /mcp-tasks/:taskId/update",
+      "contractDigest": "dc7b45a0d66b0164725f0897e5cbcfede1e7d92683a6786d216a1bd26acd1649",
+      "entity": "mcp_task",
+      "operation": "mcp.task.update",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-tasks/:taskId/cancel",
+      "ordinal": 114,
+      "routeKey": "POST /mcp-tasks/:taskId/cancel",
+      "contractDigest": "37d1de99a868eacd6eab2f2a5d74d66d1e58a3167601c6724811373991342fed",
+      "entity": "mcp_task",
+      "operation": "mcp.tools.cancel",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-tasks/:taskId/events",
+      "ordinal": 115,
+      "routeKey": "GET /mcp-tasks/:taskId/events",
+      "contractDigest": "fc18526e928ef65f973ae0382a85e7acb0eb57e7dc5b6118bfbbc431626d8688",
+      "entity": "mcp_task_event",
+      "operation": "mcp.task.get",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-tools",
+      "ordinal": 116,
+      "routeKey": "GET /mcp-tools",
+      "contractDigest": "f8b8c3c38d7707d1dd52f67994844b6da85a479232f4a9f6bafdd17bc14062ad",
+      "entity": "component_tool_contract",
+      "operation": "mcp.tools.list",
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-tools",
+      "ordinal": 117,
+      "routeKey": "POST /mcp-tools",
+      "contractDigest": "19de31eab441d025d6723a1744ff2341cb96a3ec9c936b8123707bca004e5548",
+      "entity": "component_tool_contract",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-tools/:id",
+      "ordinal": 118,
+      "routeKey": "GET /mcp-tools/:id",
+      "contractDigest": "32361ac8d6f6808be61745b52c5a8cd211911e322369f7ae129654f1b2dcb8a7",
+      "entity": "component_tool_contract",
+      "operation": "mcp.tools.list",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-tools/:id/revisions",
+      "ordinal": 119,
+      "routeKey": "GET /mcp-tools/:id/revisions",
+      "contractDigest": "70031342874cebe74a052236bc6a367a909bf2cf4e1a1af0d803ebfd2baf20dc",
+      "entity": "component_tool_contract",
+      "operation": "mcp.tools.list",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-tools/:id/callers",
+      "ordinal": 120,
+      "routeKey": "GET /mcp-tools/:id/callers",
+      "contractDigest": "63f30cce378c8dd32e6d518060b368317259277d6bb4cbe0f91a00fc636c92c5",
+      "entity": "component_tool_contract",
+      "operation": "mcp.tools.list",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-tools/:id/usage",
+      "ordinal": 121,
+      "routeKey": "GET /mcp-tools/:id/usage",
+      "contractDigest": "fcd1603dac6f67b950e7a9ab16487889b221cad37f3c4d4fc4c82e2805fb06c1",
+      "entity": "component_tool_contract",
+      "operation": "mcp.tools.list",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-resources",
+      "ordinal": 122,
+      "routeKey": "GET /mcp-resources",
+      "contractDigest": "08ccd4f75718249b02be24541fcc85e4dd3d27ba004c040bb8477b3d5001ce5c",
+      "entity": "component_resource_contract",
+      "operation": "mcp.resources.list",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-resources/:id",
+      "ordinal": 123,
+      "routeKey": "GET /mcp-resources/:id",
+      "contractDigest": "c3a30bb57c3921c1c85f2bc23c245a4feef057278b0666875503a19d5ea0587e",
+      "entity": "component_resource_contract",
+      "operation": "mcp.resources.list",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-resource-templates",
+      "ordinal": 124,
+      "routeKey": "GET /mcp-resource-templates",
+      "contractDigest": "4811c641cce7a4fc060acfe4a744431a86f80a545e8c90a7cc3856bc21afc554",
+      "entity": "component_resource_contract",
+      "operation": "mcp.resources.templates.list",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-resource-templates/:id",
+      "ordinal": 125,
+      "routeKey": "GET /mcp-resource-templates/:id",
+      "contractDigest": "7a3dc91911a5a9acab5eef5dd9b1bb132520180889da8ab9623ca87342324ec9",
+      "entity": "component_resource_contract",
+      "operation": "mcp.resources.templates.list",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-prompts",
+      "ordinal": 126,
+      "routeKey": "GET /mcp-prompts",
+      "contractDigest": "28bf3cc0b8e9a595aa0f8e60f0e68304bb86f27473407a056baa0498c5387121",
+      "entity": "component_prompt_contract",
+      "operation": "mcp.prompts.list",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-prompts/:id",
+      "ordinal": 127,
+      "routeKey": "GET /mcp-prompts/:id",
+      "contractDigest": "234ca1472d025c7b65e5dc5671561a9e4b6c748417592dc2437a5ce7cf600d9b",
+      "entity": "component_prompt_contract",
+      "operation": "mcp.prompts.list",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/mcp-aliases",
+      "ordinal": 128,
+      "routeKey": "GET /mcp-aliases",
+      "contractDigest": "ef76b055d569e8b1d2d65176104dea088a6a803d034838a17c62ef052c3e80a1",
+      "entity": "mcp_tool_alias",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-aliases/preview",
+      "ordinal": 129,
+      "routeKey": "POST /mcp-aliases/preview",
+      "contractDigest": "0850c6c6ff89250516118acc11d010058b18c593a3d112a11fd865a4bec8c985",
+      "entity": "mcp_tool_alias",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/mcp-aliases",
+      "ordinal": 130,
+      "routeKey": "POST /mcp-aliases",
+      "contractDigest": "0a6e6f2f254ccaeb696bc72ff4fae0aa49f4c791069b5f65ff5bac3f40f4a18f",
+      "entity": "mcp_tool_alias",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/mcp-aliases/:id",
+      "ordinal": 131,
+      "routeKey": "DELETE /mcp-aliases/:id",
+      "contractDigest": "ef6185c04d6d6492de78f98032e6b50eb54e2c46a3ee84832664083bb220a518",
+      "entity": "mcp_tool_alias",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/agents",
+      "ordinal": 132,
+      "routeKey": "GET /agents",
+      "contractDigest": "84edaf1c315b9d7a182582fc21ec021cb7897be240b19c589cc470bb31bc907c",
+      "entity": "agent_definition",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/agents",
+      "ordinal": 133,
+      "routeKey": "POST /agents",
+      "contractDigest": "2484d5605f56ef57d0dc601999b0d4676e1687a25e7df93cfca4776609053585",
+      "entity": "agent_definition",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/agents/:id",
+      "ordinal": 134,
+      "routeKey": "GET /agents/:id",
+      "contractDigest": "ffe2b86fb55f0af37ae17c92700b5587dded630b85db3213ae002303e5bcccfa",
+      "entity": "agent_definition",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "PATCH",
+      "path": "/agents/:id",
+      "ordinal": 135,
+      "routeKey": "PATCH /agents/:id",
+      "contractDigest": "d60b9b765eb9cdb02bd55dd686a1a7f41831d239b643971f2f5c8da60a104770",
+      "entity": "agent_definition",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/agents/:id/revisions",
+      "ordinal": 136,
+      "routeKey": "GET /agents/:id/revisions",
+      "contractDigest": "27129b8c2f0f41ba0c7972f34a07c52d025c81b559d68a4fbbe58c6c953b3563",
+      "entity": "agent_revision",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/agents/:id/revisions",
+      "ordinal": 137,
+      "routeKey": "POST /agents/:id/revisions",
+      "contractDigest": "6947e5a530da80995d6ecf4121effb2c147dffaa9b955a6556b3c7a9f30a8233",
+      "entity": "agent_revision",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/agents/:id/revisions/:revisionId",
+      "ordinal": 138,
+      "routeKey": "GET /agents/:id/revisions/:revisionId",
+      "contractDigest": "ac9ce022ecaa2d88e8a61f639aaae31ae952986c075226ca7a7cb17d9801d844",
+      "entity": "agent_revision",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/agents/:id/revisions/:revisionId/validate",
+      "ordinal": 139,
+      "routeKey": "POST /agents/:id/revisions/:revisionId/validate",
+      "contractDigest": "89ecc02992519d4be8b2fe1f9472607cc40ea872c17f8013dcd63ef683fbc3b7",
+      "entity": "agent_revision",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/agents/:id/revisions/:revisionId/verify",
+      "ordinal": 140,
+      "routeKey": "POST /agents/:id/revisions/:revisionId/verify",
+      "contractDigest": "9ae70e19bd935411511d9d9e0302ca276614655ae58e14f611813b8f97f1cb5a",
+      "entity": "agent_revision",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/agents/:id/revisions/:revisionId/activate",
+      "ordinal": 141,
+      "routeKey": "POST /agents/:id/revisions/:revisionId/activate",
+      "contractDigest": "e3567961ce27aaf4b893f9497825eec829bbea5659ec529322d1b6287f9ed638",
+      "entity": "agent_revision",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/agents/:id/revisions/:revisionId/compatibility",
+      "ordinal": 142,
+      "routeKey": "POST /agents/:id/revisions/:revisionId/compatibility",
+      "contractDigest": "87d6ba285a4ff91389ce50c2c5c992be6641b5d1fadcc9b88a947cab8d1332e2",
+      "entity": "agent_revision",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/agents/:id/revisions/:revisionId/tool-bindings",
+      "ordinal": 143,
+      "routeKey": "GET /agents/:id/revisions/:revisionId/tool-bindings",
+      "contractDigest": "478a677f6c97ee9265004e89edb7c207afd4e6d67d9ae18a17470b32a69a69e5",
+      "entity": "agent_tool_binding",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/agents/:id/revisions/:revisionId/tool-bindings/preview",
+      "ordinal": 144,
+      "routeKey": "POST /agents/:id/revisions/:revisionId/tool-bindings/preview",
+      "contractDigest": "4ae32d488f54c1b116d39962baca2955f298add7421b6f4e251f01e007f01b5b",
+      "entity": "agent_tool_binding",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/agents/:id/revisions/:revisionId/handoffs",
+      "ordinal": 145,
+      "routeKey": "GET /agents/:id/revisions/:revisionId/handoffs",
+      "contractDigest": "cda774a73a7af1144c4ad736b3cdca21cab9d4f6cb31c76cc93c03193652d745",
+      "entity": "agent_handoff_binding",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/agents/:id/revisions/:revisionId/guardrails",
+      "ordinal": 146,
+      "routeKey": "GET /agents/:id/revisions/:revisionId/guardrails",
+      "contractDigest": "94fd0ff9a3dfbc682ebcd6a871547d652d7584b69880478a1bd0d61074f0db8d",
+      "entity": "agent_guardrail",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/agents/:id/revisions/:revisionId/promotion-gates",
+      "ordinal": 147,
+      "routeKey": "GET /agents/:id/revisions/:revisionId/promotion-gates",
+      "contractDigest": "517626a4aafb878bb67b5c656b09b816d305b1723b7f281d7a96ab81bc45b449",
+      "entity": "agent_revision",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/agents/:id/enable",
+      "ordinal": 148,
+      "routeKey": "POST /agents/:id/enable",
+      "contractDigest": "43a40694e8530571f424e97b4c61b991c8620f4682e67781697b014db60075ec",
+      "entity": "agent_definition",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/agents/:id/disable",
+      "ordinal": 149,
+      "routeKey": "POST /agents/:id/disable",
+      "contractDigest": "d938463582b898bda68672a55597d1ebd112463224e5740e4fdf0ca7ae965b32",
+      "entity": "agent_definition",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/agents/:id/repair",
+      "ordinal": 150,
+      "routeKey": "POST /agents/:id/repair",
+      "contractDigest": "8b60fe35a4779610ad792803fef460ad78a472f37092c901e1c8021f9431a944",
+      "entity": "agent_definition",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/agents/:id/runs",
+      "ordinal": 151,
+      "routeKey": "POST /agents/:id/runs",
+      "contractDigest": "3c312e6e2b6a4316159022bfe03827edbcc3a6b8eba35c02eb5fdf8c4eec4ede",
+      "entity": "agent_run",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/agents/:id/runs",
+      "ordinal": 152,
+      "routeKey": "GET /agents/:id/runs",
+      "contractDigest": "71d24b9441503437a9d41393a2929bf8bc3e2035b19ce90fd8fc006763b9c31b",
+      "entity": "agent_run",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/agent-runs/:runId",
+      "ordinal": 153,
+      "routeKey": "GET /agent-runs/:runId",
+      "contractDigest": "a3169759f63212973661e494d4282366e659e39bd327bbea156f3b7a59493a2e",
+      "entity": "agent_run",
+      "operation": "agent.run.status",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/agent-runs/:runId/events",
+      "ordinal": 154,
+      "routeKey": "GET /agent-runs/:runId/events",
+      "contractDigest": "0fccf3737fed1452081196b0c3f071bda363956dc8737468a95b8def77f61c3e",
+      "entity": "agent_message",
+      "operation": "agent.run.status",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/agent-runs/:runId/checkpoints",
+      "ordinal": 155,
+      "routeKey": "GET /agent-runs/:runId/checkpoints",
+      "contractDigest": "34f2c42266382f9de994f30c0b74b113729032a3c5c62de6676ced8acf404d5f",
+      "entity": "agent_run_checkpoint",
+      "operation": "agent.run.status",
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/agent-runs/:runId/messages",
+      "ordinal": 156,
+      "routeKey": "POST /agent-runs/:runId/messages",
+      "contractDigest": "a082ed792de5872355d29ab57bbf3079fcec8da05a4780a7f31589bc7e9d7286",
+      "entity": "agent_message",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/agent-runs/:runId/pause",
+      "ordinal": 157,
+      "routeKey": "POST /agent-runs/:runId/pause",
+      "contractDigest": "5c07373009b32dc2489bc42991ce6d2374fc4f2f984614029c708af5f3203178",
+      "entity": "agent_run",
+      "operation": "agent.run.pause",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/agent-runs/:runId/resume",
+      "ordinal": 158,
+      "routeKey": "POST /agent-runs/:runId/resume",
+      "contractDigest": "c0dab8abd6cd31e3a2fda13291a0019173f296de216b494e11a42846771ee350",
+      "entity": "agent_run",
+      "operation": "agent.run.resume",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/agent-runs/:runId/cancel",
+      "ordinal": 159,
+      "routeKey": "POST /agent-runs/:runId/cancel",
+      "contractDigest": "d226f570e517162bd34f88c848bc12e394e4fa3fa107d6bf3d12ef979590405b",
+      "entity": "agent_run",
+      "operation": "agent.run.cancel",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/agent-runs/:runId/tool-calls",
+      "ordinal": 160,
+      "routeKey": "GET /agent-runs/:runId/tool-calls",
+      "contractDigest": "55bc875fc54105ebbb3774020b1e398729edd11e9d57c2200899a2d993a8c1a6",
+      "entity": "agent_tool_call",
+      "operation": "agent.run.status",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/agent-runs/:runId/handoffs",
+      "ordinal": 161,
+      "routeKey": "GET /agent-runs/:runId/handoffs",
+      "contractDigest": "8d80a871e16d764eafd59caf5a240f6058b5aa4c044738f2f617f2914a235c42",
+      "entity": "agent_handoff_run",
+      "operation": "agent.run.status",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/agent-runs/:runId/approvals",
+      "ordinal": 162,
+      "routeKey": "GET /agent-runs/:runId/approvals",
+      "contractDigest": "43d934538dc372b3aa9e32ea61ccea0b471512bed2ab865ec62ca28d1bda2b04",
+      "entity": "agent_approval_request",
+      "operation": "agent.run.status",
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/agent-runs/:runId/approvals/:approvalId/approve",
+      "ordinal": 163,
+      "routeKey": "POST /agent-runs/:runId/approvals/:approvalId/approve",
+      "contractDigest": "3baf87bedd8e9173548cb7b1c7de18a1f8c6805694fb0691db276cb8584927bd",
+      "entity": "agent_approval_request",
+      "operation": "agent.approval.approve",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/agent-runs/:runId/approvals/:approvalId/reject",
+      "ordinal": 164,
+      "routeKey": "POST /agent-runs/:runId/approvals/:approvalId/reject",
+      "contractDigest": "cb8601c22bf73448da370aef1633991f1c6cfe9be0266b193e441100dddf6717",
+      "entity": "agent_approval_request",
+      "operation": "agent.approval.reject",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/agents/:id/sessions",
+      "ordinal": 165,
+      "routeKey": "GET /agents/:id/sessions",
+      "contractDigest": "94b159985bd6d864bf4b7f359fc99207939630b4784ed7f3cf39c075b4ea4959",
+      "entity": "agent_session",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/agent-sessions/:sessionId",
+      "ordinal": 166,
+      "routeKey": "GET /agent-sessions/:sessionId",
+      "contractDigest": "5f97044d20b65c088b929eb17bc459031608ad8c03a3d4f2ecb2de36917b237f",
+      "entity": "agent_session",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/agent-sessions/:sessionId/items",
+      "ordinal": 167,
+      "routeKey": "GET /agent-sessions/:sessionId/items",
+      "contractDigest": "536dc1140905347ca9c99d3093004615e55020908730e870360995cf0842653e",
+      "entity": "agent_session_item",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/agent-sessions/:sessionId/compact",
+      "ordinal": 168,
+      "routeKey": "POST /agent-sessions/:sessionId/compact",
+      "contractDigest": "e08cdae9cd2271c87021082f8a4b1320e2ab2a50a17a886279824685b60b5eaf",
+      "entity": "agent_session",
+      "operation": "agent.session.compact",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/agent-sessions/:sessionId/close",
+      "ordinal": 169,
+      "routeKey": "POST /agent-sessions/:sessionId/close",
+      "contractDigest": "0ad4a0f09dd8eb1f34e4eac305d8979e42978a9bd6af3a592377adea7f0da47e",
+      "entity": "agent_session",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/agents/:id/memory",
+      "ordinal": 170,
+      "routeKey": "GET /agents/:id/memory",
+      "contractDigest": "c53326277da3b592f8e2d4b9a94a35e9338873d509124bc4524226f5fa618823",
+      "entity": "agent_memory_namespace",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/agents/:id/memory/search",
+      "ordinal": 171,
+      "routeKey": "POST /agents/:id/memory/search",
+      "contractDigest": "cb9630d4633f20fd76dcac1c8fe105af4cf7a4374433e315ec37219d4ecbc465",
+      "entity": "agent_memory_namespace",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/agents/:id/memory/items",
+      "ordinal": 172,
+      "routeKey": "POST /agents/:id/memory/items",
+      "contractDigest": "88ad4b948ac059717ee9f26967cd85b865f426eca49a675f83277a4cc1822cae",
+      "entity": "agent_memory_item",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/agents/:id/memory/items/:itemId",
+      "ordinal": 173,
+      "routeKey": "DELETE /agents/:id/memory/items/:itemId",
+      "contractDigest": "4ebc936f2395e049549f3bc1267eadbdacf5b4d1161ef94dbf834abc0b4e0082",
+      "entity": "agent_memory_item",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/agents/:id/eval-suites",
+      "ordinal": 174,
+      "routeKey": "GET /agents/:id/eval-suites",
+      "contractDigest": "75117ced8d9c63b400c9f58b515fde8c7006a6e77a2cb9567f085983d80939df",
+      "entity": "agent_eval_suite",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/agents/:id/eval-suites",
+      "ordinal": 175,
+      "routeKey": "POST /agents/:id/eval-suites",
+      "contractDigest": "36b57ba8370106c4b4a5fed4ab302f7f6d51bd510514c54dc30997123f6516a1",
+      "entity": "agent_eval_suite",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/agent-eval-suites/:suiteId",
+      "ordinal": 176,
+      "routeKey": "GET /agent-eval-suites/:suiteId",
+      "contractDigest": "2009133bfee4ad09c750157cf887492261f45df3f5398dc0d57f38c1a8370a63",
+      "entity": "agent_eval_suite",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/agent-eval-suites/:suiteId/runs",
+      "ordinal": 177,
+      "routeKey": "POST /agent-eval-suites/:suiteId/runs",
+      "contractDigest": "c8ab82f29dfc3f9869fb543564d2249a1878dfb7e7464275cf55b12383823ff1",
+      "entity": "agent_eval_suite",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/agent-eval-runs/:runId",
+      "ordinal": 178,
+      "routeKey": "GET /agent-eval-runs/:runId",
+      "contractDigest": "d130c1c08e0eae9329853eabc8e05c045fdf6f38d1410cd182d31ea79e088ab2",
+      "entity": "agent_eval_run",
+      "operation": "agent.run.status",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/agent-eval-runs/:runId/cases",
+      "ordinal": 179,
+      "routeKey": "GET /agent-eval-runs/:runId/cases",
+      "contractDigest": "2b623688709f289b239f74683d74fc13f663ee278ade731dd530c09ba2b30e8d",
+      "entity": "agent_eval_case_result",
+      "operation": "agent.run.status",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/agents/:id/triggers",
+      "ordinal": 180,
+      "routeKey": "GET /agents/:id/triggers",
+      "contractDigest": "8b61c7544849ee94447fccc8db518e5740aea872850f87702c975f092df2cd3b",
+      "entity": "agent_trigger",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/agents/:id/triggers",
+      "ordinal": 181,
+      "routeKey": "POST /agents/:id/triggers",
+      "contractDigest": "d562b2a9fea34e2001b9385d0f86646f136889d12d985ae52fb7de1ce494ba05",
+      "entity": "agent_trigger",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/agents/:id/triggers/:triggerId",
+      "ordinal": 182,
+      "routeKey": "PATCH /agents/:id/triggers/:triggerId",
+      "contractDigest": "a802865e04758ad04a42f990281ea04e0f666d34b528bea798a4a373c243c7d0",
+      "entity": "agent_trigger",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/agents/:id/triggers/:triggerId",
+      "ordinal": 183,
+      "routeKey": "DELETE /agents/:id/triggers/:triggerId",
+      "contractDigest": "8fba22db467be08a096a418fcba559b783c941ccd77ce64e3f17777cde326891",
+      "entity": "agent_trigger",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/chat/conversations",
+      "ordinal": 184,
+      "routeKey": "GET /chat/conversations",
+      "contractDigest": "7f8a42ad14f5b111d22d78b92e071ae845fcd2755298e016909358990d7e29da",
+      "entity": "system_chat_conversation",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/chat/conversations",
+      "ordinal": 185,
+      "routeKey": "POST /chat/conversations",
+      "contractDigest": "fa7f4e9251385fe3e8a07317a5d342bcc9158ec9f3f3d6a15b98f94e430882c8",
+      "entity": "system_chat_conversation",
+      "operation": "chat.conversation.create",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/chat/conversations/:id",
+      "ordinal": 186,
+      "routeKey": "GET /chat/conversations/:id",
+      "contractDigest": "6242bc35f391f6f1aea690d1354876c695fbcca8fb2e90a07220ca447f577ab2",
+      "entity": "system_chat_conversation",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/chat/conversations/:id/messages",
+      "ordinal": 187,
+      "routeKey": "GET /chat/conversations/:id/messages",
+      "contractDigest": "62fc986326f5043b13d7cbd94ee4a170e3a870bfd1ce948cf5deacef76c14112",
+      "entity": "system_chat_message",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/chat/conversations/:id/messages",
+      "ordinal": 188,
+      "routeKey": "POST /chat/conversations/:id/messages",
+      "contractDigest": "e97212fb5f28fddc65abe5c0cf950e3a7fd04df51c2dd40c2d43687f71af7b1d",
+      "entity": "system_chat_message",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/chat/conversations/:id/events",
+      "ordinal": 189,
+      "routeKey": "GET /chat/conversations/:id/events",
+      "contractDigest": "32727cbf14206514385dd650ff78f922e4482fba53f50577bba4c23543a3ad83",
+      "entity": "system_chat_conversation",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/chat/conversations/:id/cancel",
+      "ordinal": 190,
+      "routeKey": "POST /chat/conversations/:id/cancel",
+      "contractDigest": "70da826985ad77d00e11a4fabadbca59ca87098c2dc71d59ab426287d990737b",
+      "entity": "system_chat_conversation",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/chat/conversations/:id/browser-sessions",
+      "ordinal": 191,
+      "routeKey": "GET /chat/conversations/:id/browser-sessions",
+      "contractDigest": "a721e656fab66eb381a575f0731a18f9314d3564e0f370239ba3b6fd9b8ff8a4",
+      "entity": "browser_session_binding",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/chat/conversations/:id/browser-sessions",
+      "ordinal": 192,
+      "routeKey": "POST /chat/conversations/:id/browser-sessions",
+      "contractDigest": "26576e2270ea72230919dfc391fcab7f2294f5cfadab3550eb67fdb4b10953b1",
+      "entity": "browser_session_binding",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/chat/conversations/:id/browser-sessions/:sessionId/attach",
+      "ordinal": 193,
+      "routeKey": "POST /chat/conversations/:id/browser-sessions/:sessionId/attach",
+      "contractDigest": "d6a573ce922aeb7e68fc78fe549ab7b215f8eedbdd9ddb93230e1fa70dabef71",
+      "entity": "browser_session_binding",
+      "operation": "chat.browser.session.attach",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/chat/ask",
+      "ordinal": 194,
+      "routeKey": "POST /chat/ask",
+      "contractDigest": "9dba7ce2b0f5163f43a2528272f5336ebfcb76bbcd99aaaafbced2faeebe4ad2",
+      "entity": "system_chat_action",
+      "operation": "chat.conversation.create",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/ai/model-calls",
+      "ordinal": 195,
+      "routeKey": "GET /ai/model-calls",
+      "contractDigest": "527ec1dcf4ca05fb580d884f726739e1852a16e3c52d2e7d5365d9ee9e59ee97",
+      "entity": "ai_model_call",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/ai/model-calls/:id",
+      "ordinal": 196,
+      "routeKey": "GET /ai/model-calls/:id",
+      "contractDigest": "435bb8d46b1fab1d5364d3f64cb2b4f13445b530ee0edd8ae950336227ffdf3b",
+      "entity": "ai_model_call",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/ai/model-calls/:id/request-descriptor",
+      "ordinal": 197,
+      "routeKey": "GET /ai/model-calls/:id/request-descriptor",
+      "contractDigest": "49d64f78e57cb1b4917d7c3a3a88e96e7cc2f2a4c9e6d0c78ba268582b9e6b3e",
+      "entity": "openai_request_descriptor",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/ai/model-calls/:id/events",
+      "ordinal": 198,
+      "routeKey": "GET /ai/model-calls/:id/events",
+      "contractDigest": "e2839aa3bedc1bf86ed87ff2b151d90f6a593668ab882d0be9b76273993e36ad",
+      "entity": "ai_model_event",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/ai/model-calls/:id/output-items",
+      "ordinal": 199,
+      "routeKey": "GET /ai/model-calls/:id/output-items",
+      "contractDigest": "33f609a46b3ac86948a0ca6bf4eca498b7a8b4c62cf45339a1d40872e2d5b28d",
+      "entity": "ai_model_output_item",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/ai/model-calls/:id/tool-dispatches",
+      "ordinal": 200,
+      "routeKey": "GET /ai/model-calls/:id/tool-dispatches",
+      "contractDigest": "b4ce53cbd88633c9be71bdae168e5e44376de8e80252cf9787af1f41ac133625",
+      "entity": "ai_tool_dispatch",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/ai/model-calls/:id/continuations",
+      "ordinal": 201,
+      "routeKey": "GET /ai/model-calls/:id/continuations",
+      "contractDigest": "45dcd5c43fd78c30c577409fa5fe6fbe68266bffcb456e7bc214c0c1c8f553ca",
+      "entity": "ai_model_continuation",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/ai/model-calls/:id/checkpoints",
+      "ordinal": 202,
+      "routeKey": "GET /ai/model-calls/:id/checkpoints",
+      "contractDigest": "070ac6a7b6d3e473adbcbf65418eded48dfd2641bc3b5ae67ab7cd69d9c8de38",
+      "entity": "ai_run_state_checkpoint",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/ai/model-calls/:id/retrieve",
+      "ordinal": 203,
+      "routeKey": "POST /ai/model-calls/:id/retrieve",
+      "contractDigest": "8d9632162c2d92ece184759b54b550aa9c21da385f99bef5765c9a481b63e9e0",
+      "entity": "ai_model_call",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/ai/model-calls/:id/resume-stream",
+      "ordinal": 204,
+      "routeKey": "POST /ai/model-calls/:id/resume-stream",
+      "contractDigest": "f477e76c6a6b0c7a847a1620afd625a8992277a2a5cd18363be9f02af735cad4",
+      "entity": "ai_model_call",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/ai/model-calls/:id/request-cancel",
+      "ordinal": 205,
+      "routeKey": "POST /ai/model-calls/:id/request-cancel",
+      "contractDigest": "e7c7bbbc42abb0c9e40781627aa15459f75bccc52d6d78313170e9e101ab6674",
+      "entity": "ai_model_call",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/ai/model-calls/:id/reconcile",
+      "ordinal": 206,
+      "routeKey": "POST /ai/model-calls/:id/reconcile",
+      "contractDigest": "99fedccc3b99646aecf1685867d7307c8327609c47476dbb88af64bb41c9ccb5",
+      "entity": "ai_model_call",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/ai/model-capabilities",
+      "ordinal": 207,
+      "routeKey": "GET /ai/model-capabilities",
+      "contractDigest": "d15cb19b7723dc37f098b6ba07f3575a6da701518c9aace6978be0024b36b5b8",
+      "entity": "openai_model_capability_snapshot",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/ai/model-capabilities/:snapshotId",
+      "ordinal": 208,
+      "routeKey": "GET /ai/model-capabilities/:snapshotId",
+      "contractDigest": "7f8fa395a90f46c394568d019fa198a748afb2208debdb163375c610b021f8c2",
+      "entity": "openai_model_capability_snapshot",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/ai/model-capabilities/refresh",
+      "ordinal": 209,
+      "routeKey": "POST /ai/model-capabilities/refresh",
+      "contractDigest": "7424b40f391dcefcfeb09e86ea275d67c4dad5ee6d1b3401ed27d7a23510fe82",
+      "entity": "openai_model_capability_snapshot",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/generation/jobs",
+      "ordinal": 210,
+      "routeKey": "POST /generation/jobs",
+      "contractDigest": "bed1abaf8dc527562e4690f84c9ee878222f25a289b0412fbe287f6aaa94a380",
+      "entity": "generation_job",
+      "operation": "generation.job.create",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs",
+      "ordinal": 211,
+      "routeKey": "GET /generation/jobs",
+      "contractDigest": "4b226de4ff489e39e3182b41e06e4b97058df37ebce26966dd5edfa51e6a33c1",
+      "entity": "generation_job",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id",
+      "ordinal": 212,
+      "routeKey": "GET /generation/jobs/:id",
+      "contractDigest": "bc87fab09e57e6179a8ce2c67117a29989f3b5a8742e85a4c2e048ac2a5701c4",
+      "entity": "generation_job",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/snapshot",
+      "ordinal": 213,
+      "routeKey": "GET /generation/jobs/:id/snapshot",
+      "contractDigest": "803bb9eda4fd4be73ebf5d6bf6ac1bb336ab6b9a069baf3876e6d71ab0590193",
+      "entity": "generation_job",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/messages",
+      "ordinal": 214,
+      "routeKey": "GET /generation/jobs/:id/messages",
+      "contractDigest": "77a906cc827741cb924226acfdb7ebe770d5ba06cdf6c3472abcd632f53d5849",
+      "entity": "generation_message",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/generation/jobs/:id/messages",
+      "ordinal": 215,
+      "routeKey": "POST /generation/jobs/:id/messages",
+      "contractDigest": "43bea5204a9c52c3fbd45915e9f75141d41a26260509b64c6bb570ef7b9e73bc",
+      "entity": "generation_message",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/turns",
+      "ordinal": 216,
+      "routeKey": "GET /generation/jobs/:id/turns",
+      "contractDigest": "d836a2a25bfb7506f07a7bff19646171541eb47051d2fccf8a14858301a57974",
+      "entity": "generation_turn",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/events",
+      "ordinal": 217,
+      "routeKey": "GET /generation/jobs/:id/events",
+      "contractDigest": "f0abc90eeb3f380d0cced2db09efa696918981a21ed38493ee3d92eadd43c329",
+      "entity": "generation_event",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/sources",
+      "ordinal": 218,
+      "routeKey": "GET /generation/jobs/:id/sources",
+      "contractDigest": "e534daee5c37e9d2c2770f57832cfee7960d9618270ffcdeca02bc88e184aaaf",
+      "entity": "generation_source",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/generation/jobs/:id/sources",
+      "ordinal": 219,
+      "routeKey": "POST /generation/jobs/:id/sources",
+      "contractDigest": "0bba2c101d6223f7f0fa85267c2e876089877ce21415f72cdd969e22950d44ce",
+      "entity": "generation_source",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/sources/:sourceId",
+      "ordinal": 220,
+      "routeKey": "GET /generation/jobs/:id/sources/:sourceId",
+      "contractDigest": "26bb1ca209c39958dfd6b7439400a36d78b8516b6e833be15d93c9ffebf9dab6",
+      "entity": "generation_source",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/facts",
+      "ordinal": 221,
+      "routeKey": "GET /generation/jobs/:id/facts",
+      "contractDigest": "c6b7b47cbecd0ca68f49c68a6f01bcb17f3bde3376304431edcf498e8f44cc7f",
+      "entity": "generation_fact",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/owner-decisions",
+      "ordinal": 222,
+      "routeKey": "GET /generation/jobs/:id/owner-decisions",
+      "contractDigest": "568c042da89eaa2fa4552eb2356b1f462bdb38b87dc57ca2f51f70becb041cb0",
+      "entity": "generation_owner_decision",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/capability-snapshots",
+      "ordinal": 223,
+      "routeKey": "GET /generation/jobs/:id/capability-snapshots",
+      "contractDigest": "3bbd1d1b1b40a17635db3499e96fb7b7eace07d43728f583299c63babef06561",
+      "entity": "generation_capability_snapshot",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/generation/jobs/:id/capability-snapshots/refresh",
+      "ordinal": 224,
+      "routeKey": "POST /generation/jobs/:id/capability-snapshots/refresh",
+      "contractDigest": "6759d4c41098bd9e350e090905557f361437ae0c07453a320de59df9db0d1bdd",
+      "entity": "generation_capability_snapshot",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/spec",
+      "ordinal": 225,
+      "routeKey": "GET /generation/jobs/:id/spec",
+      "contractDigest": "42b489b375a78cda2c06561bb162da490bc2d16fdf3179f4a559340a79d30c35",
+      "entity": "generation_spec_revision",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/spec/revisions",
+      "ordinal": 226,
+      "routeKey": "GET /generation/jobs/:id/spec/revisions",
+      "contractDigest": "ae8879f950b8f4ae1db0695a8baecd86a3de03dfbed28417e910e0fabc496c68",
+      "entity": "generation_spec_revision",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/spec/revisions/:revisionId",
+      "ordinal": 227,
+      "routeKey": "GET /generation/jobs/:id/spec/revisions/:revisionId",
+      "contractDigest": "f26747a8ef2656c7c6799defd38311b25b6fb7b0f6f17eeacb954302a0b0f4a6",
+      "entity": "generation_spec_revision",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/generation/jobs/:id/spec/revisions/:revisionId/precheck",
+      "ordinal": 228,
+      "routeKey": "POST /generation/jobs/:id/spec/revisions/:revisionId/precheck",
+      "contractDigest": "aba54dc8f1ca96d263eb388aed996c1d4de0d2e5e55cb9381c7ca9835aa0b1d6",
+      "entity": "generation_spec_revision",
+      "operation": "generation.spec.precheck",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/generation/jobs/:id/approve-spec",
+      "ordinal": 229,
+      "routeKey": "POST /generation/jobs/:id/approve-spec",
+      "contractDigest": "717640168fbec76984e21d490fc0d7c34ee4aed9bfadd6bae6208cb2d9f57cea",
+      "entity": "generation_job",
+      "operation": "generation.spec.approve",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/authority",
+      "ordinal": 230,
+      "routeKey": "GET /generation/jobs/:id/authority",
+      "contractDigest": "e10d143efac90b584bd32a9b634fbe91c82a9ccd245478bef167a246ef8550af",
+      "entity": "generation_execution_authority",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/plans",
+      "ordinal": 231,
+      "routeKey": "GET /generation/jobs/:id/plans",
+      "contractDigest": "7c928aa3fe609910e5f973e793de59a0de36573ef644ef9bf630cbcb684257e7",
+      "entity": "generation_plan",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/plans/:planId",
+      "ordinal": 232,
+      "routeKey": "GET /generation/jobs/:id/plans/:planId",
+      "contractDigest": "cc2cf5a1a53978ead96e3c8770279b17bb21ba974cf01d2f634ffc85be332546",
+      "entity": "generation_plan",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/generation/jobs/:id/plans/:planId/validate",
+      "ordinal": 233,
+      "routeKey": "POST /generation/jobs/:id/plans/:planId/validate",
+      "contractDigest": "08f4505913a130eba1bfd0b04b550726fab276a37baaef4c2d9050e76ba61c51",
+      "entity": "generation_plan",
+      "operation": "generation.plan.validate",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/phases",
+      "ordinal": 234,
+      "routeKey": "GET /generation/jobs/:id/phases",
+      "contractDigest": "f3f926b9e3afee5a3038296c7b86d77672aa0b810dd86af0d15659ea4db3ebcd",
+      "entity": "generation_phase_run",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/phases/:phaseRunId",
+      "ordinal": 235,
+      "routeKey": "GET /generation/jobs/:id/phases/:phaseRunId",
+      "contractDigest": "bef3f5d1311a779fdef417947153b13a79af6d2e4c6883f0cfb4e67f656f1cf7",
+      "entity": "generation_phase_run",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/checkpoints",
+      "ordinal": 236,
+      "routeKey": "GET /generation/jobs/:id/checkpoints",
+      "contractDigest": "bc3deb7b4caa31e3687c1797d697717d3f96e4c1477d89099b3f6a23b8f28bb6",
+      "entity": "generation_checkpoint",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/model-calls",
+      "ordinal": 237,
+      "routeKey": "GET /generation/jobs/:id/model-calls",
+      "contractDigest": "08b0190c6495335d99044b9e04e18313212d18d751e0bc9c0849df4778591b03",
+      "entity": "ai_model_call",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/tool-events",
+      "ordinal": 238,
+      "routeKey": "GET /generation/jobs/:id/tool-events",
+      "contractDigest": "294f44d9b7f8ae6d9f3f13ceb9c6a1651ef6ee984b768192dae7db6d678070d9",
+      "entity": "generation_tool_event",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/workspace/revisions",
+      "ordinal": 239,
+      "routeKey": "GET /generation/jobs/:id/workspace/revisions",
+      "contractDigest": "f7374193a31569e097206133646c59160bf3998fb9415d0a62f55ab987bfdeea",
+      "entity": "generation_workspace_revision",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/workspace/revisions/:revisionId",
+      "ordinal": 240,
+      "routeKey": "GET /generation/jobs/:id/workspace/revisions/:revisionId",
+      "contractDigest": "3bb03033da6c35dfcb5e4aa7b7d46b02becdb07453eac9439f6c91ecbb04242f",
+      "entity": "generation_workspace_revision",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/workspace/revisions/:revisionId/files",
+      "ordinal": 241,
+      "routeKey": "GET /generation/jobs/:id/workspace/revisions/:revisionId/files",
+      "contractDigest": "4cff3069c43365cbe3a61d644637259a3c66f1160842b6e3dabf795adc5314f2",
+      "entity": "generation_workspace_file",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/workspace/patches",
+      "ordinal": 242,
+      "routeKey": "GET /generation/jobs/:id/workspace/patches",
+      "contractDigest": "9db1c6b7c67c079341fac9b9441ddb60799fb3a9867376280a406aca90b72b21",
+      "entity": "generation_workspace_patch",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/contract-candidates",
+      "ordinal": 243,
+      "routeKey": "GET /generation/jobs/:id/contract-candidates",
+      "contractDigest": "e72fcc13ce40ff0b1cdcf28a4673ef33940f6c8baf5add11602c24ff97d8de46",
+      "entity": "generation_contract_candidate",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/artifact-manifests",
+      "ordinal": 244,
+      "routeKey": "GET /generation/jobs/:id/artifact-manifests",
+      "contractDigest": "9454ee17bca13de6f9c7d0979d63356e2684fb580246e07e6c8536a287d636a4",
+      "entity": "generation_artifact_manifest",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/artifacts",
+      "ordinal": 245,
+      "routeKey": "GET /generation/jobs/:id/artifacts",
+      "contractDigest": "5d7d17f6733b2d3fc84b5c6b4a7ba137116f0541e85bcdb02c932feadd2d439a",
+      "entity": "generation_artifact",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/validation-runs",
+      "ordinal": 246,
+      "routeKey": "GET /generation/jobs/:id/validation-runs",
+      "contractDigest": "5e42dfe3ba9048388510b96dd09e03d8539af05a1be4fc6d428dcb2b242a87aa",
+      "entity": "generation_validation_run",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/validation-runs/:runId",
+      "ordinal": 247,
+      "routeKey": "GET /generation/jobs/:id/validation-runs/:runId",
+      "contractDigest": "a2933b70e3348498054ba3eed4f2bc9f916413917d8e96baaff73526bace7ff5",
+      "entity": "generation_validation_run",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/generation/jobs/:id/validation-runs",
+      "ordinal": 248,
+      "routeKey": "POST /generation/jobs/:id/validation-runs",
+      "contractDigest": "cb89335fe04311bb6b6ee94dea42c2d623ad7ddc2eea7be0167f49d44dfa1010",
+      "entity": "generation_validation_run",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/blockers",
+      "ordinal": 249,
+      "routeKey": "GET /generation/jobs/:id/blockers",
+      "contractDigest": "fc583ac874519f3ffdefc25274fd7e2d6a2da8380e69ec0b8158e417435cfd36",
+      "entity": "generation_blocker",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/generation/jobs/:id/blockers/:blockerId/resolve",
+      "ordinal": 250,
+      "routeKey": "POST /generation/jobs/:id/blockers/:blockerId/resolve",
+      "contractDigest": "f49d26acccd20a7a9f8d340b070055d98e099fbf20d6f8807e84215403f0ce55",
+      "entity": "generation_blocker",
+      "operation": "generation.capability.resolve",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/activation-set",
+      "ordinal": 251,
+      "routeKey": "GET /generation/jobs/:id/activation-set",
+      "contractDigest": "fa5d6aac07899969b7bce7afb0e7c4233f790df9829694c2cf17cf63136889d3",
+      "entity": "generation_activation_set",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/generation/jobs/:id/cancel",
+      "ordinal": 252,
+      "routeKey": "POST /generation/jobs/:id/cancel",
+      "contractDigest": "1a889f7a25033403b5fd7b416a21f9c06fca8e9019f91f5e4ec60602ec118612",
+      "entity": "generation_job",
+      "operation": "generation.job.cancel",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/generation/jobs/:id/retry",
+      "ordinal": 253,
+      "routeKey": "POST /generation/jobs/:id/retry",
+      "contractDigest": "1e8b8343b87d70e55da8da851c4719dd5033bbfe0fc1e5d67118a801a25da35e",
+      "entity": "generation_job",
+      "operation": "generation.job.retry",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/generation/jobs/:id/follow-up",
+      "ordinal": 254,
+      "routeKey": "POST /generation/jobs/:id/follow-up",
+      "contractDigest": "d4597b4c845bfe3876ce5e63d591c04b4f93d783c5bc25eecc0358a75fe88fdb",
+      "entity": "generation_job",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/generation/jobs/:id/resume",
+      "ordinal": 255,
+      "routeKey": "POST /generation/jobs/:id/resume",
+      "contractDigest": "4a4ac6c62ca846aff0c6667dc0d81b4f01cbef836028e2514ed24a9050a184b3",
+      "entity": "generation_job",
+      "operation": "generation.job.resume",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/releases",
+      "ordinal": 256,
+      "routeKey": "GET /generation/jobs/:id/releases",
+      "contractDigest": "2c2c4695aab801312d737acc15519440436ccf9c63f0c35249f43df8f6dcf807",
+      "entity": "component_release",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/logs",
+      "ordinal": 257,
+      "routeKey": "GET /generation/jobs/:id/logs",
+      "contractDigest": "56494fcf3a8c6ddf09cc943627eab79ca49a2a4b5d61000134df0778c4d014d6",
+      "entity": "debug_log_event",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/audit",
+      "ordinal": 258,
+      "routeKey": "GET /generation/jobs/:id/audit",
+      "contractDigest": "1f84dd7cbbdcf370c1898bf463aeaff746b6ff0603439c762cd15afd806f095d",
+      "entity": "audit_event",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/browser/session",
+      "ordinal": 259,
+      "routeKey": "GET /generation/jobs/:id/browser/session",
+      "contractDigest": "f95c36503a972a23b830dae4094e9bccef9a10ceb1c6b161ad395f2a8345dc3e",
+      "entity": "browser_session",
+      "operation": "browser.session.observe",
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/generation/jobs/:id/browser/session",
+      "ordinal": 260,
+      "routeKey": "POST /generation/jobs/:id/browser/session",
+      "contractDigest": "6979cda0bade872a03b253e5a89c27b45e9be0153b8d18a6e6d213b24640d30a",
+      "entity": "browser_session",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/browser/preview",
+      "ordinal": 261,
+      "routeKey": "GET /generation/jobs/:id/browser/preview",
+      "contractDigest": "13cc5eb82f53250ad01df249eef747368ca2e534659a66fd6ff3ca880a263fce",
+      "entity": "browser_session",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/generation/jobs/:id/browser/attach",
+      "ordinal": 262,
+      "routeKey": "POST /generation/jobs/:id/browser/attach",
+      "contractDigest": "ee4d93b4a19bae7b355b2f86f244ee3af0f76a184a2ac51180b6b8400c61f436",
+      "entity": "browser_session",
+      "operation": "browser.session.attach",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/generation/jobs/:id/browser/credentials",
+      "ordinal": 263,
+      "routeKey": "POST /generation/jobs/:id/browser/credentials",
+      "contractDigest": "c2eb4b669124170335e8adc2c802f7d2aecafb1ed5e3be2be7dce0c924643590",
+      "entity": "browser_session",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/generation/jobs/:id/browser/account/save",
+      "ordinal": 264,
+      "routeKey": "POST /generation/jobs/:id/browser/account/save",
+      "contractDigest": "ab7d9351f9dd0745cc6266d0d8f709226ddd0e5093c85481159e98098792d85f",
+      "entity": "browser_account_binding",
+      "operation": "browser.account.save",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/generation/jobs/:id/browser/operation-scope",
+      "ordinal": 265,
+      "routeKey": "POST /generation/jobs/:id/browser/operation-scope",
+      "contractDigest": "e138701bcd483ae0754527a59b9f2c41fcffffe96e64ea130bc2166c85f3843a",
+      "entity": "browser_operation_scope",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/generation/jobs/:id/browser/confirmations",
+      "ordinal": 266,
+      "routeKey": "POST /generation/jobs/:id/browser/confirmations",
+      "contractDigest": "022c204e9f28086bc3a4e8d5543e0799f728a8e48a353bc26b76dfbdd27c02f2",
+      "entity": "browser_irreversible_confirmation",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/generation/jobs/:id/browser/teaching",
+      "ordinal": 267,
+      "routeKey": "GET /generation/jobs/:id/browser/teaching",
+      "contractDigest": "6290e251445bf2bef880556b5ca1412ffe0eb1461dd98a5a3c5737cd2a29b163",
+      "entity": "browser_teaching_run",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/generation/jobs/:id/browser/teaching",
+      "ordinal": 268,
+      "routeKey": "POST /generation/jobs/:id/browser/teaching",
+      "contractDigest": "08026a31592f24b8c392d0d0235bf4ce384dd6fdae4b45c49fd3ae55fd9a10a4",
+      "entity": "browser_teaching_run",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/generation/jobs/:id/browser/teaching/preflight",
+      "ordinal": 269,
+      "routeKey": "POST /generation/jobs/:id/browser/teaching/preflight",
+      "contractDigest": "dbcf76990f5ab36fbed97eb022b71ce9f2adb76455b406f740c40af84f943232",
+      "entity": "browser_teaching_run",
+      "operation": "browser.automation.preflight",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/generation/jobs/:id/browser/teaching/replay",
+      "ordinal": 270,
+      "routeKey": "POST /generation/jobs/:id/browser/teaching/replay",
+      "contractDigest": "c1c41a0f10dd769267ebe303fd8da61d4478d67b7cde836b14bbd254cd969153",
+      "entity": "browser_teaching_run",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/generation/jobs/:id/browser/takeover",
+      "ordinal": 271,
+      "routeKey": "POST /generation/jobs/:id/browser/takeover",
+      "contractDigest": "1ab854e58412e65312d4a84708e7d054821d2c4578a34fe6c60902a6eadf5598",
+      "entity": "browser_session",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/generation/jobs/:id/browser/return-to-ai",
+      "ordinal": 272,
+      "routeKey": "POST /generation/jobs/:id/browser/return-to-ai",
+      "contractDigest": "2c63775826fb6848c9ebec3c8c02a3d99ff9c92bca995a5897193728f7b66ca0",
+      "entity": "browser_session",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/browser-sessions",
+      "ordinal": 273,
+      "routeKey": "GET /browser-sessions",
+      "contractDigest": "a0788b3733474414fcc9e59c1b199653a83df138f17e1179b9ac907234d4dc19",
+      "entity": "browser_session",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions",
+      "ordinal": 274,
+      "routeKey": "POST /browser-sessions",
+      "contractDigest": "f5385bc9b17b711cd4ec0e9ebb7caec66ce5027300d8097dbe747ffa17909d9c",
+      "entity": "browser_session",
+      "operation": "browser.session.create",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/browser-sessions/:sessionId",
+      "ordinal": 275,
+      "routeKey": "GET /browser-sessions/:sessionId",
+      "contractDigest": "cf00420fc516dfbcf17f242b9f09bc5b7103ccf6b40a4692b9eca3f897cb406a",
+      "entity": "browser_session",
+      "operation": "browser.session.observe",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/browser-sessions/:sessionId/snapshot",
+      "ordinal": 276,
+      "routeKey": "GET /browser-sessions/:sessionId/snapshot",
+      "contractDigest": "102f0f4a3dc150a6497f07ed758c27b3c37d7618066c98f456375d5c409ff6e8",
+      "entity": "browser_session",
+      "operation": "browser.session.observe",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/browser-sessions/:sessionId/events",
+      "ordinal": 277,
+      "routeKey": "GET /browser-sessions/:sessionId/events",
+      "contractDigest": "ac3354f527fae7df5683650650481ea5af4526285972be4e6ffddd348a183604",
+      "entity": "browser_session",
+      "operation": "browser.session.observe",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/browser-sessions/:sessionId/pages",
+      "ordinal": 278,
+      "routeKey": "GET /browser-sessions/:sessionId/pages",
+      "contractDigest": "9d6eca7896e9f5cd51ee0ac465b2571e9627a10568fa4596dfe83c195581e42e",
+      "entity": "browser_page",
+      "operation": "browser.session.observe",
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/pages",
+      "ordinal": 279,
+      "routeKey": "POST /browser-sessions/:sessionId/pages",
+      "contractDigest": "1b6d72c140eb4eae782620f2fc228195d55866f399ad658caf2e605d10af7d0f",
+      "entity": "browser_page",
+      "operation": "browser.session.create",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/browser-sessions/:sessionId/pages/:pageId",
+      "ordinal": 280,
+      "routeKey": "GET /browser-sessions/:sessionId/pages/:pageId",
+      "contractDigest": "cf70cf9b103b02d25f4962a433937241bbf620d29ce20dcd3a88ffbaf1ce5c0e",
+      "entity": "browser_page",
+      "operation": "browser.session.observe",
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/pages/:pageId/activate",
+      "ordinal": 281,
+      "routeKey": "POST /browser-sessions/:sessionId/pages/:pageId/activate",
+      "contractDigest": "1600a91ee11e7a8e8a95ed3773c8a090ac8625c48d5962a3b26dce1beef94cc7",
+      "entity": "browser_page",
+      "operation": "browser.page.activate",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/pages/:pageId/close",
+      "ordinal": 282,
+      "routeKey": "POST /browser-sessions/:sessionId/pages/:pageId/close",
+      "contractDigest": "7c6d12a174487fcc468aaa450ce78eda6d35cc8f45f39859f96fe9296da9f251",
+      "entity": "browser_page",
+      "operation": "browser.session.close",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/browser-sessions/:sessionId/frames",
+      "ordinal": 283,
+      "routeKey": "GET /browser-sessions/:sessionId/frames",
+      "contractDigest": "8ab9900ec76e666a6e03a6dd8b9191fc91f81e2b43e470df5b1c6f5da6f9a20a",
+      "entity": "browser_frame",
+      "operation": "browser.session.observe",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/browser-sessions/:sessionId/documents",
+      "ordinal": 284,
+      "routeKey": "GET /browser-sessions/:sessionId/documents",
+      "contractDigest": "bd4cdbfe60c07c170201ef762c7ffef009e3e049665d1da3b5547afefe48c6fc",
+      "entity": "browser_document",
+      "operation": "browser.session.observe",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/browser-sessions/:sessionId/navigations",
+      "ordinal": 285,
+      "routeKey": "GET /browser-sessions/:sessionId/navigations",
+      "contractDigest": "210544d57c99f8c45ebe01b9adf6688e1f49a947e3fcca6c8762681eb93bf759",
+      "entity": "browser_navigation",
+      "operation": "browser.session.observe",
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/observe",
+      "ordinal": 286,
+      "routeKey": "POST /browser-sessions/:sessionId/observe",
+      "contractDigest": "f039cf367bdda1c5779ccb3e77fff7f04a6729661bfe65d7e64a26e022d5372d",
+      "entity": "browser_observation",
+      "operation": "browser.session.observe",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/actions",
+      "ordinal": 287,
+      "routeKey": "POST /browser-sessions/:sessionId/actions",
+      "contractDigest": "709aec654727c916fd6a24a7a10188dc96c4b00123b799e339d2b82519a4b91a",
+      "entity": "browser_action_run",
+      "operation": "browser.session.create",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/browser-sessions/:sessionId/actions/:actionId",
+      "ordinal": 288,
+      "routeKey": "GET /browser-sessions/:sessionId/actions/:actionId",
+      "contractDigest": "243c7c2fc945a1025db42c3a9caa1bc5be1ca0ad7f5329d1b846ce6f4b9a3387",
+      "entity": "browser_action_run",
+      "operation": "browser.session.observe",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/browser-sessions/:sessionId/actions/:actionId/attempts",
+      "ordinal": 289,
+      "routeKey": "GET /browser-sessions/:sessionId/actions/:actionId/attempts",
+      "contractDigest": "4f792e177cbb83ae0fbce55cf4ee29af460c8091e1e5d6710f97333bb0e2c954",
+      "entity": "browser_action_attempt",
+      "operation": "browser.session.observe",
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/actions/:actionId/cancel",
+      "ordinal": 290,
+      "routeKey": "POST /browser-sessions/:sessionId/actions/:actionId/cancel",
+      "contractDigest": "9b4bea8677f6a7b7c88d205c5a10c9e9ec3cd52975bfe419e05d86d3fffd52d2",
+      "entity": "browser_action_run",
+      "operation": "browser.action.cancel",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/actions/:actionId/reconcile",
+      "ordinal": 291,
+      "routeKey": "POST /browser-sessions/:sessionId/actions/:actionId/reconcile",
+      "contractDigest": "cf2dfc75853d32f820676a12f6643de1c23439695e628d015cd007043a48c4c6",
+      "entity": "browser_action_run",
+      "operation": "browser.action.reconcile",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/actions/:actionId/resolve-outcome",
+      "ordinal": 292,
+      "routeKey": "POST /browser-sessions/:sessionId/actions/:actionId/resolve-outcome",
+      "contractDigest": "b23c05c40bb7c9f54db89f5f41076c25afe447822476bc2b872f1f009d48b718",
+      "entity": "browser_action_run",
+      "operation": "browser.action.resolveOutcome",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/browser-sessions/:sessionId/control",
+      "ordinal": 293,
+      "routeKey": "GET /browser-sessions/:sessionId/control",
+      "contractDigest": "05f8ed491b29a673bd6cfa9e283baca7d9d18838aa2e9415fd89996e7e48afa2",
+      "entity": "browser_control_lease",
+      "operation": "browser.session.observe",
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/control/acquire",
+      "ordinal": 294,
+      "routeKey": "POST /browser-sessions/:sessionId/control/acquire",
+      "contractDigest": "2ee5c594acb63cb893867ce27e176935487b6850dd804d07dfe89693ef6da8f5",
+      "entity": "browser_control_lease",
+      "operation": "browser.control.acquire",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/control/release",
+      "ordinal": 295,
+      "routeKey": "POST /browser-sessions/:sessionId/control/release",
+      "contractDigest": "40f3d032608180b52eb464ca989ad9f0b74c4d379de00f9a02907af99d24ca59",
+      "entity": "browser_control_lease",
+      "operation": "browser.control.release",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/control/return-to-ai",
+      "ordinal": 296,
+      "routeKey": "POST /browser-sessions/:sessionId/control/return-to-ai",
+      "contractDigest": "cf93c6540b5ccc3fdba975e35822f7b03c680a16e1908fa477f1e1a61eedc153",
+      "entity": "browser_control_lease",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/browser-sessions/:sessionId/control-transfers",
+      "ordinal": 297,
+      "routeKey": "GET /browser-sessions/:sessionId/control-transfers",
+      "contractDigest": "8ea78546abe035e219ba3c167bbf4542c94c18ae55730774ce79981dffa29d75",
+      "entity": "browser_control_transfer",
+      "operation": "browser.session.observe",
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/operation-scopes",
+      "ordinal": 298,
+      "routeKey": "POST /browser-sessions/:sessionId/operation-scopes",
+      "contractDigest": "b08852d3afa4cbb18dd12d9abbea90baa66c20a4f589890f6984dfe7fdd0e09a",
+      "entity": "browser_operation_scope",
+      "operation": "browser.session.create",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/browser-sessions/:sessionId/targets",
+      "ordinal": 299,
+      "routeKey": "GET /browser-sessions/:sessionId/targets",
+      "contractDigest": "18ab35e5aa9d0b89a894997b51bd3d07ef89c7020d1f3cc759c78b5f4e893442",
+      "entity": "browser_target_reference",
+      "operation": "browser.session.observe",
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/targets/pick",
+      "ordinal": 300,
+      "routeKey": "POST /browser-sessions/:sessionId/targets/pick",
+      "contractDigest": "5566bbe40188c0a01346367bb0ae9ecec864b4c9d28c84ef1d4de6962da20d9f",
+      "entity": "browser_target_reference",
+      "operation": "browser.target.pick",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/targets/:targetId/revalidate",
+      "ordinal": 301,
+      "routeKey": "POST /browser-sessions/:sessionId/targets/:targetId/revalidate",
+      "contractDigest": "1dacb07953904bd47ba2fbbde4057ae57bd14f4071e8dda5868ffe38ba949734",
+      "entity": "browser_target_reference",
+      "operation": "browser.target.revalidate",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/credentials",
+      "ordinal": 302,
+      "routeKey": "POST /browser-sessions/:sessionId/credentials",
+      "contractDigest": "74756d208ceca8abae0751dbc75e2537598b7cf8a8c9d976301c8d66f44c1abb",
+      "entity": "browser_auth_attempt",
+      "operation": "browser.session.create",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/auth/verify",
+      "ordinal": 303,
+      "routeKey": "POST /browser-sessions/:sessionId/auth/verify",
+      "contractDigest": "b91a5b6045b40832ab92e9f542a28d7d4d978c78184b3feefcef7746430a2ee2",
+      "entity": "browser_auth_attempt",
+      "operation": "browser.auth.verify",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/browser-sessions/:sessionId/auth-attempts",
+      "ordinal": 304,
+      "routeKey": "GET /browser-sessions/:sessionId/auth-attempts",
+      "contractDigest": "ee15fad65491e9f20dad82095533c19da4bf6df23a160f24b27f8709f53e0497",
+      "entity": "browser_auth_attempt",
+      "operation": "browser.session.observe",
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/accounts/save",
+      "ordinal": 305,
+      "routeKey": "POST /browser-sessions/:sessionId/accounts/save",
+      "contractDigest": "3735dd54b6ea6d974f4dd326895a3145906e5e7061ddd346b04aaa0352294e20",
+      "entity": "browser_account_binding",
+      "operation": "browser.account.save",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/state-bundles/capture",
+      "ordinal": 306,
+      "routeKey": "POST /browser-sessions/:sessionId/state-bundles/capture",
+      "contractDigest": "2bee04266a3cabd9040dd81b39329ca648cc0fc5c73939dc78a025fcd0e28ab0",
+      "entity": "browser_state_bundle",
+      "operation": "browser.state.capture",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/dialogs/:dialogId/respond",
+      "ordinal": 307,
+      "routeKey": "POST /browser-sessions/:sessionId/dialogs/:dialogId/respond",
+      "contractDigest": "477d811ec8b23c7e7d1d8520cff65b3316f0bdf63a4f3099e1dd51280dbaf5c2",
+      "entity": "browser_dialog",
+      "operation": "browser.dialog.respond",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/permissions/:requestId/respond",
+      "ordinal": 308,
+      "routeKey": "POST /browser-sessions/:sessionId/permissions/:requestId/respond",
+      "contractDigest": "9e204612ac19842a8de960028ce14e4a13983420ea3dd296e2e6e93915753127",
+      "entity": "browser_permission_request",
+      "operation": "browser.dialog.respond",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/challenges/:challengeId/resolve",
+      "ordinal": 309,
+      "routeKey": "POST /browser-sessions/:sessionId/challenges/:challengeId/resolve",
+      "contractDigest": "26a1b9f0de005d7a4aceaf12caa373315ea7858350c264d2de323d0b79a31b22",
+      "entity": "browser_challenge",
+      "operation": "browser.challenge.resolve",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/pause",
+      "ordinal": 310,
+      "routeKey": "POST /browser-sessions/:sessionId/pause",
+      "contractDigest": "6082a8ecd262c4383228f5f2316fdd13e80b1c4eb6b6914f5f737730e7bac7cf",
+      "entity": "browser_session",
+      "operation": "browser.session.pause",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/resume",
+      "ordinal": 311,
+      "routeKey": "POST /browser-sessions/:sessionId/resume",
+      "contractDigest": "322155b4b64e0e103c0ef9cc9e71239e2b84ecc74b57c1a9909d235fa9f8cace",
+      "entity": "browser_session",
+      "operation": "browser.session.resume",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/recover",
+      "ordinal": 312,
+      "routeKey": "POST /browser-sessions/:sessionId/recover",
+      "contractDigest": "d3dd0a17d8b4f89da08e5a459ec07e251c49b91dd0b8e6c490dac06466ecb6ae",
+      "entity": "browser_session",
+      "operation": "browser.host.recover",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/close",
+      "ordinal": 313,
+      "routeKey": "POST /browser-sessions/:sessionId/close",
+      "contractDigest": "b3c04145f5d159aef7d6bc76e1ee8e9bdc9f9cc7ff0b0bf56a713ba9129feaa9",
+      "entity": "browser_session",
+      "operation": "browser.session.close",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/browser-sessions/:sessionId/artifacts",
+      "ordinal": 314,
+      "routeKey": "GET /browser-sessions/:sessionId/artifacts",
+      "contractDigest": "4b6d33e354cbf31a924caee0a61694a64f39d6658b4d04003ec486dc5a304839",
+      "entity": "browser_automation_artifact",
+      "operation": "browser.session.observe",
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/uploads",
+      "ordinal": 315,
+      "routeKey": "POST /browser-sessions/:sessionId/uploads",
+      "contractDigest": "cab8e4b404eb57706864d220f34085fbd88ea6fa93d452e2ca37df72c080f6e1",
+      "entity": "browser_upload_handle",
+      "operation": "browser.session.create",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/browser-sessions/:sessionId/downloads",
+      "ordinal": 316,
+      "routeKey": "GET /browser-sessions/:sessionId/downloads",
+      "contractDigest": "d610139f79aade0693c56d8815aafe3bc710e2ef924085441e99bbf5d105f23b",
+      "entity": "browser_download",
+      "operation": "browser.session.observe",
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/browser-sessions/:sessionId/preview-tickets",
+      "ordinal": 317,
+      "routeKey": "POST /browser-sessions/:sessionId/preview-tickets",
+      "contractDigest": "9af7b2fa0db8cb95ae35c180a8c79c5f9373ac4ecc9c01c3b9c72676d25dc286",
+      "entity": "browser_preview_ticket",
+      "operation": "browser.session.create",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/browser-sessions/:sessionId/preview/latest",
+      "ordinal": 318,
+      "routeKey": "GET /browser-sessions/:sessionId/preview/latest",
+      "contractDigest": "d08b2f0d075a3a4a1ff81cba2b14ca0ef4d0f21afd579fa2627d97845ae225df",
+      "entity": "browser_preview_frame",
+      "operation": "browser.session.observe",
+      "mutating": false
+    },
+    {
+      "method": "WSS",
+      "path": "/browser-sessions/:sessionId/preview/ws",
+      "ordinal": 319,
+      "routeKey": "WSS /browser-sessions/:sessionId/preview/ws",
+      "contractDigest": "bcc8ed7143d36bda023358c9e3ceaa6fdea15fd924a8b6191412dd52d5afa9eb",
+      "entity": "browser_preview_frame",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/browser-accounts",
+      "ordinal": 320,
+      "routeKey": "GET /browser-accounts",
+      "contractDigest": "def2a4fd3d07006fe6cd3ebc497c68cbdd6d80f06257f4aea1d0d3920b2f6cba",
+      "entity": "browser_account_binding",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/browser-accounts",
+      "ordinal": 321,
+      "routeKey": "POST /browser-accounts",
+      "contractDigest": "345569bdb1e1f590f09044e392c19fae3a47871fa0c4ca6abb15690be4db76f6",
+      "entity": "browser_account_binding",
+      "operation": "browser.session.create",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/browser-accounts/:accountId",
+      "ordinal": 322,
+      "routeKey": "GET /browser-accounts/:accountId",
+      "contractDigest": "0b972f315c381db3f97bd70dfab30aecb4543c6b736806e5864dfde92e615ed8",
+      "entity": "browser_account_binding",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "PATCH",
+      "path": "/browser-accounts/:accountId",
+      "ordinal": 323,
+      "routeKey": "PATCH /browser-accounts/:accountId",
+      "contractDigest": "b16de51259c628f1c0923949ce342611c662866dc6c56919c3885cbb38d8913f",
+      "entity": "browser_account_binding",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-accounts/:accountId/verify",
+      "ordinal": 324,
+      "routeKey": "POST /browser-accounts/:accountId/verify",
+      "contractDigest": "cfa253076c7bf2d900248298110b2510af9b777277c797faf4e79ad81d33577e",
+      "entity": "browser_account_binding",
+      "operation": "browser.runtimeBuild.verify",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-accounts/:accountId/reauthenticate",
+      "ordinal": 325,
+      "routeKey": "POST /browser-accounts/:accountId/reauthenticate",
+      "contractDigest": "28312049fd9c5e4fd0178b073c10416bda5f46985e018b2bbe96c35acbd379b2",
+      "entity": "browser_account_binding",
+      "operation": "browser.automation.reauthenticate",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-accounts/:accountId/logout",
+      "ordinal": 326,
+      "routeKey": "POST /browser-accounts/:accountId/logout",
+      "contractDigest": "845c12f90c0b4ed5f06b6656718a89974b941cccab710a370e7f59e44d58c5dd",
+      "entity": "browser_account_binding",
+      "operation": "browser.account.logout",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-accounts/:accountId/invalidate-state",
+      "ordinal": 327,
+      "routeKey": "POST /browser-accounts/:accountId/invalidate-state",
+      "contractDigest": "dc2c957342cab2ab87adccf93c34fba82b5559ceca3c9d5e193a37be93dc0ede",
+      "entity": "browser_account_binding",
+      "operation": "browser.state.invalidate",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/browser-accounts/:accountId/state-bundles",
+      "ordinal": 328,
+      "routeKey": "GET /browser-accounts/:accountId/state-bundles",
+      "contractDigest": "4986aee8fa1b0bf13cb16ae30054383a20aa393e1810eb00c5a9797705d0578f",
+      "entity": "browser_state_bundle",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/browser-accounts/:accountId/state-bundles/:bundleId",
+      "ordinal": 329,
+      "routeKey": "GET /browser-accounts/:accountId/state-bundles/:bundleId",
+      "contractDigest": "b4afd9a5f00b6c56a724451009998e6115f2381114bb7a99fdf451ff2c94da3b",
+      "entity": "browser_state_bundle",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/browser-accounts/:accountId/state-bundles/:bundleId/verify",
+      "ordinal": 330,
+      "routeKey": "POST /browser-accounts/:accountId/state-bundles/:bundleId/verify",
+      "contractDigest": "530a002f71ecae360e05fa3f19d974c1df3208ff2c3749b77f497764f0060dbb",
+      "entity": "browser_state_bundle",
+      "operation": "browser.state.verify",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-accounts/:accountId/state-bundles/:bundleId/activate",
+      "ordinal": 331,
+      "routeKey": "POST /browser-accounts/:accountId/state-bundles/:bundleId/activate",
+      "contractDigest": "a33e8304ca90708aaf243c391171bc2c05d0d377b72ef86b8f9fdf475a05109d",
+      "entity": "browser_state_bundle",
+      "operation": "browser.state.activate",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-accounts/:accountId/state-bundles/:bundleId/invalidate",
+      "ordinal": 332,
+      "routeKey": "POST /browser-accounts/:accountId/state-bundles/:bundleId/invalidate",
+      "contractDigest": "31df3c3f6ccae7c5dbd61d6fa42d90a21797f2826e5efaa2e3dac3129e175cea",
+      "entity": "browser_state_bundle",
+      "operation": "browser.state.invalidate",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/browser-bridges",
+      "ordinal": 333,
+      "routeKey": "GET /browser-bridges",
+      "contractDigest": "5ed87fecb1c2fb1693b97927bcc981c8d41207ee5349823e6e26985d32b09f0c",
+      "entity": "browser_local_bridge",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/browser-bridges/enrollments",
+      "ordinal": 334,
+      "routeKey": "POST /browser-bridges/enrollments",
+      "contractDigest": "00b3697ca8d9be7a55bfe31f448cf76cd106d248e5e87affad4786a32c714dfb",
+      "entity": "browser_local_bridge",
+      "operation": "browser.session.create",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-bridges/enrollments/:enrollmentId/complete",
+      "ordinal": 335,
+      "routeKey": "POST /browser-bridges/enrollments/:enrollmentId/complete",
+      "contractDigest": "4baaebda3e4d39861827f976c85d698bc3ac3f1901dd8a48ec0b08f68aae2fd5",
+      "entity": "browser_local_bridge",
+      "operation": "browser.action.complete",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/browser-bridges/:bridgeId",
+      "ordinal": 336,
+      "routeKey": "GET /browser-bridges/:bridgeId",
+      "contractDigest": "7c84c2609480599f980b244217c4ba1261b6757968a08023ca6e1c47bff707fe",
+      "entity": "browser_local_bridge",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/browser-bridges/:bridgeId/connections",
+      "ordinal": 337,
+      "routeKey": "GET /browser-bridges/:bridgeId/connections",
+      "contractDigest": "6ce90b4b0f5416560c0e13823023e3c22b5f4e46959f632aab102f3c6fa8ffb5",
+      "entity": "browser_bridge_connection",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/browser-bridges/:bridgeId/profiles",
+      "ordinal": 338,
+      "routeKey": "GET /browser-bridges/:bridgeId/profiles",
+      "contractDigest": "39d27bd8cfcc3d1596b66d71fc993fc1da214d023889e3d56dbf3c62c95b6963",
+      "entity": "browser_profile_lease",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/browser-bridges/:bridgeId/test",
+      "ordinal": 339,
+      "routeKey": "POST /browser-bridges/:bridgeId/test",
+      "contractDigest": "b1699c08062b4ef5145df6be7d9fa5d5c757d52541fe8d2f7723771936b1159a",
+      "entity": "browser_local_bridge",
+      "operation": "browser.bridge.test",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-bridges/:bridgeId/rotate-certificate",
+      "ordinal": 340,
+      "routeKey": "POST /browser-bridges/:bridgeId/rotate-certificate",
+      "contractDigest": "77c426fdf4ed7c8341684cbe5a1ad3971548a52eb7c169baf78b641acf5a59a9",
+      "entity": "browser_local_bridge",
+      "operation": "browser.bridge.rotateCertificate",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-bridges/:bridgeId/revoke",
+      "ordinal": 341,
+      "routeKey": "POST /browser-bridges/:bridgeId/revoke",
+      "contractDigest": "45d2baca82e0ba4e74a0c4ca7c901c865ad9d36ebcacfc6c426fe05c293fa012",
+      "entity": "browser_local_bridge",
+      "operation": "browser.bridge.revoke",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/browser-automations",
+      "ordinal": 342,
+      "routeKey": "GET /browser-automations",
+      "contractDigest": "924d5d4d06f9022952a0178a3d8268c8364f9a23011fd96065f61838ebd20fb0",
+      "entity": "browser_automation_definition",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/browser-automations",
+      "ordinal": 343,
+      "routeKey": "POST /browser-automations",
+      "contractDigest": "3c6ebd177752a2b2a814857defd95ad415501c230eec5a503a9331e144add278",
+      "entity": "browser_automation_definition",
+      "operation": "browser.session.create",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/browser-automations/:id",
+      "ordinal": 344,
+      "routeKey": "GET /browser-automations/:id",
+      "contractDigest": "035da4291f2d6595453fab60a3b8b5c492c9a21a4c8adb071643c4779bceaa47",
+      "entity": "browser_automation_definition",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "PATCH",
+      "path": "/browser-automations/:id",
+      "ordinal": 345,
+      "routeKey": "PATCH /browser-automations/:id",
+      "contractDigest": "225a98eeb94796d7c0e6bc9cfabb86973311f8701b8a8637b6b32ef230466db2",
+      "entity": "browser_automation_definition",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/browser-automations/:id/revisions",
+      "ordinal": 346,
+      "routeKey": "GET /browser-automations/:id/revisions",
+      "contractDigest": "023c30680a40257359fe61a61508095113f8757cff501e5986e41ccd4f813de0",
+      "entity": "browser_automation_revision",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/browser-automations/:id/revisions",
+      "ordinal": 347,
+      "routeKey": "POST /browser-automations/:id/revisions",
+      "contractDigest": "17506e0a9a84e081ba6a69f6d6a1a1acedf7e0d6a2cab41ae42c7db51ac3d1a7",
+      "entity": "browser_automation_revision",
+      "operation": "browser.session.create",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/browser-automations/:id/revisions/:revisionId",
+      "ordinal": 348,
+      "routeKey": "GET /browser-automations/:id/revisions/:revisionId",
+      "contractDigest": "805fdda689faf6510e4b7bce2f3d4695092a2a85ec48c3b98f774d90384b9e2b",
+      "entity": "browser_automation_revision",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/browser-automations/:id/revisions/:revisionId/preflight",
+      "ordinal": 349,
+      "routeKey": "POST /browser-automations/:id/revisions/:revisionId/preflight",
+      "contractDigest": "e14e39b2ab582a6d71e21b526ff64c94bbb6255610a0bf12837880da6a7b04fd",
+      "entity": "browser_automation_revision",
+      "operation": "browser.automation.preflight",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-automations/:id/revisions/:revisionId/verify",
+      "ordinal": 350,
+      "routeKey": "POST /browser-automations/:id/revisions/:revisionId/verify",
+      "contractDigest": "1c3c8e82bd6b11e738367757fa0b34c384f15ab2bd085a5afd921b12744c63f7",
+      "entity": "browser_automation_revision",
+      "operation": "browser.runtimeBuild.verify",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-automations/:id/revisions/:revisionId/activate",
+      "ordinal": 351,
+      "routeKey": "POST /browser-automations/:id/revisions/:revisionId/activate",
+      "contractDigest": "780a038c4093431df3734211d0e726347c0774a3973090559c3625e3a3014bed",
+      "entity": "browser_automation_revision",
+      "operation": "browser.page.activate",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-automations/:id/revisions/:revisionId/rollback",
+      "ordinal": 352,
+      "routeKey": "POST /browser-automations/:id/revisions/:revisionId/rollback",
+      "contractDigest": "fa9ada7ca6bd90995cce24499344eba9e1d9d6e5a24097f5441a949cbe0d2775",
+      "entity": "browser_automation_revision",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/browser-automations/:id/auth-bindings",
+      "ordinal": 353,
+      "routeKey": "GET /browser-automations/:id/auth-bindings",
+      "contractDigest": "6c51f05a29c72c050786341c9f785fdd1e6868a556b4a5d9a02d11f68f0308e9",
+      "entity": "browser_auth_binding",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/browser-automations/:id/auth-bindings",
+      "ordinal": 354,
+      "routeKey": "POST /browser-automations/:id/auth-bindings",
+      "contractDigest": "f90f921ff5ade1028f0297bcc30e7a987751115771b2f28da3e0b6bb2d8c6297",
+      "entity": "browser_auth_binding",
+      "operation": "browser.session.create",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/browser-automations/:id/schedules",
+      "ordinal": 355,
+      "routeKey": "GET /browser-automations/:id/schedules",
+      "contractDigest": "c5529e7ef1e721c402a1eec8e083e621197af64c094372473c89c8787a83557d",
+      "entity": "browser_automation_definition",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/browser-automations/:id/schedules",
+      "ordinal": 356,
+      "routeKey": "POST /browser-automations/:id/schedules",
+      "contractDigest": "c1a93562e51e16814e16430949c4f9eedcfad4569c43fde866904971845290af",
+      "entity": "browser_automation_definition",
+      "operation": "browser.session.create",
+      "mutating": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/browser-automations/:id/schedules/:scheduleId",
+      "ordinal": 357,
+      "routeKey": "PATCH /browser-automations/:id/schedules/:scheduleId",
+      "contractDigest": "c3026e1e3cb54524ed4c4057ccc06405eee1a52d81cd8de41ecbcfa699c791d1",
+      "entity": "browser_automation_definition",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-automations/:id/teaching-runs",
+      "ordinal": 358,
+      "routeKey": "POST /browser-automations/:id/teaching-runs",
+      "contractDigest": "87c1f4b8624e98cba2901ca74591195fd7511c6bcc99d4947194051d3ed50363",
+      "entity": "browser_teaching_run",
+      "operation": "browser.session.create",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/browser-teaching-runs/:teachingRunId",
+      "ordinal": 359,
+      "routeKey": "GET /browser-teaching-runs/:teachingRunId",
+      "contractDigest": "d505baff2378c3e33f6f076428a2865132482fa3ebc17ad548baa028b458b3ec",
+      "entity": "browser_teaching_run",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/browser-teaching-runs/:teachingRunId/stop",
+      "ordinal": 360,
+      "routeKey": "POST /browser-teaching-runs/:teachingRunId/stop",
+      "contractDigest": "05442d129b9a590a2872ca079931fbed5925b1b64959e68714eaa9abb5778828",
+      "entity": "browser_teaching_run",
+      "operation": "browser.session.create",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-teaching-runs/:teachingRunId/compile",
+      "ordinal": 361,
+      "routeKey": "POST /browser-teaching-runs/:teachingRunId/compile",
+      "contractDigest": "b1d0df18ab18f0690b38bf10497f2e2edda878ad98d546214cd5c728aed1fa18",
+      "entity": "browser_teaching_run",
+      "operation": "browser.teaching.compile",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-automations/:id/runs",
+      "ordinal": 362,
+      "routeKey": "POST /browser-automations/:id/runs",
+      "contractDigest": "f81caa6aef7756ad648490e5b956f49b416cd8613698dea5779aa22c4130e29c",
+      "entity": "browser_automation_run",
+      "operation": "browser.session.create",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/browser-automations/:id/runs",
+      "ordinal": 363,
+      "routeKey": "GET /browser-automations/:id/runs",
+      "contractDigest": "4869f744f8c1c22fe1e4b0a28bc285d2054d36fa84623791d650b501ad2968c0",
+      "entity": "browser_automation_run",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/browser-runs/:runId",
+      "ordinal": 364,
+      "routeKey": "GET /browser-runs/:runId",
+      "contractDigest": "bac4960280a9be6e1f76d7f9b8f4fd149526551899d4b17f63bebe7d200b92fd",
+      "entity": "browser_automation_run",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/browser-runs/:runId/session",
+      "ordinal": 365,
+      "routeKey": "GET /browser-runs/:runId/session",
+      "contractDigest": "7adb1970446433e72746899f9eecc6910155a7221b18a496b0cf11b414cdd7f0",
+      "entity": "browser_session",
+      "operation": "browser.session.observe",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/browser-runs/:runId/steps",
+      "ordinal": 366,
+      "routeKey": "GET /browser-runs/:runId/steps",
+      "contractDigest": "9d0f3d6a51fbe90ebb24e6e4f6b96fecec83b61ee2fd567d5df58c650e538c06",
+      "entity": "browser_automation_run_step",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/browser-runs/:runId/control/acquire",
+      "ordinal": 367,
+      "routeKey": "POST /browser-runs/:runId/control/acquire",
+      "contractDigest": "ee195e8e75b98a795095984567cd22089e6addce01896da6f24afd7cd2c2f42d",
+      "entity": "browser_automation_run",
+      "operation": "browser.control.acquire",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-runs/:runId/control/release",
+      "ordinal": 368,
+      "routeKey": "POST /browser-runs/:runId/control/release",
+      "contractDigest": "7d8f35ffe584917f2f19de500ea73c48a374432af99cb177417f860402804b9e",
+      "entity": "browser_automation_run",
+      "operation": "browser.control.release",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-runs/:runId/control/return-to-runtime",
+      "ordinal": 369,
+      "routeKey": "POST /browser-runs/:runId/control/return-to-runtime",
+      "contractDigest": "5b111ffd56dce2c0cf7ea8e2f9075c3e309aa1a89f84a8a550ce5ea5b630cf14",
+      "entity": "browser_automation_run",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-runs/:runId/cancel",
+      "ordinal": 370,
+      "routeKey": "POST /browser-runs/:runId/cancel",
+      "contractDigest": "62c4fea83bdcd14116b89f28027d236a2dfc86a3d29bce8e781d56d370d0bfd8",
+      "entity": "browser_automation_run",
+      "operation": "browser.action.cancel",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-runs/:runId/reauthenticate",
+      "ordinal": 371,
+      "routeKey": "POST /browser-runs/:runId/reauthenticate",
+      "contractDigest": "b17cb23e60622a7e395884c4250ff001bce1b8ea46e55170302be91c02320d00",
+      "entity": "browser_automation_run",
+      "operation": "browser.automation.reauthenticate",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-runs/:runId/reconcile",
+      "ordinal": 372,
+      "routeKey": "POST /browser-runs/:runId/reconcile",
+      "contractDigest": "0546bd96ea59b4ec4de78d0bb60f255fceef79137126c4d9c9ef9aaf06a493c2",
+      "entity": "browser_automation_run",
+      "operation": "browser.action.reconcile",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-runs/:runId/resolve-outcome",
+      "ordinal": 373,
+      "routeKey": "POST /browser-runs/:runId/resolve-outcome",
+      "contractDigest": "8c60ec4011929b430a6e2573a51f0793781e63d362845981eb526454fe2a0b48",
+      "entity": "browser_automation_run",
+      "operation": "browser.action.resolveOutcome",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-runs/:runId/challenges/:challengeId/resolve",
+      "ordinal": 374,
+      "routeKey": "POST /browser-runs/:runId/challenges/:challengeId/resolve",
+      "contractDigest": "587ce7a6c8fb285f3eded5d6c1ba7cb2cf81119fc72c8f00983e05c4a56f6268",
+      "entity": "browser_challenge",
+      "operation": "browser.challenge.resolve",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/browser-runs/:runId/artifacts",
+      "ordinal": 375,
+      "routeKey": "GET /browser-runs/:runId/artifacts",
+      "contractDigest": "385e887cc7a6ef912b1a6f9c48d3e18ee9d08e9f4ab310d37646095c90945e3a",
+      "entity": "browser_automation_artifact",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/browser-runs/:runId/artifacts/:artifactId",
+      "ordinal": 376,
+      "routeKey": "GET /browser-runs/:runId/artifacts/:artifactId",
+      "contractDigest": "ea1d70ef9b60cce044ecfdbab52e66692fccb567ac91abad8bef428046f2c229",
+      "entity": "browser_automation_artifact",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/browser-automations/:id/enable",
+      "ordinal": 377,
+      "routeKey": "POST /browser-automations/:id/enable",
+      "contractDigest": "e59632f98af751a12e45a679f7545f0baa2bebf87686539ee418c9e274eb42d2",
+      "entity": "browser_automation_definition",
+      "operation": "browser.session.create",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-automations/:id/disable",
+      "ordinal": 378,
+      "routeKey": "POST /browser-automations/:id/disable",
+      "contractDigest": "d372500aacaceb5f289c3f951f8913fed609cbc5678fbc794d920cebe5ef0974",
+      "entity": "browser_automation_definition",
+      "operation": "browser.session.create",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/browser-automations/:id/repair",
+      "ordinal": 379,
+      "routeKey": "POST /browser-automations/:id/repair",
+      "contractDigest": "6155a088231f14c45e9bd073f1c8bbb0fc98643a7189cd7a82ae722557b125fe",
+      "entity": "browser_automation_definition",
+      "operation": "browser.automation.repair",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/secrets",
+      "ordinal": 380,
+      "routeKey": "GET /secrets",
+      "contractDigest": "af6cd532ffbc1497aed2329ed167da28b52a97f6ee95157454d90cf3a106352d",
+      "entity": "secret_record",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/secrets",
+      "ordinal": 381,
+      "routeKey": "POST /secrets",
+      "contractDigest": "7b950f662ac9cd3fd1b3b4ca1b617ad4399872240ec84ce6c4d685a8b6b3a963",
+      "entity": "secret_record",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/secrets/:id",
+      "ordinal": 382,
+      "routeKey": "GET /secrets/:id",
+      "contractDigest": "5ab5bfaa3b5e6e7e3f9b2375de096fd6967901eaf4392e67a39116a2bb9d2a33",
+      "entity": "secret_record",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "PATCH",
+      "path": "/secrets/:id",
+      "ordinal": 383,
+      "routeKey": "PATCH /secrets/:id",
+      "contractDigest": "8a094f5efe85c6e1915f4b5c700f9b27aae89cecd42d9b9c1170c50bac5b0055",
+      "entity": "secret_record",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/secrets/:id",
+      "ordinal": 384,
+      "routeKey": "DELETE /secrets/:id",
+      "contractDigest": "e0d0bc3fdb63d4d95a142ab73101c680ac0876ad337c4f61b4b9e82de8c1601a",
+      "entity": "secret_record",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/secrets/:id/value",
+      "ordinal": 385,
+      "routeKey": "GET /secrets/:id/value",
+      "contractDigest": "57cbe24814e0bf9bdd84fbe7a9fc659fa3c9ce6f03b0ed7f997403b6d086414a",
+      "entity": "secret_record",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/secrets/:id/versions",
+      "ordinal": 386,
+      "routeKey": "POST /secrets/:id/versions",
+      "contractDigest": "eee5c9a427132577b0b9f85c4fdf421a7a836a86e6c56f445a482ee59cdcd838",
+      "entity": "secret_version",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/secrets/:id/versions",
+      "ordinal": 387,
+      "routeKey": "GET /secrets/:id/versions",
+      "contractDigest": "d1e3d3b99e8bfe019eb575224245e4240b6ef0db4908a1c2c303906e3dc00ebd",
+      "entity": "secret_version",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/secrets/:id/versions/:versionId/activate",
+      "ordinal": 388,
+      "routeKey": "POST /secrets/:id/versions/:versionId/activate",
+      "contractDigest": "ad43407e1b43130722222b268c24f8f39466bdd07df0f1accc876da644c40443",
+      "entity": "secret_version",
+      "operation": "secret.version.activate",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/secrets/:id/rotate",
+      "ordinal": 389,
+      "routeKey": "POST /secrets/:id/rotate",
+      "contractDigest": "92537d3f0327f8a1df5efadf853bee298340edf641bc7faa94289e2bf224afef",
+      "entity": "secret_record",
+      "operation": "secret.rotate",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/secrets/:id/bindings",
+      "ordinal": 390,
+      "routeKey": "GET /secrets/:id/bindings",
+      "contractDigest": "4d1fd339ba59b4b76f4cdb85cbcc243a4d3be14c1d6758bf43083a55ea8900ed",
+      "entity": "secret_binding",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/secrets/:id/bindings",
+      "ordinal": 391,
+      "routeKey": "POST /secrets/:id/bindings",
+      "contractDigest": "aac541e15d9c97f3c45f69ad43ce5846900bbb5656ffbe81e37a67359c5189a5",
+      "entity": "secret_binding",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/secrets/:id/bindings/:bindingId",
+      "ordinal": 392,
+      "routeKey": "DELETE /secrets/:id/bindings/:bindingId",
+      "contractDigest": "8edd0c1491c6c46979bdc6d50892e6d0f01a67b282bb92105fcc0675fbf25f17",
+      "entity": "secret_binding",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/secrets/:id/usage",
+      "ordinal": 393,
+      "routeKey": "GET /secrets/:id/usage",
+      "contractDigest": "c83bcd45920aa2ec67111af786c811d0642eb42c2f02989b76c5b1e538778e25",
+      "entity": "secret_access_event",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/secrets/:id/test-resolve",
+      "ordinal": 394,
+      "routeKey": "POST /secrets/:id/test-resolve",
+      "contractDigest": "e98c5d9e3f45b5f596259f1659e73bbcab3fb35c37a11073cc1f900c701de06d",
+      "entity": "secret_access_event",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/secrets/generate-password",
+      "ordinal": 395,
+      "routeKey": "POST /secrets/generate-password",
+      "contractDigest": "dc0cc37c3f2fc3817f6791fac686ea45a05ccdd01e606fc0bc2546779c9dedef",
+      "entity": "secret_record",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/secrets/import",
+      "ordinal": 396,
+      "routeKey": "POST /secrets/import",
+      "contractDigest": "384f5890361273c36fbb6bc6a74efca58278e251ed9b8e4d805866ee65d1b2d4",
+      "entity": "secret_record",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/secrets/export",
+      "ordinal": 397,
+      "routeKey": "POST /secrets/export",
+      "contractDigest": "d33600cfaaeb327c39fd919f37d8f9992e2d77f7260c20183c40fc3726015838",
+      "entity": "secret_record",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/runtime/executions",
+      "ordinal": 398,
+      "routeKey": "GET /runtime/executions",
+      "contractDigest": "a171668f12ce5dc3eaa4004ce2fd2e6cc6f6afdf12d8d3a9c2bcd6ea3423df60",
+      "entity": "runtime_execution_context",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/runtime/executions/:id",
+      "ordinal": 399,
+      "routeKey": "GET /runtime/executions/:id",
+      "contractDigest": "0566e964857f8d0f690e594e8db48d5d3623ab658180a6b9c3dc031692d0cfe3",
+      "entity": "runtime_execution_context",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/runtime/instances",
+      "ordinal": 400,
+      "routeKey": "GET /runtime/instances",
+      "contractDigest": "599aee433de2775de84de80fa1537bd2c3b36a0a87d0768aa5df259200f78759",
+      "entity": "runtime_instance",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/runtime/instances/:id",
+      "ordinal": 401,
+      "routeKey": "GET /runtime/instances/:id",
+      "contractDigest": "d2b1b9f967661f8815e64d0c3ceff14a34df2987d42fbe9f7ae3ce2a66c8d6f8",
+      "entity": "runtime_instance",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/runtime/instances/:id/processes",
+      "ordinal": 402,
+      "routeKey": "GET /runtime/instances/:id/processes",
+      "contractDigest": "1f2b8b118034b338a4b8bf5c0fc8b59a5890880f8b856619c0bfdffd198b7223",
+      "entity": "runtime_process_identity",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/runtime/instances/:id/connections",
+      "ordinal": 403,
+      "routeKey": "GET /runtime/instances/:id/connections",
+      "contractDigest": "70dfab6332b2b9643342e8981a8faef88fdb37440558a875166a5e7bc29925f0",
+      "entity": "runtime_ipc_connection",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/runtime/instances/:id/calls",
+      "ordinal": 404,
+      "routeKey": "GET /runtime/instances/:id/calls",
+      "contractDigest": "2d49f3d58a706589389dbf36a9f949594bedea05244d9a40933a6099ab1c8f6f",
+      "entity": "runtime_ipc_call",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/runtime/instances/:id/sandbox",
+      "ordinal": 405,
+      "routeKey": "GET /runtime/instances/:id/sandbox",
+      "contractDigest": "38570a4713b2899f75de219640f2b45cb783739aa1a9390d1d607d49b6a03816",
+      "entity": "runtime_instance",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/runtime/instances/:id/cleanup",
+      "ordinal": 406,
+      "routeKey": "GET /runtime/instances/:id/cleanup",
+      "contractDigest": "357d37f10105c30dbe4d079b4de6dd59e28c1c7a219159163e896a627560bb46",
+      "entity": "runtime_cleanup_operation",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/runtime/instances/:id/drain",
+      "ordinal": 407,
+      "routeKey": "POST /runtime/instances/:id/drain",
+      "contractDigest": "03063c8d17025508f1bdb3f248ce6e37dfdc26ec4f0b7373d4d2b98a0d2d5880",
+      "entity": "runtime_instance",
+      "operation": "runtime.drain",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/runtime/instances/:id/restart",
+      "ordinal": 408,
+      "routeKey": "POST /runtime/instances/:id/restart",
+      "contractDigest": "5232b59447fd47e9a44676d9a1c5e6e17e403079cb5c565674d66cf4d5686c33",
+      "entity": "runtime_instance",
+      "operation": "runtime.instance.restart",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/runtime/instances/:id/reconcile",
+      "ordinal": 409,
+      "routeKey": "POST /runtime/instances/:id/reconcile",
+      "contractDigest": "c462c23168e68ced41a1559aa289c962febd350478855579f3a1170c2eee0337",
+      "entity": "runtime_instance",
+      "operation": "runtime.instance.reconcile",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/runtime/instances/:id/verify-boundary",
+      "ordinal": 410,
+      "routeKey": "POST /runtime/instances/:id/verify-boundary",
+      "contractDigest": "85c20df184cbbb49f72127bbc23aeec34a8fe40325e350e558c2edea8827dea3",
+      "entity": "runtime_instance",
+      "operation": "runtime.boundary.verify",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/runtime/boundary/evidence",
+      "ordinal": 411,
+      "routeKey": "GET /runtime/boundary/evidence",
+      "contractDigest": "311824455d70e030d54b3d9d904a04055493360b2f68caf124927cc20f44d54a",
+      "entity": "runtime_process_identity",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/bindings",
+      "ordinal": 412,
+      "routeKey": "GET /bindings",
+      "contractDigest": "9be709233e6b67ad4f3da2176ae3a7f6583eb03d3a73c2210d5f2354e74aa660",
+      "entity": "binding_set",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/bindings/:id",
+      "ordinal": 413,
+      "routeKey": "GET /bindings/:id",
+      "contractDigest": "864ce887b3b6d7c10c0076d5115618fa74b61357ce4afe91ee067c64fc408c71",
+      "entity": "binding_set",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/bindings/preview",
+      "ordinal": 414,
+      "routeKey": "POST /bindings/preview",
+      "contractDigest": "824c052e1a7fe3e6f92f4e82dfb2ebc4a0484f26332f0e4f4ce8b8b1aa213bd4",
+      "entity": "binding_set",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/bindings/test",
+      "ordinal": 415,
+      "routeKey": "POST /bindings/test",
+      "contractDigest": "f85c879efd4fa65380eba296cc85fa5df25e941b0bfd45916969c54443c63186",
+      "entity": "binding_set",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/external/targets",
+      "ordinal": 416,
+      "routeKey": "GET /external/targets",
+      "contractDigest": "ba04cdedf8a395a49e007317d798798c191063d8a01717359eeb6615f1083731",
+      "entity": "external_target",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/external/targets",
+      "ordinal": 417,
+      "routeKey": "POST /external/targets",
+      "contractDigest": "26648a0178f06ab65594e4b0fbb977ff7f1b30fa9367e2b0d3eea298f1d859ac",
+      "entity": "external_target",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/external/targets/:id",
+      "ordinal": 418,
+      "routeKey": "GET /external/targets/:id",
+      "contractDigest": "553e3eee44814b8ec59c1ef9c156cd18c77c1c26f16fd155439ba30986ed47a9",
+      "entity": "external_target",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "PATCH",
+      "path": "/external/targets/:id",
+      "ordinal": 419,
+      "routeKey": "PATCH /external/targets/:id",
+      "contractDigest": "6df5773b8dc6131bb474393c9b7d9ed85efe2e912579a5f3034ef44f6b83eb48",
+      "entity": "external_target",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/external/targets/:id/test",
+      "ordinal": 420,
+      "routeKey": "POST /external/targets/:id/test",
+      "contractDigest": "71cfa99cefc8721e961661452ac98a975331edaa9f10cd07058315987e06d0a8",
+      "entity": "external_target",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/external/targets/:id/circuit/open",
+      "ordinal": 421,
+      "routeKey": "POST /external/targets/:id/circuit/open",
+      "contractDigest": "aeca7e03bbbd7c2e6559006b9db8a6d4ae4b0381a15d1ef9556b4bc71215027d",
+      "entity": "external_target",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/external/targets/:id/circuit/close",
+      "ordinal": 422,
+      "routeKey": "POST /external/targets/:id/circuit/close",
+      "contractDigest": "94107083e8f9acf0551ddb221e8bd0b6785c92c8855be84c8f27247a737a913c",
+      "entity": "external_target",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/external/auth-bindings",
+      "ordinal": 423,
+      "routeKey": "GET /external/auth-bindings",
+      "contractDigest": "b6bb7f25ae00e3f68eb6d7428d6d673afd9f55a8a04b5ee2bd0334795f277794",
+      "entity": "external_auth_binding",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/external/auth-bindings",
+      "ordinal": 424,
+      "routeKey": "POST /external/auth-bindings",
+      "contractDigest": "4900656189e68d41a1582f7722fcf39bf2646cb9734ed5d6ed5c8a2d13ab96a0",
+      "entity": "external_auth_binding",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/external/auth-bindings/:id",
+      "ordinal": 425,
+      "routeKey": "PATCH /external/auth-bindings/:id",
+      "contractDigest": "b6a879aa89820677a3c5d691337ad659175cf9b189e3c1a025a45a3f6fcc33d0",
+      "entity": "external_auth_binding",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/external/target-bindings",
+      "ordinal": 426,
+      "routeKey": "GET /external/target-bindings",
+      "contractDigest": "ce97a69f38f579e205c9c1d9997e57273312a04a80701d1fe021e9dd1d035c6e",
+      "entity": "external_target_binding",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/external/target-bindings",
+      "ordinal": 427,
+      "routeKey": "POST /external/target-bindings",
+      "contractDigest": "3cadf42d26dc2b6c74662f179c0a9e34d6b5a73da4645ad567486ac49191526b",
+      "entity": "external_target_binding",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/external/target-bindings/:id",
+      "ordinal": 428,
+      "routeKey": "DELETE /external/target-bindings/:id",
+      "contractDigest": "f7b04a7d66471db26ad4e0cc3dda001ac44a76fb43c051687b6271b21ecb1648",
+      "entity": "external_target_binding",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/external/requests",
+      "ordinal": 429,
+      "routeKey": "GET /external/requests",
+      "contractDigest": "ae2dc4c9a94ff5eb3682561daa3764fb3b6059cc20b270e0d874a89842061a7f",
+      "entity": "external_request_event",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/webhooks",
+      "ordinal": 430,
+      "routeKey": "GET /webhooks",
+      "contractDigest": "330dc08d8f0d1f59ff7d090975e8fcbb8a6ac6449a5151f8c1f7962d257092f3",
+      "entity": "webhook_endpoint",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/webhooks/test",
+      "ordinal": 431,
+      "routeKey": "POST /webhooks/test",
+      "contractDigest": "17231c538786ad6f39dae4b508b51a6f2c05ee16bc4b1f69b4061c3de895dd97",
+      "entity": "webhook_endpoint",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/monitoring/overview",
+      "ordinal": 432,
+      "routeKey": "GET /monitoring/overview",
+      "contractDigest": "8b2ee9153187217c370526d8e9bcfc85ca72583f45ae2ee22608bda1e81b3383",
+      "entity": "monitoring_profile",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/monitoring/probes",
+      "ordinal": 433,
+      "routeKey": "GET /monitoring/probes",
+      "contractDigest": "e42a36f552f258f1ea19755817ee089a290baa0479511e920ab1547068610eae",
+      "entity": "monitoring_probe",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/monitoring/state-history",
+      "ordinal": 434,
+      "routeKey": "GET /monitoring/state-history",
+      "contractDigest": "65caabcfef077a180aac3c9de6f6c9050aca76fcd8b0441e42ac664feeea264c",
+      "entity": "component_state_history",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/monitoring/profiles",
+      "ordinal": 435,
+      "routeKey": "GET /monitoring/profiles",
+      "contractDigest": "fa5d9eec23d6302ba8b23d00869a129f976a9d5d420482aaaa9856a6702801fe",
+      "entity": "monitoring_profile",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "PUT",
+      "path": "/monitoring/profiles/:componentId",
+      "ordinal": 436,
+      "routeKey": "PUT /monitoring/profiles/:componentId",
+      "contractDigest": "728a49fc8bef3e99a2bcc3579cc12c63ce54f9f1f7e118600fcd144175e4f1ee",
+      "entity": "monitoring_profile",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/monitoring/probe/run",
+      "ordinal": 437,
+      "routeKey": "POST /monitoring/probe/run",
+      "contractDigest": "fa78f1368bcb91233076a8ec9328489b6bed14d6235d0e8a372a0c3697388aca",
+      "entity": "monitoring_probe",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/alerts",
+      "ordinal": 438,
+      "routeKey": "GET /alerts",
+      "contractDigest": "6cb0915b646ab9497f8dc587878a6b34c52a8b19e48bf9ee35fd028f26402768",
+      "entity": "operational_alert",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/alerts/:id",
+      "ordinal": 439,
+      "routeKey": "GET /alerts/:id",
+      "contractDigest": "eaa427d892457d65dd9698939bf55903d931b7aebeb68284420cbf1a643528de",
+      "entity": "operational_alert",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/alerts/:id/acknowledge",
+      "ordinal": 440,
+      "routeKey": "POST /alerts/:id/acknowledge",
+      "contractDigest": "a66545e33898f89b6e9daeab6e3a3712abf43ecc40933ecc0aa8975e18f39798",
+      "entity": "operational_alert",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/alerts/:id/suppress",
+      "ordinal": 441,
+      "routeKey": "POST /alerts/:id/suppress",
+      "contractDigest": "c5b9204df6e68d02579bd52e867f72a5a82d6078cd13d916628a2747157305d3",
+      "entity": "operational_alert",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/alerts/:id/close",
+      "ordinal": 442,
+      "routeKey": "POST /alerts/:id/close",
+      "contractDigest": "c377241b88958afa07388676e83b27c69a270ef73cb9b48d6ce904fc97b60c2e",
+      "entity": "operational_alert",
+      "operation": "monitor.alert.close",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/alerts/:id/deliveries",
+      "ordinal": 443,
+      "routeKey": "GET /alerts/:id/deliveries",
+      "contractDigest": "46c3efb390bbc326af1ec9f6e4aada9517ff15cfc5f0bd0aa1a11d01ae14d27c",
+      "entity": "alert_delivery",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/alerts/channels/test",
+      "ordinal": 444,
+      "routeKey": "POST /alerts/channels/test",
+      "contractDigest": "b2d2064b6fefe1683603b01e9e78cf3f0e9e2eeab027fe600b67032ed1fcf5ac",
+      "entity": "operational_alert",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/workers/heartbeats",
+      "ordinal": 445,
+      "routeKey": "GET /workers/heartbeats",
+      "contractDigest": "97eda6c8272beec48fce7fb08f23f1a16d5b3271603945eac9a9a6d650c15b51",
+      "entity": "platform_worker_heartbeat",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/audit/events",
+      "ordinal": 446,
+      "routeKey": "GET /audit/events",
+      "contractDigest": "800bdb2a00b17d87385860aa350575496e0925b56ef3dbd9446376888ba526c7",
+      "entity": "audit_event",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/audit/events/:id",
+      "ordinal": 447,
+      "routeKey": "GET /audit/events/:id",
+      "contractDigest": "08b88622d913ad0a5f9b6ee6090eee17a61de3ef23455a44cdf280391b953e71",
+      "entity": "audit_event",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/audit/integrity",
+      "ordinal": 448,
+      "routeKey": "GET /audit/integrity",
+      "contractDigest": "808287d007477542b7a55aa97b688239d16cd6452838afc706728f3d1fd82c81",
+      "entity": "audit_event",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/audit/integrity/verify",
+      "ordinal": 449,
+      "routeKey": "POST /audit/integrity/verify",
+      "contractDigest": "ad996bc30e7a485b97f1d107381aadc96b1e959c705d2338979ce5d21210bec4",
+      "entity": "audit_event",
+      "operation": "audit.integrity.verify",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/audit/archive",
+      "ordinal": 450,
+      "routeKey": "GET /audit/archive",
+      "contractDigest": "f1066a986e15b956be440e7ca24531cb9ff2fafb9550f813e843493294aed759",
+      "entity": "audit_archive_outbox",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/logs",
+      "ordinal": 451,
+      "routeKey": "GET /logs",
+      "contractDigest": "8c246c6149edc977f1c014c821774dfd325691205b9a0b6c090e5971bff19576",
+      "entity": "debug_log_event",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/logs/stream",
+      "ordinal": 452,
+      "routeKey": "GET /logs/stream",
+      "contractDigest": "ab01d5ff3037ec8d5cb8e8fa0f61ab926cf0796256401f7d3df622027cc5ea07",
+      "entity": "debug_log_event",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/logs/correlations/:correlationId",
+      "ordinal": 453,
+      "routeKey": "GET /logs/correlations/:correlationId",
+      "contractDigest": "4ea222686ffb66dc96ed95db7f55f4047dc94ea262c43a31c8c9af7b7b5e9d65",
+      "entity": "debug_log_event",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/logs/export",
+      "ordinal": 454,
+      "routeKey": "POST /logs/export",
+      "contractDigest": "397860ae3d960c97d7f0fafc08dd79861156813a64604da688b147307da85201",
+      "entity": "debug_log_event",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/config/settings",
+      "ordinal": 455,
+      "routeKey": "GET /config/settings",
+      "contractDigest": "319781f18a523c7f871df922133ad69d9404d7491cdf8001e6d97c670e05d1c5",
+      "entity": "operational_setting",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/config/settings/:key",
+      "ordinal": 456,
+      "routeKey": "GET /config/settings/:key",
+      "contractDigest": "4cf1d4a5b8ed2930b792b4bf01be2429bfc315018f501b2b14f6e893f64472dc",
+      "entity": "operational_setting",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "PUT",
+      "path": "/config/settings/:key",
+      "ordinal": 457,
+      "routeKey": "PUT /config/settings/:key",
+      "contractDigest": "e6171c09074d53d55d1bdcbc48e71df583ed65fa6eed58df9c492ca4513892ed",
+      "entity": "operational_setting",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/config/settings/:key/reset",
+      "ordinal": 458,
+      "routeKey": "POST /config/settings/:key/reset",
+      "contractDigest": "e81e3470b7573454d6d3af27ea811f90b259ae47ef29ade499019f1125f4e950",
+      "entity": "operational_setting",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/config/validate",
+      "ordinal": 459,
+      "routeKey": "POST /config/validate",
+      "contractDigest": "fe00f9f5f7f8c4b292beb56a471e80f39b0ebc025c3ccd1999690eb7e786715a",
+      "entity": "operational_setting",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/config/apply",
+      "ordinal": 460,
+      "routeKey": "POST /config/apply",
+      "contractDigest": "020c058e73e6c2a4a3ee28bb5609262c7a79d98cf530682eef233ad24c4677d1",
+      "entity": "configuration_apply_run",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/config/export",
+      "ordinal": 461,
+      "routeKey": "POST /config/export",
+      "contractDigest": "e5e76b903cc727fd79003e98574e87dc10bc98ebaf65e2623858eb2dd5dfb6e5",
+      "entity": "operational_setting",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/config/import",
+      "ordinal": 462,
+      "routeKey": "POST /config/import",
+      "contractDigest": "cfe87ac111b9f85c5b79c6f238098138cb73a4b332ea3887d304a981e1631e98",
+      "entity": "operational_setting",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/releases",
+      "ordinal": 463,
+      "routeKey": "GET /releases",
+      "contractDigest": "76e24a811110359a8f96797fe50268b4326d8b6cc03bdcf07c53852736fa9379",
+      "entity": "application_release",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/releases/:id",
+      "ordinal": 464,
+      "routeKey": "GET /releases/:id",
+      "contractDigest": "f183f8a39dc4ec6f8a744d9f449c853fac4c37d3cc70fd9b11d26da6fc5ec3e5",
+      "entity": "application_release",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/releases/:id/rollback",
+      "ordinal": 465,
+      "routeKey": "POST /releases/:id/rollback",
+      "contractDigest": "110135594432092bd389893f90b756c8db9c5f346e1d1280406ea05b27e57e60",
+      "entity": "application_release",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/deployments",
+      "ordinal": 466,
+      "routeKey": "GET /deployments",
+      "contractDigest": "7d1e6dd4b47714165f7186e693da03f2327e3526962e97b716f3a64431b2b0a7",
+      "entity": "deployment_run",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/backups",
+      "ordinal": 467,
+      "routeKey": "GET /backups",
+      "contractDigest": "e840da88e59e34f8d4a081ed6ba8549919de9edf2055ec0bc7154f338d32743b",
+      "entity": "backup_record",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/backups",
+      "ordinal": 468,
+      "routeKey": "POST /backups",
+      "contractDigest": "4abdac2657914faad1c6b4a7b56de6399076807e4ed23e22973da4839e04999c",
+      "entity": "backup_record",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/backups/:id/verify",
+      "ordinal": 469,
+      "routeKey": "POST /backups/:id/verify",
+      "contractDigest": "7118ede71895561e6137589f72919736d4e28fbea7d66b9ce79494bbd5520449",
+      "entity": "backup_record",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/acceptance-runs",
+      "ordinal": 470,
+      "routeKey": "GET /acceptance-runs",
+      "contractDigest": "c34c05ee1eb9eae4f1516f5f8b4b34e38b41311a6331655b2b4fdabadfc004ca",
+      "entity": "production_acceptance_run",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/maintenance/restart-service",
+      "ordinal": 471,
+      "routeKey": "POST /maintenance/restart-service",
+      "contractDigest": "7e043bbb6116f03a6e8df6dca068145d66e6219cd2d122e67132c626cb33eb26",
+      "entity": "runtime_instance",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/system/health",
+      "ordinal": 472,
+      "routeKey": "GET /system/health",
+      "contractDigest": "2fbcea897ed0dd550ae12be5566f807d92d17b4a8ba493f0c283dc43323cb523",
+      "entity": "application_deployment_head",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/system/readiness",
+      "ordinal": 473,
+      "routeKey": "GET /system/readiness",
+      "contractDigest": "7f62405cab8c118f6448143e98fe28f99bd4c7a55ca31feed3d7a47c75d5def8",
+      "entity": "application_deployment_head",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/system/version",
+      "ordinal": 474,
+      "routeKey": "GET /system/version",
+      "contractDigest": "49fd8d91bd3b60e50cab5d41710c410da1f117e18ae4299ed5183dfd5942219f",
+      "entity": "application_deployment_head",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/self-tests/catalog",
+      "ordinal": 475,
+      "routeKey": "GET /self-tests/catalog",
+      "contractDigest": "088bc9eff481dd1edfdff628b6f77be279c82924163064fdddc87c65c5e2dd1a",
+      "entity": "self_test_catalog_entry",
+      "operation": "selfTest.catalog.list",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/self-tests/fault-catalog",
+      "ordinal": 476,
+      "routeKey": "GET /self-tests/fault-catalog",
+      "contractDigest": "3d35a40426783a811e33af214a3f961eae18c4fec2ccb81afe3cda748fb8c7f6",
+      "entity": "self_test_run",
+      "operation": "selfTest.catalog.list",
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/self-tests/models",
+      "ordinal": 477,
+      "routeKey": "GET /self-tests/models",
+      "contractDigest": "1bce577ffcdf85e77e5b8c415a909b9ff944503a04720fecae82b7d2b6b05932",
+      "entity": "self_test_run",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/self-tests/runs",
+      "ordinal": 478,
+      "routeKey": "POST /self-tests/runs",
+      "contractDigest": "20614e2dd9059ffdf3ccc0f1f98f498570de8d69196fd0a4dba756eb8fe332ed",
+      "entity": "self_test_run",
+      "operation": "selfTest.run.start",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/self-tests/runs",
+      "ordinal": 479,
+      "routeKey": "GET /self-tests/runs",
+      "contractDigest": "933c7d6d51995ba7e08cafaea1ff5aed27f8ad962322ea27ded49ae75b511425",
+      "entity": "self_test_run",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/self-tests/runs/:id",
+      "ordinal": 480,
+      "routeKey": "GET /self-tests/runs/:id",
+      "contractDigest": "ffe4f3a232a57ef6ecd45403e4fef11506c08898fc21e8297363fc6c8279652a",
+      "entity": "self_test_run",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/self-tests/runs/:id/events",
+      "ordinal": 481,
+      "routeKey": "GET /self-tests/runs/:id/events",
+      "contractDigest": "fb41ffd3a1330e5fe2acf08a402f26c7aa44f67791d2fa0e603520e94eef155e",
+      "entity": "self_test_run",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/self-tests/runs/:id/history",
+      "ordinal": 482,
+      "routeKey": "GET /self-tests/runs/:id/history",
+      "contractDigest": "50bac34a140388c6975519577889e91dc32d8c1caaf0fb461f35093c224155a2",
+      "entity": "self_test_run",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/self-tests/runs/:id/evidence",
+      "ordinal": 483,
+      "routeKey": "GET /self-tests/runs/:id/evidence",
+      "contractDigest": "eb2b829e2530cfb40ca1208dd81700ec1c22af30612d1ba3b7427693c00039ec",
+      "entity": "self_test_run",
+      "operation": "selfTest.evidence.read",
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/self-tests/runs/:id/replay",
+      "ordinal": 484,
+      "routeKey": "POST /self-tests/runs/:id/replay",
+      "contractDigest": "a79fca0f1b039288aef39f30aa05e2146ef715cb7e5af2b902c484756bad9b49",
+      "entity": "self_test_run",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/self-tests/runs/:id/shrink",
+      "ordinal": 485,
+      "routeKey": "POST /self-tests/runs/:id/shrink",
+      "contractDigest": "aadf5c9d56e3ec3db6be6183df418cc257338b19b8a558c93d0ad708c2fd24dc",
+      "entity": "self_test_run",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/self-tests/runs/:id/cancel",
+      "ordinal": 486,
+      "routeKey": "POST /self-tests/runs/:id/cancel",
+      "contractDigest": "851f098858dc55ecddf9df0107549df13033c38de26cf8646017262195148b05",
+      "entity": "self_test_run",
+      "operation": "selfTest.run.cancel",
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/self-tests/runs/:id/cleanup",
+      "ordinal": 487,
+      "routeKey": "POST /self-tests/runs/:id/cleanup",
+      "contractDigest": "7d04a6bd27f5fc5e130b6b186157871205ab5494478ca07658e2abaf81d5fd49",
+      "entity": "self_test_run",
+      "operation": "selfTest.run.cleanup",
+      "mutating": true
+    },
+    {
+      "method": "GET",
+      "path": "/system/capabilities",
+      "ordinal": 488,
+      "routeKey": "GET /system/capabilities",
+      "contractDigest": "05ab96b8be6e98dffcfa2495a175ef8b2acc25804a5478f0419b06f21d7de20d",
+      "entity": "application_deployment_head",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/system/recovery",
+      "ordinal": 489,
+      "routeKey": "GET /system/recovery",
+      "contractDigest": "b3d6e25341298c927aaf9afbdb3a1239f5c7d4b29cc2dcac797e8839600cc920",
+      "entity": "platform_incarnation",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/system/closure",
+      "ordinal": 490,
+      "routeKey": "GET /system/closure",
+      "contractDigest": "746b5681d1e68a178cb9ed6e55c1bfe1d536783781d08e004fad25666d64f823",
+      "entity": "activation_head",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/authority/lineages/:id",
+      "ordinal": 491,
+      "routeKey": "GET /authority/lineages/:id",
+      "contractDigest": "e6f7971a482b7c7d3abb1fe102107a092f550e9e3c6812e245ab1693d603cf57",
+      "entity": "authority_lineage",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/authority/lineages/:id/graph",
+      "ordinal": 492,
+      "routeKey": "GET /authority/lineages/:id/graph",
+      "contractDigest": "9923dc33f1f937666b5b222b0adda471512f82d1510f943b4a1f4d12a601de0c",
+      "entity": "authority_lineage",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/operation-intents/:id",
+      "ordinal": 493,
+      "routeKey": "GET /operation-intents/:id",
+      "contractDigest": "f85fc9020347c8100f89cacee04a7d036614b127251f8312734c06e81c740739",
+      "entity": "operation_intent",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/operation-contexts/:id",
+      "ordinal": 494,
+      "routeKey": "GET /operation-contexts/:id",
+      "contractDigest": "e9a65741054bba8c27e90f36d59ef8b75ee95a0c36012ef842200e92fcb45c6d",
+      "entity": "operation_context",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/operation-contexts/:id/action-plans",
+      "ordinal": 495,
+      "routeKey": "GET /operation-contexts/:id/action-plans",
+      "contractDigest": "14e1e12d29f4709aeaa9a9d61d97bba9446f28c1cd606ca48403c5826b95c2b0",
+      "entity": "semantic_action_plan",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/operation-contexts/:id/value-derivations",
+      "ordinal": 496,
+      "routeKey": "GET /operation-contexts/:id/value-derivations",
+      "contractDigest": "7e428336140fe794a72219d94e61047b2757f615adbc2073b18410db440ea125",
+      "entity": "value_derivation",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/operation-contexts/:id/secret-uses",
+      "ordinal": 497,
+      "routeKey": "GET /operation-contexts/:id/secret-uses",
+      "contractDigest": "4c3a50ea68f658a4ab7f6b014f450ac9551a399c1c697757a570d3910d3f1564",
+      "entity": "secret_use_context",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/provenance/content/:id",
+      "ordinal": 498,
+      "routeKey": "GET /provenance/content/:id",
+      "contractDigest": "2f206da0b4eab0e9339cfa37b51b0a2c0e32244158ec7e728dc86ea1eea00163",
+      "entity": "content_provenance",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/provenance/content/:id/graph",
+      "ordinal": 499,
+      "routeKey": "GET /provenance/content/:id/graph",
+      "contractDigest": "f7020f8d0341f0bf596b222dfca80f4574b42c345b3668e21fd075b73c66e293",
+      "entity": "content_provenance",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/agentic-security/events",
+      "ordinal": 500,
+      "routeKey": "GET /agentic-security/events",
+      "contractDigest": "1f917c4529bbfd99de92775d9c729cf3b245e41166ef96720acb36e58c1c28c5",
+      "entity": "agentic_security_event",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "GET",
+      "path": "/agentic-security/events/:id",
+      "ordinal": 501,
+      "routeKey": "GET /agentic-security/events/:id",
+      "contractDigest": "a01eb5368c91cbc3c6fab37ac038f4e6c2769705398eee70252663b37cb75c91",
+      "entity": "agentic_security_event",
+      "operation": null,
+      "mutating": false
+    },
+    {
+      "method": "POST",
+      "path": "/agentic-security/self-tests",
+      "ordinal": 502,
+      "routeKey": "POST /agentic-security/self-tests",
+      "contractDigest": "31b3ca1c076ef7b2435c0a2e7669fdcea8244847e3261a5ec0b96f47293a2c05",
+      "entity": "agentic_security_event",
+      "operation": null,
+      "mutating": true
+    },
+    {
+      "method": "POST",
+      "path": "/agentic-security/evidence/export",
+      "ordinal": 503,
+      "routeKey": "POST /agentic-security/evidence/export",
+      "contractDigest": "362ac47e0c2d415d3bc56787c13e8a2d73b2b9498c6fb648ffd77315d71959f5",
+      "entity": "agentic_security_event",
+      "operation": "agentic.security.evidence.export",
+      "mutating": true
+    }
+  ]
+}

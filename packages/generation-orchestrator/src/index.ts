@@ -1,0 +1,18 @@
+import type { DatabasePool } from '@kcml/database';
+import { allocateContiguousSequence, inTransaction } from '@kcml/database';
+import type { ResponsesRuntime } from '@kcml/openai-runtime';
+import type { AuthorityLineage } from '@kcml/agentic-authority';
+import { DomainError } from '@kcml/domain';
+
+export const generationTransitions:Readonly<Record<string,readonly string[]>>={
+  INTAKE:['DISCOVERY','CANCELLED_FINAL'],DISCOVERY:['SPECIFICATION','MANUAL_REVIEW','CANCELLED_FINAL'],SPECIFICATION:['APPROVAL_REQUIRED','MANUAL_REVIEW','CANCELLED_FINAL'],
+  APPROVAL_REQUIRED:['PLANNING','SPECIFICATION','CANCELLED_FINAL'],PLANNING:['IMPLEMENTING','MANUAL_REVIEW','CANCELLED_FINAL'],IMPLEMENTING:['VALIDATING','MANUAL_REVIEW','CANCELLED_FINAL'],
+  VALIDATING:['IMPLEMENTING','ACTIVATING','FAILED_FINAL','MANUAL_REVIEW','CANCELLED_FINAL'],ACTIVATING:['SUCCEEDED','VALIDATING','FAILED_FINAL','MANUAL_REVIEW'],
+  SUCCEEDED:[],FAILED_FINAL:[],CANCELLED_FINAL:[],MANUAL_REVIEW:['DISCOVERY','SPECIFICATION','PLANNING','IMPLEMENTING','VALIDATING','ACTIVATING','FAILED_FINAL']
+};
+
+export class GenerationOrchestrator{
+  public constructor(private readonly pool:DatabasePool,private readonly openai:ResponsesRuntime){}
+  public async transition(jobId:string,expectedStateVersion:bigint,next:string,evidence:unknown):Promise<unknown>{return inTransaction(this.pool,'SERIALIZABLE',async client=>{const result=await client.query(`SELECT * FROM kcml.generation_job WHERE id=$1 FOR UPDATE`,[jobId]);const job=result.rows[0];if(!job)throw new DomainError('GENERATION_JOB_NOT_FOUND','Generation job does not exist',404);if(BigInt(job.state_version)!==expectedStateVersion)throw new DomainError('STATE_VERSION_CONFLICT','Generation job changed',409,'REFRESH_AND_RETRY_NEW_COMMAND');if(!(generationTransitions[job.lifecycle]??[]).includes(next))throw new DomainError('GENERATION_TRANSITION_INVALID',`${job.lifecycle} cannot transition to ${next}`,409);if(next==='PLANNING'&&!job.approved_spec_revision_id)throw new DomainError('SPEC_APPROVAL_REQUIRED','Exact specification revision approval is required',409);const progress:Record<string,number>={INTAKE:3,DISCOVERY:12,SPECIFICATION:28,APPROVAL_REQUIRED:38,PLANNING:45,IMPLEMENTING:67,VALIDATING:84,ACTIVATING:94,SUCCEEDED:100,FAILED_FINAL:100,CANCELLED_FINAL:100,MANUAL_REVIEW:Number(job.progress)};const updated=await client.query(`UPDATE kcml.generation_job SET lifecycle=$2,current_phase=$2,progress=$3,blocker=CASE WHEN $2='MANUAL_REVIEW' THEN $4::jsonb ELSE NULL END,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 RETURNING *`,[jobId,next,progress[next]??job.progress,JSON.stringify(evidence)]);const sequence=await allocateContiguousSequence(client,'GENERATION_CHECKPOINT',jobId,'SEQUENCE');await client.query(`INSERT INTO kcml.generation_checkpoint(generation_job_id,sequence,phase,workspace_revision,payload,payload_digest)VALUES($1,$2,$3,$4,$5,digest(convert_to($6,'UTF8'),'sha256'))`,[jobId,sequence.toString(),next,String(BigInt(job.state_version)+1n),{transition:{from:job.lifecycle,to:next},evidence},JSON.stringify({transition:{from:job.lifecycle,to:next},evidence})]);return updated.rows[0];});}
+  public async executeModel(jobId:string,model:string,instructions:string,input:unknown,authority:AuthorityLineage,onEvent?:(event:unknown)=>void):Promise<unknown>{const job=await this.pool.query(`SELECT * FROM kcml.generation_job WHERE id=$1`,[jobId]);if(!job.rows[0])throw new DomainError('GENERATION_JOB_NOT_FOUND','Generation job does not exist',404);return this.openai.create({parentRunId:jobId,model,instructions,input,authority},async event=>{onEvent?.(event);});}
+}

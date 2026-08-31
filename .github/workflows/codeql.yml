@@ -1,0 +1,32 @@
+name: CodeQL and dependency security
+on:
+  push: { branches: [main] }
+  pull_request: { branches: [main] }
+  schedule: [{ cron: '17 3 * * 1' }]
+permissions:
+  contents: read
+  security-events: write
+jobs:
+  codeql:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with: { languages: javascript-typescript, queries: security-extended }
+      - uses: pnpm/action-setup@v4
+        with: { version: 11.19.0, run_install: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: '24.11.1', cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - uses: github/codeql-action/analyze@v3
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 11.19.0, run_install: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: '24.11.1', cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm audit --prod --audit-level high

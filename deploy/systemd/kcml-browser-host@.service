@@ -1,0 +1,40 @@
+[Unit]
+Description=KájovoCML NG browser host slot %i
+After=postgresql.service network-online.target
+PartOf=kcml.target
+[Service]
+Type=exec
+User=kcml-browser-host
+Group=kcml-platform
+WorkingDirectory=/opt/kajovocml-ng/current
+EnvironmentFile=/etc/kajovocml-ng/runtime.env
+Environment=NODE_ENV=production
+Environment=KCML_BROWSER_HOST_SLOT=%i
+ExecStart=/usr/bin/node /opt/kajovocml-ng/current/apps/browser-host/dist/index.js
+Restart=on-failure
+KillMode=control-group
+TimeoutStopSec=60s
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectProc=invisible
+ProcSubset=pid
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictRealtime=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/var/lib/kajovocml-ng/browser /run/kajovocml-ng/browser-hosts
+TasksMax=1024
+MemoryHigh=2G
+MemoryMax=3G
+MemorySwapMax=0
+[Install]
+WantedBy=kcml.target

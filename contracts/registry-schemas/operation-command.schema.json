@@ -1,0 +1,1 @@
+{"$id":"kcml://operation/command","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"properties":{"arguments":{"type":"object"},"expectedStateVersion":{"minimum":0,"type":["integer","null"]},"operation":{"type":"string"},"target":{"type":["string","null"]}},"required":["operation","target","arguments"],"type":"object"}

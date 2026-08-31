@@ -1,0 +1,13 @@
+name: Production acceptance
+on: { workflow_dispatch: {} }
+permissions: { contents: read }
+jobs:
+  acceptance:
+    runs-on: ubuntu-24.04
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash tests/production/run.sh
+        env:
+          KCML_PRODUCTION_ORIGIN: https://kajovocml.hcasc.cz
+          KCML_OWNER_API_KEY: '${{ secrets.KCML_OWNER_API_KEY }}'

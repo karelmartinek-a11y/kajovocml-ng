@@ -1,0 +1,83 @@
+name: Deploy production
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact SHA on main (empty means current main HEAD)
+        required: false
+        type: string
+permissions: { contents: read, actions: read }
+concurrency: { group: production, cancel-in-progress: false }
+jobs:
+  resolve:
+    runs-on: ubuntu-24.04
+    outputs: { sha: '${{ steps.sha.outputs.value }}' }
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: main, fetch-depth: 0 }
+      - id: sha
+        shell: bash
+        run: |
+          wanted="${INPUT_SHA:-$(git rev-parse origin/main)}"
+          git merge-base --is-ancestor "$wanted" origin/main
+          test "$wanted" = "$(git rev-parse origin/main)"
+          [[ "$wanted" =~ ^[0-9a-f]{40}$ ]]
+          echo "value=$wanted" >> "$GITHUB_OUTPUT"
+        env: { INPUT_SHA: '${{ inputs.source_sha }}' }
+  ci-gate:
+    needs: resolve
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require successful CI for exact SHA
+        env:
+          GH_TOKEN: '${{ github.token }}'
+          REPOSITORY: '${{ github.repository }}'
+          SHA: '${{ needs.resolve.outputs.sha }}'
+        run: |
+          conclusion=$(gh api "repos/$REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$SHA&branch=main&status=completed" --jq '.workflow_runs[0].conclusion // "missing"')
+          test "$conclusion" = success
+  release:
+    needs: [resolve, ci-gate]
+    uses: ./.github/workflows/release.yml
+    with: { source_sha: '${{ needs.resolve.outputs.sha }}' }
+    secrets: { RELEASE_SIGNING_KEY: '${{ secrets.RELEASE_SIGNING_KEY }}' }
+  deploy:
+    needs: [resolve, release]
+    runs-on: ubuntu-24.04
+    environment:
+      name: production
+      url: https://kajovocml.hcasc.cz
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: kcml-release-${{ needs.release.outputs.release_id }}
+          path: release-output
+      - name: Configure deployment SSH
+        run: |
+          install -d -m 0700 ~/.ssh
+          install -m 0600 /dev/null ~/.ssh/id_ed25519
+          printf '%s' "$DEPLOY_SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          install -m 0600 /dev/null ~/.ssh/known_hosts
+          printf '%s\n' "$PROD_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+        env:
+          DEPLOY_SSH_PRIVATE_KEY: '${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}'
+          PROD_SSH_KNOWN_HOSTS: '${{ secrets.PROD_SSH_KNOWN_HOSTS }}'
+      - name: Transfer exact signed artifact
+        env:
+          HOST: '${{ vars.PROD_HOST }}'
+          USER: '${{ vars.PROD_DEPLOY_USER }}'
+          RELEASE: '${{ needs.release.outputs.release_id }}'
+        run: |
+          scp release-output/$RELEASE.tar.gz release-output/$RELEASE.tar.gz.sha256 release-output/$RELEASE.tar.gz.minisig "$USER@$HOST:/var/lib/kajovocml-ng/deployments/"
+      - name: Deploy with PASS over stdin
+        env:
+          HOST: '${{ vars.PROD_HOST }}'
+          USER: '${{ vars.PROD_DEPLOY_USER }}'
+          RELEASE: '${{ needs.release.outputs.release_id }}'
+          SHA: '${{ needs.resolve.outputs.sha }}'
+          PASS: '${{ secrets.PASS }}'
+        run: |
+          printf '%s\n' "$PASS" | ssh "$USER@$HOST" "sudo /usr/local/sbin/kcml-deploy-production --bundle /var/lib/kajovocml-ng/deployments/$RELEASE.tar.gz --signature /var/lib/kajovocml-ng/deployments/$RELEASE.tar.gz.minisig --source-sha $SHA --release-id $RELEASE"
+      - name: Public acceptance samples
+        run: |
+          for sample in 1 2 3 4 5; do curl --fail --silent --show-error https://kajovocml.hcasc.cz/health | jq -e '.status=="healthy"'; sleep 3; done

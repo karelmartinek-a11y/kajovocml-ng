@@ -1,0 +1,9 @@
+[Unit]
+Description=KájovoCML NG daily backup schedule
+[Timer]
+OnCalendar=*-*-* 02:17:00 UTC
+RandomizedDelaySec=900
+Persistent=true
+Unit=kcml-backup.service
+[Install]
+WantedBy=timers.target

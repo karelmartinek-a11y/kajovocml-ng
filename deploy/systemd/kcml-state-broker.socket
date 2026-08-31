@@ -1,0 +1,12 @@
+[Unit]
+Description=KájovoCML NG State Broker socket
+[Socket]
+ListenStream=/run/kajovocml-ng/brokers/state-broker.sock
+SocketUser=kcml-state-broker
+SocketGroup=kcml-runtime-gateway
+SocketMode=0660
+DirectoryMode=0750
+Accept=no
+RemoveOnStop=yes
+[Install]
+WantedBy=sockets.target

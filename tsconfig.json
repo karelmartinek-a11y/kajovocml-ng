@@ -1,0 +1,20 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/schemas" },
+    { "path": "packages/database" },
+    { "path": "packages/observability" },
+    { "path": "packages/agentic-authority" },
+    { "path": "packages/domain" },
+    { "path": "packages/kcip" },
+    { "path": "packages/mcp-runtime" },
+    { "path": "packages/openai-runtime" },
+    { "path": "packages/runtime-capability-ipc" },
+    { "path": "packages/runtime-boundary" },
+    { "path": "packages/browser-interaction" },
+    { "path": "packages/testing" },
+    { "path": "apps/server" },
+    { "path": "apps/runtime-gateway" },
+    { "path": "apps/runtime-host" }
+  ]
+}

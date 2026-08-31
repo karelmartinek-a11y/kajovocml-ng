@@ -1,0 +1,14 @@
+[Unit]
+Description=KájovoCML NG runtime gateway socket
+
+[Socket]
+ListenStream=/run/kajovocml-ng/gateway/runtime-gateway.sock
+SocketUser=kcml-runtime-gateway
+SocketGroup=kcml-runtime-callers
+SocketMode=0660
+DirectoryMode=0750
+Accept=no
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target

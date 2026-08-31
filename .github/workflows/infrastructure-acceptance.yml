@@ -1,0 +1,13 @@
+name: Infrastructure acceptance
+on: { workflow_dispatch: {} }
+permissions: { contents: read }
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - run: install -d -m 0700 ~/.ssh && printf '%s' "$KEY" > ~/.ssh/id_ed25519 && chmod 0600 ~/.ssh/id_ed25519 && printf '%s\n' "$KNOWN" > ~/.ssh/known_hosts && chmod 0600 ~/.ssh/known_hosts
+        env: { KEY: '${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}', KNOWN: '${{ secrets.PROD_SSH_KNOWN_HOSTS }}' }
+      - run: ssh "${USER}@${HOST}" 'sudo /opt/kajovocml-ng/current/deploy/scripts/verify-production-prerequisites.sh && sudo systemctl is-active kcml.target nginx postgresql'
+        env: { HOST: '${{ vars.PROD_HOST }}', USER: '${{ vars.PROD_DEPLOY_USER }}' }

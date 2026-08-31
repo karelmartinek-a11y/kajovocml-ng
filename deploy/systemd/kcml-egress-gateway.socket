@@ -1,0 +1,12 @@
+[Unit]
+Description=KájovoCML NG Egress Gateway socket
+[Socket]
+ListenStream=/run/kajovocml-ng/brokers/egress-gateway.sock
+SocketUser=kcml-egress-gateway
+SocketGroup=kcml-runtime-gateway
+SocketMode=0660
+DirectoryMode=0750
+Accept=no
+RemoveOnStop=yes
+[Install]
+WantedBy=sockets.target

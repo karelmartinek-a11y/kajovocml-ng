@@ -1,0 +1,6 @@
+[Unit]
+Description=KájovoCML NG production services
+Wants=kcml-web-api.socket kcml-runtime-gateway.socket kcml-secret-broker.socket kcml-state-broker.socket kcml-egress-gateway.socket
+After=postgresql.service network-online.target
+[Install]
+WantedBy=multi-user.target
