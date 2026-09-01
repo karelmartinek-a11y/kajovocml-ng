@@ -8,6 +8,7 @@ PartOf=kcml.target
 Type=exec
 User=kcml-runtime-gateway
 Group=kcml-runtime-callers
+SupplementaryGroups=kcml-platform
 WorkingDirectory=/opt/kajovocml-ng/current
 EnvironmentFile=/etc/kajovocml-ng/runtime.env
 Environment=NODE_ENV=production

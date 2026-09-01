@@ -31,4 +31,10 @@ describe('production acceptance contract', () => {
     expect(bootstrap).toContain('@localhost/kajovocml_ng?host=%2Fvar%2Frun%2Fpostgresql');
     expect(bootstrap).not.toContain('@127.0.0.1:5432/kajovocml_ng');
   });
+
+  it('keeps the runtime gateway in the release traversal group', async () => {
+    const unit = await readFile('deploy/systemd/kcml-runtime-gateway.service', 'utf8');
+    expect(unit).toContain('Group=kcml-runtime-callers');
+    expect(unit).toContain('SupplementaryGroups=kcml-platform');
+  });
 });
