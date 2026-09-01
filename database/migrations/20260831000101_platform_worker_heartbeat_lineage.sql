@@ -23,6 +23,7 @@ ALTER TABLE kcml.platform_worker_heartbeat ADD CONSTRAINT platform_worker_heartb
 ALTER TABLE kcml.platform_worker_heartbeat DROP CONSTRAINT IF EXISTS platform_worker_heartbeat_nonce_check;
 ALTER TABLE kcml.platform_worker_heartbeat ADD CONSTRAINT platform_worker_heartbeat_nonce_check CHECK (length(nonce)>0);
 ALTER TABLE kcml.platform_worker_heartbeat DROP CONSTRAINT IF EXISTS platform_worker_heartbeat_check;
+ALTER TABLE kcml.platform_worker_heartbeat DROP CONSTRAINT IF EXISTS platform_worker_heartbeat_observation_window_check;
 ALTER TABLE kcml.platform_worker_heartbeat ADD CONSTRAINT platform_worker_heartbeat_observation_window_check CHECK (expires_at>observed_at);
 
 COMMIT;
