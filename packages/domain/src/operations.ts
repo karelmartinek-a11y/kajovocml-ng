@@ -94,6 +94,28 @@ async function checkpointRecoveryAuthorized(client:DatabaseClient,row:any,checkp
     WHERE head.singleton_key=1 AND head.state='READY' AND head.recovery_epoch=$1 AND item.owner_kind='DOMAIN_COMMAND' AND item.owner_id=$2 AND item.classification='TERMINAL_REPLAY' AND item.blocking=false`,[row.recovery_epoch,String(row.command_id)])).rows[0];
   return Boolean(recoveryItem);
 }
+
+const implementedMutationOperations = new Set([
+  ...exactComponentMutationOperations,
+  ...exactMonitorMutationOperations,
+  'generation.job.create',
+  'browser.session.create',
+  'selfTest.run.start'
+]);
+const implementedQueryOperations = new Set([
+  ...exactComponentQueryOperations,
+  ...exactRuntimeQueryOperations,
+  ...exactSecretQueryOperations,
+  ...exactSelfTestQueryOperations,
+  ...exactMonitorQueryOperations,
+  'audit.integrity.verify'
+]);
+
+function assertExactOperationImplemented(operationName:string):void{
+  if(implementedMutationOperations.has(operationName)||implementedQueryOperations.has(operationName))return;
+  throw new DomainError('OPERATION_HANDLER_NOT_IMPLEMENTED',`Operation ${operationName} is catalogued but does not yet have an exact SSOT-conformant handler`,501,'DO_NOT_RETRY',{operationName});
+}
+
 export interface CommandContext { callerFingerprint:string; actorId:string; correlationId:string; causationId?:string|null; idempotencyKey?:string|null; recoveryFence?:{recoveryEpoch:bigint;fencingToken:bigint}; }
 
 export class OperationCatalogService {
