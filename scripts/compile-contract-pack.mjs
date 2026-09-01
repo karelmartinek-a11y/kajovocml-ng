@@ -389,6 +389,49 @@ function makeStateMachine([kind, states, terminalStates], operationRecords) {
   };
 }
 
+const recoveryOracleAuthorityRefs = [
+  'ssot://54.12/54-12-recovery-oracle/atom-1',
+  'ssot://55.12/55-12-recovery-oracle-registry/atom-1'
+];
+const recoveryOracleRequiredEvidence = [
+  'root state/version', 'idempotency record', 'lease/fence/incarnation/deployment/recovery epoch',
+  'checkpoint lineage', 'dispatch intent/outbox/claim', 'adapter send phase', 'target idempotency handle',
+  'external read-back', 'provider response/task ID', 'browser mutation phase/postcondition',
+  'pointer/runtime effective inventory', 'cleanup inventory'
+];
+const recoveryOracleForbiddenEvidence = [
+  'PROCESS_MEMORY', 'MISSING_LOG', 'TIMEOUT_TEXT', 'HTTP_STATUS', 'TRANSPORT_DISCONNECT', 'PROCESS_DEATH', 'EXCEPTION_TEXT'
+];
+const recoveryOracleRules = (subjectId, canonicalOperationName = null) => [
+  { priority: 10, ruleId: `${subjectId}:TERMINAL_OUTCOME_KNOWN`, predicate: 'TERMINAL_OUTCOME_KNOWN', allowedAction: 'REPLAY_TERMINAL', canonicalOutcome: 'TERMINAL_REPLAY', retryDirective: 'RETRY_SAME_OPERATION', stateTransitionId: 'TERMINAL_REPLAY', requiredFencingGuards: ['CURRENT_RECOVERY_EPOCH', 'CURRENT_FENCE', 'IDEMPOTENCY_DIGEST'], evidenceToPersist: ['ROOT_SNAPSHOT', 'IDEMPOTENCY_OUTCOME', 'LINEAGE_SNAPSHOT'], canonicalOperationName },
+  { priority: 20, ruleId: `${subjectId}:CHECKPOINT_RESUMABLE_BEFORE_DISPATCH`, predicate: 'CHECKPOINT_RESUMABLE_BEFORE_DISPATCH', allowedAction: 'RESUME_FROM_CHECKPOINT', canonicalOutcome: 'RESUMED', retryDirective: 'RETRY_SAME_OPERATION', stateTransitionId: 'RESUME_FROM_CHECKPOINT', requiredFencingGuards: ['CURRENT_RECOVERY_EPOCH', 'CURRENT_FENCE', 'CHECKPOINT_LINEAGE'], evidenceToPersist: ['ROOT_SNAPSHOT', 'CHECKPOINT_LINEAGE', 'DISPATCH_SNAPSHOT'], canonicalOperationName },
+  { priority: 30, ruleId: `${subjectId}:CANCELABLE_BEFORE_DISPATCH`, predicate: 'CANCELABLE_BEFORE_DISPATCH', allowedAction: 'CANCEL_BEFORE_DISPATCH', canonicalOutcome: 'CANCELLED_BEFORE_DISPATCH', retryDirective: 'DO_NOT_RETRY', stateTransitionId: 'CANCEL_BEFORE_DISPATCH', requiredFencingGuards: ['CURRENT_RECOVERY_EPOCH', 'CURRENT_FENCE', 'NO_DISPATCH_INTENT'], evidenceToPersist: ['ROOT_SNAPSHOT', 'DISPATCH_SNAPSHOT'], canonicalOperationName },
+  { priority: 40, ruleId: `${subjectId}:CONFIRMED_NOT_APPLIED`, predicate: 'CONFIRMED_NOT_APPLIED', allowedAction: 'RETRY_SAME_OPERATION', canonicalOutcome: 'CONFIRMED_NOT_APPLIED', retryDirective: 'RETRY_SAME_OPERATION', stateTransitionId: 'RETRY_AFTER_CONFIRMED_NOT_APPLIED', requiredFencingGuards: ['CURRENT_RECOVERY_EPOCH', 'CURRENT_FENCE', 'TARGET_IDEMPOTENCY_KEY'], evidenceToPersist: ['ROOT_SNAPSHOT', 'DISPATCH_SNAPSHOT', 'EXTERNAL_READ_BACK'], canonicalOperationName },
+  { priority: 50, ruleId: `${subjectId}:COMPENSATION_REQUIRED`, predicate: 'COMPENSATION_REQUIRED', allowedAction: 'RUN_COMPENSATION', canonicalOutcome: 'COMPENSATION_REQUIRED', retryDirective: 'MANUAL_REVIEW', stateTransitionId: 'COMPENSATION_REQUIRED', requiredFencingGuards: ['CURRENT_RECOVERY_EPOCH', 'CURRENT_FENCE', 'CONFIRMED_EXTERNAL_OUTCOME'], evidenceToPersist: ['ROOT_SNAPSHOT', 'EXTERNAL_READ_BACK', 'LINEAGE_SNAPSHOT'], canonicalOperationName },
+  { priority: 60, ruleId: `${subjectId}:CONFIRMED_APPLIED`, predicate: 'CONFIRMED_APPLIED', allowedAction: 'RECONCILE', canonicalOutcome: 'CONFIRMED_APPLIED', retryDirective: 'RECONCILE_THEN_RETRY', stateTransitionId: 'RECONCILE_CONFIRMED_APPLIED', requiredFencingGuards: ['CURRENT_RECOVERY_EPOCH', 'CURRENT_FENCE', 'INDEPENDENT_READ_BACK'], evidenceToPersist: ['ROOT_SNAPSHOT', 'DISPATCH_SNAPSHOT', 'EXTERNAL_READ_BACK'], canonicalOperationName },
+  { priority: 70, ruleId: `${subjectId}:CLEANUP_PENDING`, predicate: 'CLEANUP_PENDING', allowedAction: 'RUN_CLEANUP', canonicalOutcome: 'CLEANUP_REQUIRED', retryDirective: 'RETRY_SAME_OPERATION', stateTransitionId: 'RESUME_CLEANUP', requiredFencingGuards: ['CURRENT_RECOVERY_EPOCH', 'CURRENT_FENCE', 'CLEANUP_INVENTORY'], evidenceToPersist: ['ROOT_SNAPSHOT', 'CLEANUP_INVENTORY', 'LINEAGE_SNAPSHOT'], canonicalOperationName },
+  { priority: 80, ruleId: `${subjectId}:RECONCILIATION_REQUIRED`, predicate: 'RECONCILIATION_REQUIRED', allowedAction: 'RECONCILE', canonicalOutcome: 'UNKNOWN', retryDirective: 'MANUAL_REVIEW', stateTransitionId: 'ENTER_RECONCILING', requiredFencingGuards: ['CURRENT_RECOVERY_EPOCH', 'CURRENT_FENCE', 'NO_BLIND_RETRY'], evidenceToPersist: ['ROOT_SNAPSHOT', 'DISPATCH_SNAPSHOT', 'EXTERNAL_READ_BACK', 'LINEAGE_SNAPSHOT'], canonicalOperationName }
+];
+
+function makeRecoveryOracle(subjectId, closurePredicateId, requirementIds, canonicalOperationName = null) {
+  return {
+    recoveryOracleId: `ORACLE-${subjectId}`,
+    subjectId,
+    observedAuthoritativeStateSchema: 'RECOVERY_EVIDENCE_V1',
+    requiredEvidence: recoveryOracleRequiredEvidence,
+    forbiddenEvidenceAssumptions: recoveryOracleForbiddenEvidence,
+    rules: recoveryOracleRules(subjectId, canonicalOperationName),
+    defaultOutcome: 'MANUAL_REVIEW',
+    manualReviewSchemaRef: 'contracts/registry-schemas/operation-command.schema.json',
+    conflictingOperationBlockKeys: ['ACCOUNT', 'RESOURCE', 'LOGICAL_OPERATION'],
+    closurePredicateId,
+    testCaseIds: ['TEST-TD16-RECOVERY-ORACLE-TOTALITY', 'TEST-TD16-RECOVERY-ORACLE-MUTATION'],
+    requirementIds,
+    authoritySourceRefs: recoveryOracleAuthorityRefs,
+    canonicalDigest: sha(canonical({ subjectId, rules: recoveryOracleRules(subjectId, canonicalOperationName) }))
+  };
+}
+
 const gates = [
   'ARCH_CROSS_CHAPTER_CONSISTENT', 'ARCH_NORMATIVE_AMBIGUITY_CLOSED', 'ARCH_SINGLE_WRITER_COMPLETE', 'ARCH_OPERATION_LIFECYCLE_COMPLETE',
   'ARCH_POSTGRES_CONTRACT_COMPLETE', 'ARCH_RUNTIME_BOUNDARY_COMPLETE', 'ARCH_PROTOCOL_SEMANTICS_COMPLETE', 'ARCH_OPENAI_LIFECYCLE_COMPLETE',
@@ -448,11 +491,27 @@ const registrySchemaFilenames = {
   EXPOSURE_PARITY_REGISTRY: 'exposure-parity-registry.schema.json', ARTIFACT_TRACE_REGISTRY: 'artifact-trace-registry.schema.json'
 };
 
-const schemaField = (field) => field === 'bindingKind' ? { enum: ['CONTRACT_BINDING', 'SECRET_BINDING', 'EXTERNAL_TARGET_BINDING', 'EXTERNAL_AUTH_BINDING', 'AGENT_TOOL_BINDING', 'BROWSER_ACCOUNT_BINDING', 'BROWSER_PROFILE_ASSIGNMENT', 'ACTIVATION_SET_MEMBERSHIP', 'ROUTE_BINDING'] } : field === 'bindingRevision' ? { type: 'integer', minimum: 1 } : field === 'activationEpoch' ? { type: 'integer', minimum: 0 } : field === 'secretVersionSelector' || field === 'accountOrTenantConstraint' ? { type: ['object', 'null'] } : ['targetRevisionId', 'targetOperationId', 'routeOperationId', 'externalTargetOrOrigin', 'validFrom', 'validUntil'].includes(field) ? { type: ['string', 'null'] } : field.endsWith('Ids') || field.endsWith('Refs') || field.endsWith('States') || field.endsWith('Kinds') || field.endsWith('Types') || field.endsWith('Fields') || field.endsWith('Locks') || field.endsWith('Predicates') || field.endsWith('Writes') || field.endsWith('Outcomes') || field.endsWith('Evidence') || field.endsWith('Digests') || field === 'transitions' || field === 'rules' || field === 'inputs' || field === 'dependencies' || field === 'failCodes' || field === 'httpMappings' || field === 'kcipMappings' || field === 'mcpMappings' || field === 'allowedInheritedFds' || field === 'notApplicableReasons' || field === 'requiredChildPredicates' || field === 'forbiddenPendingChildKinds' || field === 'forbiddenProvisionalKinds' || field === 'directQueryIds' || field === 'terminalOutcomes' || field === 'auditEventTypes' || field === 'outboxPurposes' || field === 'auditEvidence' ? arrayField : field === 'generationToolDigest' ? { type: ['string', 'null'] } : field === 'blocking' || field.endsWith('Predicate') || field === 'stateVersionCas' || field === 'fencingPredicate' || field === 'platformIncarnationPredicate' || field === 'applicationDeploymentEpochPredicate' || field === 'bindingActivationPredicate' || field === 'exact' || field.endsWith('Required') || field === 'refreshRequired' || field === 'reconciliationRequired' || field === 'manualReviewRequired' || field === 'sameLogicalOperationRequired' ? booleanField : field === 'operationRevision' || field === 'evaluatorVersion' ? { type: 'integer' } : stringField;
+const schemaField = (field) => field === 'bindingKind' ? { enum: ['CONTRACT_BINDING', 'SECRET_BINDING', 'EXTERNAL_TARGET_BINDING', 'EXTERNAL_AUTH_BINDING', 'AGENT_TOOL_BINDING', 'BROWSER_ACCOUNT_BINDING', 'BROWSER_PROFILE_ASSIGNMENT', 'ACTIVATION_SET_MEMBERSHIP', 'ROUTE_BINDING'] } : field === 'bindingRevision' ? { type: 'integer', minimum: 1 } : field === 'activationEpoch' ? { type: 'integer', minimum: 0 } : field === 'secretVersionSelector' || field === 'accountOrTenantConstraint' ? { type: ['object', 'null'] } : ['targetRevisionId', 'targetOperationId', 'routeOperationId', 'externalTargetOrOrigin', 'validFrom', 'validUntil'].includes(field) ? { type: ['string', 'null'] } : field.endsWith('Ids') || field.endsWith('Refs') || field.endsWith('States') || field.endsWith('Kinds') || field.endsWith('Types') || field.endsWith('Fields') || field.endsWith('Locks') || field.endsWith('Predicates') || field.endsWith('Writes') || field.endsWith('Outcomes') || field.endsWith('Evidence') || field === 'forbiddenEvidenceAssumptions' || field === 'conflictingOperationBlockKeys' || field.endsWith('Digests') || field === 'transitions' || field === 'rules' || field === 'inputs' || field === 'dependencies' || field === 'failCodes' || field === 'httpMappings' || field === 'kcipMappings' || field === 'mcpMappings' || field === 'allowedInheritedFds' || field === 'notApplicableReasons' || field === 'requiredChildPredicates' || field === 'forbiddenPendingChildKinds' || field === 'forbiddenProvisionalKinds' || field === 'directQueryIds' || field === 'terminalOutcomes' || field === 'auditEventTypes' || field === 'outboxPurposes' || field === 'auditEvidence' ? arrayField : field === 'generationToolDigest' ? { type: ['string', 'null'] } : field === 'blocking' || field.endsWith('Predicate') || field === 'stateVersionCas' || field === 'fencingPredicate' || field === 'platformIncarnationPredicate' || field === 'applicationDeploymentEpochPredicate' || field === 'bindingActivationPredicate' || field === 'exact' || field.endsWith('Required') || field === 'refreshRequired' || field === 'reconciliationRequired' || field === 'manualReviewRequired' || field === 'sameLogicalOperationRequired' ? booleanField : field === 'operationRevision' || field === 'evaluatorVersion' ? { type: 'integer' } : stringField;
 
 function makeRegistrySchema(kind) {
   const properties = { ...commonRecordProperties, recordKind: { const: kind } };
   for (const field of registrySchemaRequirements[kind]) if (!(field in properties)) properties[field] = schemaField(field);
+  if (kind === 'RECOVERY_ORACLE_REGISTRY') {
+    properties.rules = {
+      type: 'array', minItems: 1,
+      items: { type: 'object', additionalProperties: false, required: ['priority', 'predicate', 'allowedAction', 'canonicalOutcome', 'retryDirective', 'stateTransitionId', 'requiredFencingGuards', 'evidenceToPersist'], properties: {
+        priority: { type: 'integer', minimum: 0 }, ruleId: { type: 'string', minLength: 1 }, predicate: { type: 'string', minLength: 1 },
+        allowedAction: { enum: ['REPLAY_TERMINAL', 'RESUME_FROM_CHECKPOINT', 'RETRY_SAME_OPERATION', 'RECONCILE', 'CANCEL_BEFORE_DISPATCH', 'RUN_COMPENSATION', 'RUN_CLEANUP', 'MANUAL_REVIEW'] },
+        canonicalOutcome: { type: 'string', minLength: 1 }, retryDirective: { type: 'string', minLength: 1 }, stateTransitionId: { type: 'string', minLength: 1 },
+        requiredFencingGuards: { type: 'array', minItems: 1, items: { type: 'string' } }, evidenceToPersist: { type: 'array', minItems: 1, items: { type: 'string' } },
+        canonicalOperationName: { type: ['string', 'null'] }
+      } }
+    };
+    properties.requiredEvidence = { type: 'array', minItems: 1, items: { type: 'string', minLength: 1 } };
+    properties.forbiddenEvidenceAssumptions = { type: 'array', minItems: 1, items: { type: 'string', minLength: 1 } };
+    properties.conflictingOperationBlockKeys = { type: 'array', minItems: 1, items: { type: 'string', minLength: 1 } };
+    properties.defaultOutcome = { enum: ['MANUAL_REVIEW'] };
+  }
   return { $schema: 'https://json-schema.org/draft/2020-12/schema', $id: `kcml://registry/${kind.toLowerCase()}`, type: 'object', additionalProperties: true, required: [...commonRequired, ...registrySchemaRequirements[kind]], properties };
 }
 
@@ -562,6 +621,12 @@ async function main() {
     return operation;
   });
   const stateMachines = stateMachineSpecs.map((spec) => makeStateMachine(spec, operations));
+  const recoveryRequirementIds = requirements.filter((requirement) => requirement.authoritySourceRefs.some((sourceRef) => /^(ssot:\/\/(?:54\.12|55\.12|54\.28|2\.18)\/)/u.test(sourceRef))).map((requirement) => requirement.requirementId).sort();
+  for (const operation of operations) operation.reconciliationOracleId = `ORACLE-${operation.operationId}`;
+  const recoveryOracles = [
+    ...operations.map((operation) => makeRecoveryOracle(operation.operationId, `CLOSURE-${operation.aggregateRoot}`, [...new Set([...recoveryRequirementIds, ...operation.requirementIds])].sort(), operation.operationName)),
+    ...stateMachines.map((machine) => makeRecoveryOracle(machine.stateMachineId, machine.closurePredicateId, [...new Set([...recoveryRequirementIds, ...machine.requirementIds])].sort()))
+  ];
   const postgres = operations.filter((operation) => operation.transactionProfileId !== 'CONSISTENT_READ').map((operation) => ({
     postgresContractId: `PG-${operation.operationId}`, operationId: operation.operationId, transactionProfileId: operation.transactionProfileId,
     isolationLevel: 'READ COMMITTED', transactionSegments: operation.sideEffectClass === 'LOCAL_STATE_IDEMPOTENT' ? ['T1', 'T3'] : ['T1', 'D', 'T2', 'T3'],
@@ -1052,6 +1117,33 @@ async function main() {
   if (!runtimeVerificationOperation || !runtimeSeccompRequirement) throw new Error('RUNTIME_BOUNDARY_OPERATION_TRACE_TARGET_MISSING');
   runtimeVerificationOperation.requirementIds = [...new Set([...runtimeVerificationOperation.requirementIds, runtimeSeccompRequirement.requirementId])].sort();
   runtimeSeccompRequirement.operationIds = [...new Set([...runtimeSeccompRequirement.operationIds, runtimeVerificationOperation.operationId])].sort();
+  const recoverySourcePath = 'packages/domain/src/recovery-oracle.ts';
+  const recoveryTestPath = 'tests/recovery/oracle.test.ts';
+  const recoverySourceArtifact = traceArtifact(recoverySourcePath);
+  const recoveryTestArtifact = traceArtifact(recoveryTestPath);
+  const recoverySourceLines = (await readFile(join(root, recoverySourcePath), 'utf8')).split('\n');
+  const recoveryTestLines = (await readFile(join(root, recoveryTestPath), 'utf8')).split('\n');
+  const recoverySourceLineIndex = recoverySourceLines.findIndex((line) => line.includes('export function evaluateRecoveryOracle'));
+  const recoveryTestLineIndex = recoveryTestLines.findIndex((line) => line.includes("describe('TD-16 operation/state-machine recovery oracle'"));
+  if (recoverySourceLineIndex < 0 || recoveryTestLineIndex < 0) throw new Error('RECOVERY_ORACLE_TRACE_ANCHOR_MISSING');
+  for (const requirementId of recoveryRequirementIds) {
+    const requirement = requirementMap.get(requirementId);
+    if (!requirement) throw new Error(`RECOVERY_ORACLE_REQUIREMENT_LOOKUP_FAILED:${requirementId}`);
+    appendTrace(recoverySourceArtifact, requirementId, `${recoverySourcePath}:${recoverySourceLineIndex + 1}`, 'evaluateRecoveryOracle', recoverySourceLines[recoverySourceLineIndex]);
+    appendTrace(recoveryTestArtifact, requirementId, `${recoveryTestPath}:${recoveryTestLineIndex + 1}`, 'TD-16 operation/state-machine recovery oracle', recoveryTestLines[recoveryTestLineIndex]);
+    requirement.domainModule = 'packages/domain';
+    requirement.artifactIds = stableSort([...new Set([...requirement.artifactIds, recoverySourceArtifact.artifactId, recoveryTestArtifact.artifactId])]);
+    requirement.testCaseIds = stableSort([...new Set([...requirement.testCaseIds, 'TEST-TD16-RECOVERY-ORACLE-TOTALITY', 'TEST-TD16-RECOVERY-ORACLE-MUTATION'])]);
+    requirement.runtimeEvidenceKinds = stableSort([...new Set([...requirement.runtimeEvidenceKinds, 'PERSISTED_EVIDENCE_ORACLE', 'CANONICAL_RECOVERY_ACTION', 'ORACLE_MUTATION_TEST'])]);
+    requirement.acceptanceGateIds = stableSort([...new Set([...requirement.acceptanceGateIds, 'GATE-CONTRACT-PACK'])]);
+  }
+  recoverySourceArtifact.operationIds.push(...operations.filter((operation) => operation.sideEffectClass !== 'READ_ONLY').map((operation) => operation.operationId));
+  recoverySourceArtifact.stateMachineIds.push(...stateMachines.map((machine) => machine.stateMachineId));
+  recoverySourceArtifact.registryRecordIds.push(...recoveryOracles.map((oracle) => oracle.recoveryOracleId));
+  recoveryTestArtifact.testIds.push('TEST-TD16-RECOVERY-ORACLE-TOTALITY', 'TEST-TD16-RECOVERY-ORACLE-MUTATION');
+  recoveryTestArtifact.operationIds.push(...operations.filter((operation) => operation.sideEffectClass !== 'READ_ONLY').map((operation) => operation.operationId));
+  recoveryTestArtifact.stateMachineIds.push(...stateMachines.map((machine) => machine.stateMachineId));
+  recoveryTestArtifact.registryRecordIds.push(...recoveryOracles.map((oracle) => oracle.recoveryOracleId));
   for (const artifact of touchedTraceArtifacts) {
     artifact.requirementIds = stableSort([...new Set(artifact.requirementIds)]);
     artifact.operationIds = stableSort([...new Set(artifact.operationIds)]);
@@ -1080,7 +1172,7 @@ async function main() {
     ['AUTHORITY_OWNERSHIP_REGISTRY', 'authority/authority-ownership.json', authorities],
     ['ERROR_RETRY_REGISTRY', 'errors/errors.json', errorRecords],
     ['FAULT_CATALOG', 'faults/faults.json', operations.map((operation) => ({ faultPointId: `FAULT-${operation.operationId}`, operationId: operation.operationId, phase: 'PRE_AND_POST_SIDE_EFFECT', faultKinds: ['PROCESS_KILL','TIMEOUT','DUPLICATE','STALE_FENCE','DATABASE_RESTART'], expectedOutcome: 'RECOVERY_ORACLE', testCaseIds: [`FAULT-TEST-${operation.operationId}`], authoritySourceRefs: ['ssot://54/fault-catalog/fault-point'], requirementIds: operation.requirementIds, canonicalDigest: sha(canonical({ operationId: operation.operationId, phase: 'PRE_AND_POST_SIDE_EFFECT' })) }))],
-    ['RECOVERY_ORACLE_REGISTRY', 'recovery-oracles/recovery-oracles.json', [{ recoveryOracleId: 'ORACLE-SIDE-EFFECT', subjectId: 'SIDE_EFFECT', observedAuthoritativeStateSchema: 'SIDE_EFFECT_EVIDENCE', requiredEvidence: ['INTENT', 'DISPATCH', 'READ_BACK'], forbiddenEvidenceAssumptions: ['PROCESS_MEMORY', 'MISSING_LOG'], rules: [{ when: 'INTENT=false', outcome: 'CONFIRMED_NOT_APPLIED' }, { when: 'INTENT=true AND DISPATCH=false', outcome: 'CONFIRMED_NOT_APPLIED' }, { when: 'DISPATCH=true AND READ_BACK=true', outcome: 'CONFIRMED_APPLIED' }, { when: 'DISPATCH=true AND READ_BACK=false', outcome: 'MANUAL_REVIEW' }], defaultOutcome: 'MANUAL_REVIEW', manualReviewSchemaRef: 'contracts/registry-schemas/operation-command.schema.json', conflictingOperationBlockKeys: ['RESOURCE'], closurePredicateId: 'CLOSURE-SIDE_EFFECT', testCaseIds: ['TEST-RECOVERY-ORACLE'], requirementIds: [], authoritySourceRefs: ['ssot://54/recovery-oracle/oracle'], canonicalDigest: sha('ORACLE-SIDE_EFFECT_WITH_RULES') }]],
+    ['RECOVERY_ORACLE_REGISTRY', 'recovery-oracles/recovery-oracles.json', recoveryOracles],
     ['CLOSURE_PREDICATE_REGISTRY', 'closure-predicates/closure-predicates.json', closure],
     ['ACCEPTANCE_GATE_REGISTRY', 'acceptance-gates/acceptance-gates.json', gateRecords],
     ['EXPOSURE_PARITY_REGISTRY', 'exposure-parity/exposure-parity.json', exposure],

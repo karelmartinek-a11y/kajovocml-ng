@@ -93,7 +93,7 @@ async function checkpointRecoveryAuthorized(client:DatabaseClient,row:any,checkp
     WHERE head.singleton_key=1 AND head.state='READY' AND head.recovery_epoch=$1 AND item.owner_kind='DOMAIN_COMMAND' AND item.owner_id=$2 AND item.classification='TERMINAL_REPLAY' AND item.blocking=false`,[row.recovery_epoch,String(row.command_id)])).rows[0];
   return Boolean(recoveryItem);
 }
-export interface CommandContext { callerFingerprint:string; actorId:string; correlationId:string; causationId?:string|null; idempotencyKey?:string|null; }
+export interface CommandContext { callerFingerprint:string; actorId:string; correlationId:string; causationId?:string|null; idempotencyKey?:string|null; recoveryFence?:{recoveryEpoch:bigint;fencingToken:bigint}; }
 
 export class OperationCatalogService {
   readonly #byName = new Map<string, OperationContract>();
@@ -125,6 +125,7 @@ export class CanonicalOperationService {
     return inTransaction(this.pool,'SERIALIZABLE',async(client)=>{
       await lockAdvisory(client,'IDEMPOTENCY_SCOPE',`${scopeDigest.toString('hex')}:${keyDigest.toString('hex')}`);
       const recoveryHead=await lockAndVerifyPlatformRecovery(client);
+      if(context.recoveryFence && (context.recoveryFence.recoveryEpoch!==BigInt(recoveryHead.recovery_epoch)||context.recoveryFence.fencingToken!==BigInt(recoveryHead.recovery_fencing_token)))throw new DomainError('RECOVERY_FENCE_LOST','Recovery action was not admitted with the current recovery fence',409,'RECONCILE_THEN_RETRY');
       const activationResult=await client.query(`SELECT current_epoch AS activation_epoch FROM kcml.activation_head WHERE singleton_key=1 FOR SHARE`);
       const heads={...recoveryHead,activation_epoch:activationResult.rows[0]?.activation_epoch};
       if(heads.activation_epoch===undefined)throw new DomainError('AUTHORITY_HEADS_MISSING','Activation authority head is missing',503,'RETRY_SAME_OPERATION');
