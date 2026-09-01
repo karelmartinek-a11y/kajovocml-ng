@@ -297,6 +297,7 @@ export class CanonicalCommandWorker {
       });
       return mutationHandlerFor(operation)(client,{
         operation,
+        commandId: row.command_id,
         targetId:row.target_id,
         arguments:args,
         logicalOperationId:row.logical_operation_id,
