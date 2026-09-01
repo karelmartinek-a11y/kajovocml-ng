@@ -169,6 +169,7 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
   app.post('/api/v1/operations/:operationKey/invoke', async (request) => {
     await authenticate(request);
     const operationKey = decodeURIComponent((request.params as { operationKey: string }).operationKey);
+    if (catalog.get(operationKey).exposureClass === 'INTERNAL_PROTOCOL') throw new DomainError('EXPOSURE_PARITY_INCOMPLETE', `Internal protocol operation ${operationKey} has no public REST exposure`, 404, 'DO_NOT_RETRY');
     return apiSafe(await operations.execute(operationKey, request.body, { callerFingerprint: callerFingerprint(request), actorId: ownerId(request), correlationId: request.requestCorrelationId, idempotencyKey: idempotencyKey(request) }));
   });
 

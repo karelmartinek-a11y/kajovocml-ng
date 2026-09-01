@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseClient, DatabasePool } from '@kcml/database';
 import { allocateContiguousSequence, inTransactionProfile, lockAdvisory } from '@kcml/database';
-import { authorityForOperation, loadAuthorityOwnershipRegistry, loadOperationCatalog, loadRegistry, validateAuthorityOwnership, type AuthorityOwnershipRecord, type OperationContract, type StateMachineContract } from '@kcml/contract-pack';
+import { authorityForOperation, loadAuthorityOwnershipRegistry, loadOperationCatalog, loadRegistry, validateAuthorityOwnership, validateExposureParity, type AuthorityOwnershipRecord, type ExposureParityContract, type OperationContract, type StateMachineContract } from '@kcml/contract-pack';
 import { canonicalDigest, canonicalJson, operationCommandSchema, sha256, type CanonicalJsonValue, type OperationResult } from '@kcml/schemas';
 import { canonicalizeDomainError, DomainError } from './errors.js';
 import { assertOperationHandlerCoverage, operationHandlerFor } from './operation-handler-catalog.js';
@@ -99,7 +99,7 @@ export interface CommandContext { callerFingerprint:string; actorId:string; corr
 export class OperationCatalogService {
   readonly #byName = new Map<string, OperationContract>();
   private constructor(readonly operations: readonly OperationContract[], readonly authorities: readonly AuthorityOwnershipRecord[]) { for(const operation of operations)this.#byName.set(operation.operationName,operation); }
-  public static async load(repositoryRoot=process.cwd()):Promise<OperationCatalogService>{const [catalog,authorityRegistry,stateMachineRegistry]=await Promise.all([loadOperationCatalog(repositoryRoot),loadAuthorityOwnershipRegistry(repositoryRoot),loadRegistry<StateMachineContract>('STATE_MACHINE_REGISTRY',repositoryRoot)]);assertOperationHandlerCoverage(catalog.records);validateAuthorityOwnership(catalog.records,authorityRegistry.records,stateMachineRegistry.records);return new OperationCatalogService(catalog.records,authorityRegistry.records);}
+  public static async load(repositoryRoot=process.cwd()):Promise<OperationCatalogService>{const [catalog,authorityRegistry,stateMachineRegistry,exposureRegistry]=await Promise.all([loadOperationCatalog(repositoryRoot),loadAuthorityOwnershipRegistry(repositoryRoot),loadRegistry<StateMachineContract>('STATE_MACHINE_REGISTRY',repositoryRoot),loadRegistry<ExposureParityContract>('EXPOSURE_PARITY_REGISTRY',repositoryRoot)]);assertOperationHandlerCoverage(catalog.records);validateAuthorityOwnership(catalog.records,authorityRegistry.records,stateMachineRegistry.records);validateExposureParity(catalog.records,exposureRegistry.records);return new OperationCatalogService(catalog.records,authorityRegistry.records);}
   public get(name:string):OperationContract{const operation=this.#byName.get(name);if(!operation)throw new DomainError('OPERATION_NOT_FOUND',`Unknown operation ${name}`,404);return operation;}
   public authorityFor(operation:OperationContract):AuthorityOwnershipRecord{return authorityForOperation(operation.operationId,this.authorities);}
   public publicView():unknown[]{return this.operations.map(({operationName,operationId,operationRevision,operationFamily,exposureClass,sideEffectClass,retryClass,canonicalDigest,expectedStateVersionPolicy,idempotencyKeySource})=>({operationName,operationId,operationRevision,operationFamily,exposureClass,sideEffectClass,retryClass,canonicalDigest,expectedStateVersionPolicy,idempotencyKeySource}));}
@@ -111,7 +111,6 @@ export class CanonicalOperationService {
   public async execute(operationName:string,commandInput:unknown,context:CommandContext):Promise<OperationResult>{
     const operation=this.catalog.get(operationName);
     this.catalog.authorityFor(operation);
-    assertExactOperationImplemented(operationName);
     const command=operationCommandSchema.parse({...((commandInput??{}) as object),operation:operationName});
     validateCanonicalOperationCommand(operation, command.targetId, command.arguments);
     if(command.deadlineAt&&new Date(command.deadlineAt)<=new Date())throw new DomainError('DEADLINE_EXCEEDED','The absolute command deadline has elapsed',408);

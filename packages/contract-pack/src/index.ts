@@ -82,6 +82,66 @@ export interface OperationContract extends RegistryRecord {
 
 export interface OperationCatalog extends RegistryDocument<OperationContract> { kind: 'OPERATION_CATALOG'; }
 
+export interface ExposureParityContract extends RegistryRecord {
+  operationId: string;
+  exposureClass: 'OWNER_COMMAND' | 'OWNER_QUERY' | 'PUBLIC_PROTOCOL' | 'INTERNAL_PROTOCOL' | 'AUTOMATED_MAINTENANCE' | 'EVIDENCE_ONLY';
+  apiOperationIds: string[];
+  uiSurfaceIds: string[];
+  uiActionIds: string[];
+  chatCapabilityIds: string[];
+  auditEventTypes: string[];
+  selfTestCaseIds: string[];
+  acceptanceGateIds: string[];
+  parentOperationId: string | null;
+  notApplicableReasons: Array<{ surface: string; reasonCode: string; supportingRequirementSourceRef: string }>;
+  surfaceBindings: Array<{ bindingId: string; status: 'APPLICABLE' | 'NOT_APPLICABLE'; sourcePath: string | null; sourceSymbol: string | null; sourceMarker: string | null; target: string | null; reasonCode?: string; supportingRequirementSourceRef?: string }>;
+}
+
+const exposureClasses = new Set<ExposureParityContract['exposureClass']>(['OWNER_COMMAND', 'OWNER_QUERY', 'PUBLIC_PROTOCOL', 'INTERNAL_PROTOCOL', 'AUTOMATED_MAINTENANCE', 'EVIDENCE_ONLY']);
+const syntheticExposureIds = /^(?:API|UI-ACTION|CHAT|SELFTEST)-/u;
+
+/**
+ * Validates the cross-surface contract without resolving source files. The
+ * compiler performs the filesystem and route-symbol resolution; this runtime
+ * check keeps a tampered generated registry fail-closed at admission too.
+ */
+export function validateExposureParity(
+  operations: readonly Pick<OperationContract, 'operationId' | 'operationName' | 'exposureClass'>[],
+  parity: readonly ExposureParityContract[],
+): void {
+  const operationIds = new Set(operations.map((operation) => operation.operationId));
+  const operationById = new Map(operations.map((operation) => [operation.operationId, operation]));
+  const parityByOperation = new Map<string, ExposureParityContract>();
+  for (const record of parity) {
+    if (!exposureClasses.has(record.exposureClass)) throw new Error(`EXPOSURE_PARITY_CLASS_INVALID:${record.operationId}`);
+    if (!operationIds.has(record.operationId) || parityByOperation.has(record.operationId)) throw new Error(`EXPOSURE_PARITY_OPERATION_CARDINALITY:${record.operationId}`);
+    if (operationById.get(record.operationId)?.exposureClass !== record.exposureClass) throw new Error(`EXPOSURE_PARITY_CLASS_MISMATCH:${record.operationId}`);
+    parityByOperation.set(record.operationId, record);
+    const bindings = record.surfaceBindings ?? [];
+    if (!bindings.length) throw new Error(`EXPOSURE_PARITY_INCOMPLETE:${record.operationId}:surfaceBindings`);
+    const bindingIds = new Set<string>();
+    for (const binding of bindings) {
+      if (!binding.bindingId || bindingIds.has(binding.bindingId)) throw new Error(`EXPOSURE_PARITY_BINDING_CARDINALITY:${record.operationId}`);
+      bindingIds.add(binding.bindingId);
+      if (syntheticExposureIds.test(binding.bindingId)) throw new Error(`EXPOSURE_PARITY_SYNTHETIC_BINDING:${record.operationId}:${binding.bindingId}`);
+      if (binding.status === 'APPLICABLE' && (!binding.sourcePath || !binding.sourceSymbol || !binding.sourceMarker || !binding.target)) throw new Error(`EXPOSURE_PARITY_BINDING_UNRESOLVED:${record.operationId}:${binding.bindingId}`);
+      if (binding.status === 'NOT_APPLICABLE' && (!binding.reasonCode || binding.supportingRequirementSourceRef !== 'ssot://55.18/55-18-ui-api-chat-audit-a-self-test-parity/atom-1')) throw new Error(`EXPOSURE_PARITY_NOT_APPLICABLE_UNSUPPORTED:${record.operationId}:${binding.bindingId}`);
+    }
+    const applicableIds = (prefix: string) => [...bindingIds].filter((bindingId) => bindingId.startsWith(`${prefix}:`));
+    const exactIds = (declared: readonly string[], prefix: string) => {
+      const expected = applicableIds(prefix);
+      return declared.length === expected.length && declared.every((bindingId) => expected.includes(bindingId));
+    };
+    if (!exactIds(record.apiOperationIds, 'REST_ROUTE') || !exactIds(record.uiSurfaceIds, 'UI_VIEW') || !exactIds(record.uiActionIds, 'UI_ACTION') || !exactIds(record.chatCapabilityIds, 'CHAT_CAPABILITY') || !exactIds(record.selfTestCaseIds, 'TEST_CASE')) throw new Error(`EXPOSURE_PARITY_ID_BINDING_MISMATCH:${record.operationId}`);
+    if (!record.uiSurfaceIds.length || !record.chatCapabilityIds.length || !record.auditEventTypes.length || !record.selfTestCaseIds.length || !record.acceptanceGateIds.length) throw new Error(`EXPOSURE_PARITY_INCOMPLETE:${record.operationId}:required-common-surface`);
+    if (record.exposureClass === 'OWNER_COMMAND' && (!record.apiOperationIds.length || !record.uiActionIds.length)) throw new Error(`EXPOSURE_PARITY_INCOMPLETE:${record.operationId}:owner-command`);
+    if (record.exposureClass !== 'OWNER_COMMAND' && record.uiActionIds.length) throw new Error(`EXPOSURE_PARITY_UNAUTHORIZED_UI_ACTION:${record.operationId}`);
+    if (record.exposureClass === 'INTERNAL_PROTOCOL' && (record.apiOperationIds.length || !record.parentOperationId)) throw new Error(`EXPOSURE_PARITY_INCOMPLETE:${record.operationId}:internal-protocol`);
+  }
+  for (const operation of operations) if (!parityByOperation.has(operation.operationId)) throw new Error(`EXPOSURE_PARITY_INCOMPLETE:${operation.operationName}:record`);
+  for (const record of parity) if (record.parentOperationId && !operationIds.has(record.parentOperationId)) throw new Error(`EXPOSURE_PARITY_PARENT_MISSING:${record.operationId}:${record.parentOperationId}`);
+}
+
 export interface AuthorityOwnershipRecord extends RegistryRecord {
   authorityObjectKind: string;
   canonicalWriterId: string;

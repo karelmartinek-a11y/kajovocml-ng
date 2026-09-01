@@ -167,7 +167,7 @@ function operationMutates(name) {
 }
 
 function exposureFor(name) {
-  if (/^(component\.heartbeat|component\.state\.|component\.control\.|runtime\.|mcp\.request\.|mcp\.subscription\.notify|audit\.stream\.)/u.test(name)) return 'INTERNAL_PROTOCOL';
+  if (/^(component\.heartbeat|component\.state\.|component\.control\.|runtime\.(?:prepare|ready\.report|state\.report|heartbeat|invoke|cancel|drain|stop|cleanup\.resume)$|mcp\.request\.|mcp\.subscription\.notify|audit\.stream\.)/u.test(name)) return 'INTERNAL_PROTOCOL';
   if (/^(monitor\.|audit\.|browser\.host\.|browser\.runtimeBuild\.|browser\.frame\.|browser\.document\.|browser\.navigation\.)/u.test(name)) return 'AUTOMATED_MAINTENANCE';
   if (/^(mcp\.|browser\.bridge\.)/u.test(name)) return 'PUBLIC_PROTOCOL';
   if (!operationMutates(name)) return 'OWNER_QUERY';
@@ -201,6 +201,90 @@ function surfaceFor(name) {
     monitor: 'monitoring', browser: 'browser', audit: 'audit', chat: 'chat', ownerApiKey: 'api', selfTest: 'tests',
     generation: 'generation', authority: 'audit', provenance: 'audit'
   }[family] ?? 'dashboard';
+}
+
+const EXPOSURE_PARITY_SOURCE_REF = 'ssot://55.18/55-18-ui-api-chat-audit-a-self-test-parity/atom-1';
+const EXPOSURE_SURFACE_SOURCE = {
+  REST: { sourcePath: 'apps/server/src/ssot-router.ts', sourceMarker: 'export function registerCompiledSsotRoutes', symbol: 'registerCompiledSsotRoutes' },
+  GRAPHQL: { sourcePath: null, sourceMarker: null, symbol: null },
+  UI_ADAPTER: { sourcePath: 'apps/owner-ui/src/api.ts', sourceMarker: 'export function operation(', symbol: 'owner-ui.operation' },
+  UI_ACTION: { sourcePath: 'apps/owner-ui/src/App.tsx', sourceMarker: 'function OperationDialog(', symbol: 'OperationDialog.submit' },
+  UI_VIEW: { sourcePath: 'apps/owner-ui/src/App.tsx', sourceMarker: 'function OperationExplorer(', symbol: 'OperationExplorer' },
+  CHAT: { sourcePath: 'apps/server/src/server.ts', sourceMarker: "app.post('/api/v1/chat/ask'", symbol: 'POST /api/v1/chat/ask' },
+  AUDIT: { sourcePath: 'packages/domain/src/operations.ts', sourceMarker: 'async function audit(', symbol: 'CanonicalOperationService.audit' },
+  SELF_TEST: { sourcePath: 'tests/operations/catalog-coverage.test.ts', sourceMarker: "it.each(catalog.records.map", symbol: 'OPERATION_COVERAGE_EVIDENCE' },
+  KCIP: { sourcePath: 'packages/kcip/src/index.ts', sourceMarker: 'export function verifyKcipEnvelope(', symbol: 'verifyKcipEnvelope' },
+  MCP: { sourcePath: 'packages/mcp-runtime/src/index.ts', sourceMarker: 'public async dispatch(', symbol: 'McpRuntime.dispatch' },
+  BROWSER: { sourcePath: 'packages/browser-interaction/src/index.ts', sourceMarker: 'export class BrowserInteractionService', symbol: 'BrowserInteractionService' },
+  GENERATION: { sourcePath: 'packages/domain/src/canonical-operation-handlers.ts', sourceMarker: 'async function generationMutation(', symbol: 'generationMutation' }
+};
+
+const UI_VIEW_BY_FAMILY = {
+  COMPONENT: 'Catalog', RUNTIME: 'Tests', MCP: 'Mcp', AGENT: 'Agents', CHAT: 'Chat', SELFTEST: 'Tests',
+  GENERATION: 'GenerationWorkspace', BROWSER: 'Browser', MONITOR: 'Monitoring', AUDIT: 'Audit', OWNERAPIKEY: 'ApiKey',
+  SECRET: 'Secrets', AUTHORITY: 'Security', PROVENANCE: 'Audit', AGENTIC: 'Security'
+};
+
+function actualSurfaceBinding(surface, bindingId, target, source = EXPOSURE_SURFACE_SOURCE[surface]) {
+  return { bindingId, target, sourcePath: source.sourcePath, sourceSymbol: source.symbol, sourceMarker: source.sourceMarker, status: 'APPLICABLE' };
+}
+
+function notApplicableSurfaceBinding(surface, reasonCode) {
+  return { bindingId: `${surface}:NOT_APPLICABLE`, target: null, sourcePath: null, sourceSymbol: null, sourceMarker: null, status: 'NOT_APPLICABLE', reasonCode, supportingRequirementSourceRef: EXPOSURE_PARITY_SOURCE_REF };
+}
+
+function internalParentOperationName(name) {
+  const exact = {
+    'component.control.enable': 'component.enable', 'component.control.disable': 'component.disable', 'component.control.ack': 'component.register',
+    'component.heartbeat': 'component.register', 'component.state.query': 'component.register', 'component.state.report': 'component.register',
+    'runtime.prepare': 'runtime.instance.start', 'runtime.ready.report': 'runtime.instance.start', 'runtime.state.report': 'runtime.instance.start',
+    'runtime.heartbeat': 'runtime.instance.start', 'runtime.invoke': 'runtime.instance.start', 'runtime.cancel': 'runtime.instance.start',
+    'runtime.drain': 'runtime.instance.start', 'runtime.stop': 'runtime.instance.start', 'runtime.cleanup.resume': 'runtime.instance.start',
+    'mcp.request.validateTransport': 'mcp.tools.call', 'mcp.request.validateJsonRpc': 'mcp.tools.call', 'mcp.request.reserveId': 'mcp.tools.call',
+    'mcp.request.finalize': 'mcp.tools.call', 'mcp.subscription.notify': 'mcp.subscription.listen', 'audit.stream.ack': 'audit.integrity.verify',
+    'audit.stream.replay.request': 'audit.integrity.verify', 'audit.stream.replay.result': 'audit.integrity.verify'
+  };
+  return exact[name] ?? null;
+}
+
+function buildExposureParity(name, operationFamily, exposureClass, routeRecords, operationId) {
+  const directRoutes = routeRecords.filter((route) => route.operation === name);
+  const dynamicRoute = routeRecords.find((route) => route.operation === '__DYNAMIC_OPERATION__');
+  if (!dynamicRoute) throw new Error('EXPOSURE_PARITY_DYNAMIC_REST_ROUTE_MISSING');
+  const routes = directRoutes.length > 0 ? directRoutes : [dynamicRoute];
+  const restBindings = routes.map((route) => actualSurfaceBinding('REST', `REST_ROUTE:${route.routeKey}`, route.routeKey));
+  const viewName = UI_VIEW_BY_FAMILY[operationFamily];
+  if (!viewName) throw new Error(`EXPOSURE_PARITY_UI_VIEW_MISSING:${operationFamily}`);
+  const uiViewSource = { ...EXPOSURE_SURFACE_SOURCE.UI_VIEW, sourceMarker: `function ${viewName}(`, symbol: viewName };
+  const uiSurface = actualSurfaceBinding('UI_VIEW', `UI_VIEW:apps/owner-ui/src/App.tsx#${viewName}`, `/${surfaceFor(name)}`, uiViewSource);
+  const uiAdapter = actualSurfaceBinding('UI_ADAPTER', 'UI_ADAPTER:apps/owner-ui/src/api.ts#operation', 'POST /operations/:operationKey/invoke');
+  const uiAction = actualSurfaceBinding('UI_ACTION', 'UI_ACTION:apps/owner-ui/src/App.tsx#OperationDialog.submit', 'canonical-operation-command');
+  const chat = actualSurfaceBinding('CHAT', 'CHAT_CAPABILITY:apps/server/src/server.ts#POST /api/v1/chat/ask', 'POST /api/v1/chat/ask');
+  const audit = actualSurfaceBinding('AUDIT', `AUDIT_EVENT:${name}`, `${name}.requested|${name}.completed`);
+  const selfTest = actualSurfaceBinding('SELF_TEST', 'TEST_CASE:tests/operations/catalog-coverage.test.ts#OPERATION_COVERAGE_EVIDENCE', operationId);
+  const restApplicable = exposureClass !== 'INTERNAL_PROTOCOL';
+  const surfaces = [
+    ...(restApplicable ? restBindings : [notApplicableSurfaceBinding('REST', 'INTERNAL_PROTOCOL_NO_PUBLIC_ROUTE')]),
+    notApplicableSurfaceBinding('GRAPHQL', 'GRAPHQL_SURFACE_NOT_DECLARED'),
+    uiAdapter, uiSurface,
+    ...(exposureClass === 'OWNER_COMMAND' ? [uiAction] : []),
+    chat, audit, selfTest,
+    ...((exposureClass === 'INTERNAL_PROTOCOL' || operationFamily === 'BROWSER') ? [actualSurfaceBinding('KCIP', 'KCIP_ENVELOPE:packages/kcip/src/index.ts#verifyKcipEnvelope', 'KCIP/1.0')] : [notApplicableSurfaceBinding('KCIP', 'KCIP_NOT_REQUIRED_BY_EXPOSURE')]),
+    ...(operationFamily === 'MCP' ? [actualSurfaceBinding('MCP', 'MCP_DISPATCH:packages/mcp-runtime/src/index.ts#McpRuntime.dispatch', 'tools/call|tools/list')] : [notApplicableSurfaceBinding('MCP', 'MCP_NOT_APPLICABLE_OPERATION_FAMILY')]),
+    ...(operationFamily === 'BROWSER' ? [actualSurfaceBinding('BROWSER', 'BROWSER_PLANE:packages/browser-interaction/src/index.ts#BrowserInteractionService', name)] : [notApplicableSurfaceBinding('BROWSER', 'BROWSER_NOT_APPLICABLE_OPERATION_FAMILY')]),
+    ...(operationFamily === 'GENERATION' ? [actualSurfaceBinding('GENERATION', 'GENERATION_HANDLER:packages/domain/src/canonical-operation-handlers.ts#generationMutation', name)] : [notApplicableSurfaceBinding('GENERATION', 'GENERATION_NOT_APPLICABLE_OPERATION_FAMILY')])
+  ];
+  const parentName = exposureClass === 'INTERNAL_PROTOCOL' ? internalParentOperationName(name) : null;
+  if (exposureClass === 'INTERNAL_PROTOCOL' && !parentName) throw new Error(`EXPOSURE_PARITY_INTERNAL_PARENT_MISSING:${name}`);
+  return {
+    apiOperationIds: restApplicable ? restBindings.map((binding) => binding.bindingId) : [],
+    uiSurfaceIds: [uiSurface.bindingId],
+    uiActionIds: exposureClass === 'OWNER_COMMAND' ? [uiAction.bindingId] : [],
+    chatCapabilityIds: [chat.bindingId],
+    selfTestCaseIds: [selfTest.bindingId],
+    surfaceBindings: surfaces,
+    parentOperationName: parentName
+  };
 }
 
 function makeRequirement(atom) {
@@ -251,14 +335,16 @@ function makeRequirement(atom) {
   };
 }
 
-function makeOperation(name, requirementIds) {
+function makeOperation(name, requirementIds, routeRecords) {
   const operationId = `OP-${name.toUpperCase().replaceAll('.', '-')}`;
   const mutates = operationMutates(name);
   const exposureClass = exposureFor(name);
+  const operationFamilyName = operationFamily(name);
+  const exposure = buildExposureParity(name, operationFamilyName, exposureClass, routeRecords, operationId);
   const sideEffectClass = mutates ? (/delete|deregister|revoke|close|rollback|cancel/u.test(name) ? 'DESTRUCTIVE' : 'LOCAL_STATE_IDEMPOTENT') : 'READ_ONLY';
   return {
-    operationId, operationName: name, operationRevision: 1, operationFamily: operationFamily(name), exposureClass,
-    canonicalWriterId: `WRITER-${operationFamily(name)}`, aggregateRoot: rootFor(name),
+    operationId, operationName: name, operationRevision: 1, operationFamily: operationFamilyName, exposureClass,
+    canonicalWriterId: `WRITER-${operationFamilyName}`, aggregateRoot: rootFor(name),
     commandSchemaRef: 'contracts/registry-schemas/operation-command.schema.json', responseSchemaRef: 'contracts/registry-schemas/operation-response.schema.json',
     expectedStates: ['CURRENT'], expectedStateVersionPolicy: mutates ? 'REQUIRED_CAS_OR_COMMUTATIVE_APPEND' : 'READ_CURRENT',
     stateMachineId: `SM-${rootFor(name)}`, allowedTransitionIds: [],
@@ -273,8 +359,9 @@ function makeOperation(name, requirementIds) {
     cancellationPolicy: mutates ? 'MONOTONIC_INTENT_AND_RECONCILIATION' : 'ABORT_READ', terminalOutcomes: mutates ? ['SUCCEEDED', 'FAILED_FINAL', 'CANCELLED_FINAL', 'MANUAL_REVIEW'] : ['SUCCEEDED'],
     auditEventTypes: [`${name}.requested`, `${name}.completed`], outboxPurposes: mutates ? ['DOMAIN_EVENT'] : [],
     successorPolicy: mutates ? 'UNIQUE_IF_DECLARED' : 'NONE', cleanupPolicy: mutates ? 'CLOSURE_REQUIRED' : 'NONE', activationRelation: 'PIN_CURRENT_EPOCH',
-    apiOperationIds: [`API-${name}`], uiActionIds: exposureClass.startsWith('OWNER_') ? [`UI-ACTION-${name}`] : [],
-    chatCapabilityIds: exposureClass.startsWith('OWNER_') ? [`CHAT-${name}`] : [], selfTestCaseIds: [`SELFTEST-${name}`],
+    apiOperationIds: exposure.apiOperationIds, uiSurfaceIds: exposure.uiSurfaceIds, uiActionIds: exposure.uiActionIds,
+    chatCapabilityIds: exposure.chatCapabilityIds, selfTestCaseIds: exposure.selfTestCaseIds, surfaceBindings: exposure.surfaceBindings,
+    parentOperationName: exposure.parentOperationName,
     acceptanceGateIds: ['GATE-OPERATION-CATALOG'], requirementIds, authoritySourceRefs: ['ssot://42/kcip-operation-catalog/operation'],
     canonicalDigest: sha(canonical({ name, mutates, exposureClass, sideEffectClass }))
   };
@@ -634,7 +721,7 @@ const closurePredicateFields = new Set([
 
 const registrySchemaRequirements = {
   REQUIREMENT_REGISTRY: ['requirementId', 'shortName', 'domain', 'normativeLevel', 'authorityRoot', 'ownerIntentRelation', 'canonicalStatement', 'specializationSourceRefs', 'subjectKind', 'subjectId', 'domainModule', 'aggregateRoots', 'stateMachineIds', 'operationIds', 'apiOperationIds', 'uiSurfaceIds', 'chatCapabilityIds', 'persistenceObjectIds', 'bindingIds', 'errorCodeIds', 'testCaseIds', 'acceptanceGateIds', 'runtimeEvidenceKinds', 'artifactIds', 'closurePredicateIds', 'authorityOwnershipIds', 'status'],
-  OPERATION_CATALOG: ['operationId', 'operationName', 'operationRevision', 'operationFamily', 'exposureClass', 'canonicalWriterId', 'aggregateRoot', 'commandSchemaRef', 'responseSchemaRef', 'expectedStates', 'expectedStateVersionPolicy', 'stateMachineId', 'allowedTransitionIds', 'idempotencyScope', 'idempotencyKeySource', 'requestDigestProfile', 'concurrencyScope', 'concurrencyKeyDerivation', 'concurrencyClaimPoint', 'deadlinePolicy', 'sideEffectClass', 'subsystemSideEffectClass', 'retryClass', 'retryDirectiveMapRef', 'transactionProfileId', 'orderedLockPlanId', 'fencingPolicy', 'checkpointPolicy', 'possibleEffectTrigger', 'reconciliationOracleId', 'cancellationPolicy', 'terminalOutcomes', 'auditEventTypes', 'outboxPurposes', 'successorPolicy', 'cleanupPolicy', 'activationRelation', 'apiOperationIds', 'uiActionIds', 'chatCapabilityIds', 'selfTestCaseIds', 'acceptanceGateIds'],
+  OPERATION_CATALOG: ['operationId', 'operationName', 'operationRevision', 'operationFamily', 'exposureClass', 'canonicalWriterId', 'aggregateRoot', 'commandSchemaRef', 'responseSchemaRef', 'expectedStates', 'expectedStateVersionPolicy', 'stateMachineId', 'allowedTransitionIds', 'idempotencyScope', 'idempotencyKeySource', 'requestDigestProfile', 'concurrencyScope', 'concurrencyKeyDerivation', 'concurrencyClaimPoint', 'deadlinePolicy', 'sideEffectClass', 'subsystemSideEffectClass', 'retryClass', 'retryDirectiveMapRef', 'transactionProfileId', 'orderedLockPlanId', 'fencingPolicy', 'checkpointPolicy', 'possibleEffectTrigger', 'reconciliationOracleId', 'cancellationPolicy', 'terminalOutcomes', 'auditEventTypes', 'outboxPurposes', 'successorPolicy', 'cleanupPolicy', 'activationRelation', 'apiOperationIds', 'uiSurfaceIds', 'uiActionIds', 'chatCapabilityIds', 'selfTestCaseIds', 'acceptanceGateIds', 'surfaceBindings'],
   STATE_MACHINE_REGISTRY: ['stateMachineId', 'aggregateKind', 'aggregateRootTable', 'canonicalWriterId', 'initialStates', 'states', 'terminalStates', 'suspendedDecisionStates', 'recoveryStates', 'transitions', 'forbiddenTransitionPolicy', 'stateVersionField', 'cancellationVersionField', 'fencingFields', 'activationFields', 'linearizationProfile', 'lateEvidencePolicy', 'closurePredicateId', 'operationIds', 'acceptanceGateIds'],
   POSTGRES_CONTRACT_MATRIX: ['postgresContractId', 'operationId', 'transactionProfileId', 'isolationLevel', 'transactionSegments', 'orderedAdvisoryLocks', 'orderedRowLocks', 'absentRowGuard', 'readAfterLockGuards', 'stateVersionCas', 'fencingPredicate', 'platformIncarnationPredicate', 'applicationDeploymentEpochPredicate', 'bindingActivationPredicate', 'uniqueConstraints', 'checkConstraints', 'foreignKeys', 'deferredConstraintTriggers', 'idempotencyUniqueness', 'sequenceAllocation', 'outboxWrites', 'inboxWrites', 'successorReservation', 'successorEnqueue', 'externalEffectSplit', 'sqlstateRetryMap', 'migrationImplications', 'rollbackCompatibility', 'parallelTestIds', 'crashTestIds'],
   RUNTIME_BOUNDARY_MATRIX: ['runtimeBoundaryId', 'runtimeType', 'processIdentity', 'systemdUnit', 'osUser', 'osGroup', 'socketOrCapabilityChannels', 'peerIdentityContract', 'executionContextSource', 'allowedNetworkFamilies', 'allowedEndpoints', 'allowedFilesystemRead', 'allowedFilesystemWrite', 'allowedCredentials', 'allowedInheritedFds', 'allowedCapabilities', 'seccompProfileDigest', 'namespaceProfileDigest', 'cgroupProfile', 'prohibitedResources', 'lifecycleStateMachineId', 'runtimeGenerationPolicy', 'serviceGenerationPolicy', 'staleProcessFencing', 'shutdownDrainKillPolicy', 'childProcessPolicy', 'cleanupPredicateId', 'auditEvidence', 'testIds'],
@@ -645,7 +732,7 @@ const registrySchemaRequirements = {
   RECOVERY_ORACLE_REGISTRY: ['recoveryOracleId', 'subjectId', 'observedAuthoritativeStateSchema', 'requiredEvidence', 'forbiddenEvidenceAssumptions', 'rules', 'defaultOutcome', 'manualReviewSchemaRef', 'conflictingOperationBlockKeys', 'closurePredicateId', 'testCaseIds'],
   CLOSURE_PREDICATE_REGISTRY: ['closurePredicateId', 'rootKind', 'terminalStates', 'requiredChildPredicates', 'forbiddenPendingChildKinds', 'forbiddenProvisionalKinds', 'leaseAndFencePredicate', 'sideEffectPredicate', 'pointerAndEpochPredicate', 'runtimeProcessPredicate', 'bindingPredicate', 'queueOutboxInboxPredicate', 'artifactFilesystemPredicate', 'cleanupPredicate', 'auditEvidencePredicate', 'manualReviewPredicate', 'directQueryIds', 'passExpression', 'failureCode'],
   ACCEPTANCE_GATE_REGISTRY: ['gateId', 'gateKind', 'blocking', 'subjectScope', 'inputs', 'inputDigests', 'evaluatorId', 'evaluatorVersion', 'evaluatorDigest', 'environmentProfile', 'requiredEvidence', 'dependencies', 'passPredicate', 'failCodes', 'notApplicablePredicate', 'resultSchemaRef'],
-  EXPOSURE_PARITY_REGISTRY: ['operationId', 'exposureClass', 'apiOperationIds', 'uiSurfaceIds', 'uiActionIds', 'chatCapabilityIds', 'auditEventTypes', 'selfTestCaseIds', 'acceptanceGateIds', 'parentOperationId', 'notApplicableReasons'],
+  EXPOSURE_PARITY_REGISTRY: ['operationId', 'exposureClass', 'apiOperationIds', 'uiSurfaceIds', 'uiActionIds', 'chatCapabilityIds', 'auditEventTypes', 'selfTestCaseIds', 'acceptanceGateIds', 'parentOperationId', 'notApplicableReasons', 'surfaceBindings'],
   ARTIFACT_TRACE_REGISTRY: ['artifactId', 'artifactKind', 'repositoryPath', 'contentDigest', 'ownerModule', 'operationIds', 'stateMachineIds', 'registryRecordIds', 'testIds', 'releaseIds', 'generatedFrom', 'generationToolDigest', 'lifecycle']
 };
 const registrySchemaFilenames = {
@@ -656,7 +743,7 @@ const registrySchemaFilenames = {
   EXPOSURE_PARITY_REGISTRY: 'exposure-parity-registry.schema.json', ARTIFACT_TRACE_REGISTRY: 'artifact-trace-registry.schema.json'
 };
 
-const schemaField = (field) => field === 'bindingKind' ? { enum: ['CONTRACT_BINDING', 'SECRET_BINDING', 'EXTERNAL_TARGET_BINDING', 'EXTERNAL_AUTH_BINDING', 'AGENT_TOOL_BINDING', 'BROWSER_ACCOUNT_BINDING', 'BROWSER_PROFILE_ASSIGNMENT', 'ACTIVATION_SET_MEMBERSHIP', 'ROUTE_BINDING'] } : field === 'bindingRevision' ? { type: 'integer', minimum: 1 } : field === 'activationEpoch' ? { type: 'integer', minimum: 0 } : field === 'secretVersionSelector' || field === 'accountOrTenantConstraint' ? { type: ['object', 'null'] } : ['targetRevisionId', 'targetOperationId', 'routeOperationId', 'externalTargetOrOrigin', 'validFrom', 'validUntil'].includes(field) ? { type: ['string', 'null'] } : closurePredicateFields.has(field) ? stringField : field.endsWith('Ids') || field.endsWith('Refs') || field.endsWith('States') || field.endsWith('Kinds') || field.endsWith('Types') || field.endsWith('Fields') || field.endsWith('Locks') || field.endsWith('Predicates') || field.endsWith('Writes') || field.endsWith('Outcomes') || field.endsWith('Evidence') || field.endsWith('Digests') || ['states', 'acceptedEvidenceProducers', 'authoritativePersistence', 'prohibitedDirectWriters', 'projectionConsumers'].includes(field) || field === 'transitions' || field === 'rules' || field === 'inputs' || field === 'dependencies' || field === 'failCodes' || field === 'httpMappings' || field === 'kcipMappings' || field === 'mcpMappings' || field === 'allowedInheritedFds' || field === 'notApplicableReasons' || field === 'requiredChildPredicates' || field === 'forbiddenPendingChildKinds' || field === 'forbiddenProvisionalKinds' || field === 'directQueryIds' || field === 'terminalOutcomes' || field === 'auditEventTypes' || field === 'outboxPurposes' || field === 'auditEvidence' ? arrayField : field === 'generationToolDigest' ? { type: ['string', 'null'] } : field === 'blocking' || field.endsWith('Predicate') || field === 'stateVersionCas' || field === 'fencingPredicate' || field === 'platformIncarnationPredicate' || field === 'applicationDeploymentEpochPredicate' || field === 'bindingActivationPredicate' || field === 'exact' || field.endsWith('Required') || field === 'refreshRequired' || field === 'reconciliationRequired' || field === 'manualReviewRequired' || field === 'sameLogicalOperationRequired' ? booleanField : field === 'operationRevision' || field === 'evaluatorVersion' ? { type: 'integer' } : stringField;
+const schemaField = (field) => field === 'bindingKind' ? { enum: ['CONTRACT_BINDING', 'SECRET_BINDING', 'EXTERNAL_TARGET_BINDING', 'EXTERNAL_AUTH_BINDING', 'AGENT_TOOL_BINDING', 'BROWSER_ACCOUNT_BINDING', 'BROWSER_PROFILE_ASSIGNMENT', 'ACTIVATION_SET_MEMBERSHIP', 'ROUTE_BINDING'] } : field === 'bindingRevision' ? { type: 'integer', minimum: 1 } : field === 'activationEpoch' ? { type: 'integer', minimum: 0 } : field === 'secretVersionSelector' || field === 'accountOrTenantConstraint' ? { type: ['object', 'null'] } : ['targetRevisionId', 'targetOperationId', 'routeOperationId', 'externalTargetOrOrigin', 'validFrom', 'validUntil'].includes(field) ? { type: ['string', 'null'] } : closurePredicateFields.has(field) ? stringField : field.endsWith('Ids') || field.endsWith('Refs') || field.endsWith('States') || field.endsWith('Kinds') || field.endsWith('Types') || field.endsWith('Fields') || field.endsWith('Locks') || field.endsWith('Predicates') || field.endsWith('Writes') || field.endsWith('Outcomes') || field.endsWith('Evidence') || field.endsWith('Digests') || ['states', 'acceptedEvidenceProducers', 'authoritativePersistence', 'prohibitedDirectWriters', 'projectionConsumers'].includes(field) || field === 'transitions' || field === 'rules' || field === 'inputs' || field === 'dependencies' || field === 'failCodes' || field === 'httpMappings' || field === 'kcipMappings' || field === 'mcpMappings' || field === 'allowedInheritedFds' || field === 'notApplicableReasons' || field === 'surfaceBindings' || field === 'requiredChildPredicates' || field === 'forbiddenPendingChildKinds' || field === 'forbiddenProvisionalKinds' || field === 'directQueryIds' || field === 'terminalOutcomes' || field === 'auditEventTypes' || field === 'outboxPurposes' || field === 'auditEvidence' ? arrayField : field === 'generationToolDigest' ? { type: ['string', 'null'] } : field === 'blocking' || field.endsWith('Predicate') || field === 'stateVersionCas' || field === 'fencingPredicate' || field === 'platformIncarnationPredicate' || field === 'applicationDeploymentEpochPredicate' || field === 'bindingActivationPredicate' || field === 'exact' || field.endsWith('Required') || field === 'refreshRequired' || field === 'reconciliationRequired' || field === 'manualReviewRequired' || field === 'sameLogicalOperationRequired' ? booleanField : field === 'operationRevision' || field === 'evaluatorVersion' ? { type: 'integer' } : stringField;
 
 function makeRegistrySchema(kind) {
   const properties = { ...commonRecordProperties, recordKind: { const: kind } };
@@ -748,6 +835,9 @@ async function main() {
   const ssot = ssotBytes.toString('utf8');
   const compilerDigest = sha(await readFile(fileURLToPath(import.meta.url)));
   const parsed = parseSsot(ssot);
+  const ssotSurface = JSON.parse(await readFile(join(root, 'contracts/ssot-surface/routes.json'), 'utf8'));
+  if (ssotSurface.schemaVersion !== '1.0' || !Array.isArray(ssotSurface.records)) throw new Error('EXPOSURE_PARITY_REST_SURFACE_INVALID');
+  const routeRecords = ssotSurface.records;
   const requirementMap = new Map();
   for (const atom of parsed.atoms) {
     const record = makeRequirement(atom);
@@ -762,14 +852,14 @@ async function main() {
   const requirementByStatement = new Map(requirements.map((requirement) => [requirement.canonicalStatement, requirement]));
   const operations = parsed.operations.map((name) => {
     const requirement = requirementByStatement.get(name);
-    const operation = makeOperation(name, requirement ? [requirement.requirementId] : []);
+    const operation = makeOperation(name, requirement ? [requirement.requirementId] : [], routeRecords);
     if (requirement) {
       requirement.domainModule = 'packages/domain';
       requirement.aggregateRoots = [operation.aggregateRoot];
       requirement.stateMachineIds = [`SM-${operation.aggregateRoot}`];
       requirement.operationIds = [operation.operationId];
       requirement.apiOperationIds = operation.apiOperationIds;
-      requirement.uiSurfaceIds = operation.uiActionIds;
+      requirement.uiSurfaceIds = operation.uiSurfaceIds;
       requirement.chatCapabilityIds = operation.chatCapabilityIds;
       requirement.persistenceObjectIds = [operation.aggregateRoot];
       requirement.bindingIds = [`BIND-${operation.operationId}`];
@@ -891,14 +981,33 @@ async function main() {
   }));
   const closureRequirementIds = stableSort(requirements.filter((requirement) => requirement.authoritySourceRefs.some((sourceRef) => /^(?:ssot:\/\/(?:48\.38|49\.34|51\.26|54\.26|55\.13)\/)/u.test(sourceRef))).map((requirement) => requirement.requirementId));
   const closure = stateMachines.map((machine) => closureRecordFor(machine, closureRequirementIds));
-  const exposure = operations.map((operation) => ({
-    operationId: operation.operationId, exposureClass: operation.exposureClass, apiOperationIds: operation.apiOperationIds,
-    uiSurfaceIds: [`UI-${surfaceFor(operation.operationName)}`], uiActionIds: operation.uiActionIds, chatCapabilityIds: operation.chatCapabilityIds,
-    auditEventTypes: operation.auditEventTypes, selfTestCaseIds: operation.selfTestCaseIds, acceptanceGateIds: operation.acceptanceGateIds,
-    parentOperationId: operation.exposureClass === 'INTERNAL_PROTOCOL' ? 'OP-COMPONENT-REGISTER' : null, notApplicableReasons: [], requirementIds: operation.requirementIds,
-    authoritySourceRefs: ['ssot://55/ui-api-chat-audit-self-test-parity/exposure-parity'],
-    canonicalDigest: sha(canonical({ operation: operation.operationId, exposure: operation.exposureClass }))
-  }));
+  const operationByName = new Map(operations.map((operation) => [operation.operationName, operation]));
+  const paritySourcePaths = [...new Set(operations.flatMap((operation) => operation.surfaceBindings.filter((binding) => binding.status === 'APPLICABLE').map((binding) => binding.sourcePath).filter(Boolean)))];
+  const paritySourceText = new Map();
+  for (const sourcePath of paritySourcePaths) paritySourceText.set(sourcePath, await readFile(join(root, sourcePath), 'utf8'));
+  const exposure = operations.map((operation) => {
+    for (const binding of operation.surfaceBindings) {
+      if (binding.status === 'NOT_APPLICABLE') {
+        if (!binding.reasonCode || binding.supportingRequirementSourceRef !== EXPOSURE_PARITY_SOURCE_REF) throw new Error(`EXPOSURE_PARITY_NOT_APPLICABLE_UNSUPPORTED:${operation.operationName}:${binding.bindingId}`);
+        continue;
+      }
+      if (!binding.bindingId || /^(?:API|UI-ACTION|CHAT|SELFTEST)-/u.test(binding.bindingId)) throw new Error(`EXPOSURE_PARITY_SYNTHETIC_BINDING:${operation.operationName}:${binding.bindingId}`);
+      if (!binding.sourcePath || !binding.sourceSymbol || !binding.sourceMarker) throw new Error(`EXPOSURE_PARITY_BINDING_SOURCE_MISSING:${operation.operationName}:${binding.bindingId}`);
+      const sourceText = paritySourceText.get(binding.sourcePath);
+      if (!sourceText?.includes(binding.sourceMarker)) throw new Error(`EXPOSURE_PARITY_SOURCE_SYMBOL_MISSING:${operation.operationName}:${binding.sourcePath}:${binding.sourceMarker}`);
+      if (binding.bindingId.startsWith('REST_ROUTE:') && !routeRecords.some((route) => `REST_ROUTE:${route.routeKey}` === binding.bindingId)) throw new Error(`EXPOSURE_PARITY_ROUTE_BINDING_MISSING:${operation.operationName}:${binding.bindingId}`);
+    }
+    const parent = operation.parentOperationName ? operationByName.get(operation.parentOperationName) : null;
+    if (operation.exposureClass === 'INTERNAL_PROTOCOL' && (!parent || parent.operationId === operation.operationId)) throw new Error(`EXPOSURE_PARITY_INTERNAL_PARENT_INVALID:${operation.operationName}`);
+    const authoritySourceRefs = [EXPOSURE_PARITY_SOURCE_REF];
+    return {
+      operationId: operation.operationId, exposureClass: operation.exposureClass, apiOperationIds: operation.apiOperationIds,
+      uiSurfaceIds: operation.uiSurfaceIds, uiActionIds: operation.uiActionIds, chatCapabilityIds: operation.chatCapabilityIds,
+      auditEventTypes: operation.auditEventTypes, selfTestCaseIds: operation.selfTestCaseIds, acceptanceGateIds: operation.acceptanceGateIds,
+      parentOperationId: parent?.operationId ?? null, notApplicableReasons: operation.surfaceBindings.filter((binding) => binding.status === 'NOT_APPLICABLE').map((binding) => ({ surface: binding.bindingId.split(':', 1)[0], reasonCode: binding.reasonCode, supportingRequirementSourceRef: binding.supportingRequirementSourceRef })),
+      surfaceBindings: operation.surfaceBindings, requirementIds: operation.requirementIds, authoritySourceRefs
+    };
+  });
   const authorityRequirementIds = (sourceRefs) => [...new Set((sourceRefs ?? []).flatMap((sourceRef) => {
     const requirement = requirements.find((candidate) => candidate.authoritySourceRefs.includes(sourceRef));
     if (!requirement) throw new Error(`AUTHORITY_REQUIREMENT_SOURCE_MISSING:${sourceRef}`);

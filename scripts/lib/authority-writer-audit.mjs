@@ -23,6 +23,7 @@ const WRITER_BOUNDARIES = [
   ['packages/domain/src/system-chat.ts', 'WRITER-CHAT'],
   ['packages/domain/src/platform-recovery.ts', 'WRITER-PLATFORM_RECOVERY'],
   ['packages/domain/src/recovery-authority.ts', 'WRITER-PLATFORM_RECOVERY'],
+  ['packages/domain/src/generation-lifecycle.ts', 'WRITER-GENERATION'],
   ['packages/generation-orchestrator/src/index.ts', 'WRITER-GENERATION'],
   ['packages/database/src/index.ts', 'WRITER-QUEUE'],
   ['packages/database/src/cli.ts', 'WRITER-CONTRACT_PACK'],

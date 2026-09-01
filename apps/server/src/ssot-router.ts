@@ -125,6 +125,7 @@ export function registerCompiledSsotRoutes(dependencies: CompiledRouteDependenci
   const { app, operations, surface, authenticate, ownerId, specialRouteKeys } = dependencies;
   for (const route of SSOT_ROUTES) {
     if (route.method === 'WSS' || specialRouteKeys.has(route.routeKey)) continue;
+    if (route.operation && route.operation !== '__DYNAMIC_OPERATION__' && operations.catalog.get(route.operation).exposureClass === 'INTERNAL_PROTOCOL') continue;
     const method = route.method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
     app.route({
       method,
