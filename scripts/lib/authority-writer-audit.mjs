@@ -35,8 +35,36 @@ const WRITER_BOUNDARIES = [
   ['apps/server/src/admin-cli.ts', 'CANONICAL_OPERATION_SERVICE']
 ];
 
-function boundaryFor(repositoryPath) {
-  return WRITER_BOUNDARIES.find(([path]) => path === repositoryPath)?.[1] ?? null;
+// The shared canonical handler contains several state-machine implementations.
+// Keep their ownership explicit at the function boundary: a file-level
+// allowlist would incorrectly assign every aggregate write to one writer.
+const FUNCTION_WRITER_BOUNDARIES = new Map([
+  ['packages/domain/src/canonical-operation-handlers.ts', new Map([
+    ['runtimeMutation', 'WRITER-RUNTIME'],
+    ['chatMutation', 'WRITER-CHAT'],
+    ['agentMutation', 'WRITER-AGENT'],
+    ['browserMutation', 'WRITER-BROWSER'],
+    ['generationMutation', 'WRITER-GENERATION'],
+    ['mcpMutation', 'WRITER-MCP'],
+    ['provenanceMutation', 'WRITER-PROVENANCE'],
+    ['selfTestMutation', 'WRITER-SELFTEST']
+  ])]
+]);
+
+function functionAtLine(sourceLines, line) {
+  let current = null;
+  for (let index = 0; index < line; index += 1) {
+    const match = /^\s*(?:export\s+)?(?:async\s+)?function\s+([A-Za-z0-9_]+)\b/u.exec(sourceLines[index]);
+    if (match) current = match[1];
+  }
+  return current;
+}
+
+function boundaryFor(repositoryPath, sourceLines, line) {
+  const fileBoundary = WRITER_BOUNDARIES.find(([path]) => path === repositoryPath)?.[1];
+  if (fileBoundary) return fileBoundary;
+  const functionBoundaries = FUNCTION_WRITER_BOUNDARIES.get(repositoryPath);
+  return functionBoundaries?.get(functionAtLine(sourceLines, line - 1)) ?? null;
 }
 
 async function collectFiles(root, directory) {
@@ -57,13 +85,15 @@ export async function auditWriterSources(root, files = null) {
   for (const absolutePath of paths) {
     const repositoryPath = relative(root, absolutePath).replaceAll('\\', '/');
     const source = await readFile(absolutePath, 'utf8');
-    const writerBoundary = boundaryFor(repositoryPath);
+    const sourceLines = source.split('\n');
     let match;
     MUTATION.lastIndex = 0;
     while ((match = MUTATION.exec(source)) !== null) {
       const line = source.slice(0, match.index).split('\n').length;
-      const evidence = source.split('\n')[line - 1]?.trim() ?? '';
-      const record = { repositoryPath, line, writerBoundary, mutationKind: match[0].toUpperCase(), evidenceDigest: sha(evidence) };
+      const sourceFunction = functionAtLine(sourceLines, line - 1);
+      const writerBoundary = boundaryFor(repositoryPath, sourceLines, line);
+      const evidence = sourceLines[line - 1]?.trim() ?? '';
+      const record = { repositoryPath, line, sourceFunction, writerBoundary, mutationKind: match[0].toUpperCase(), evidenceDigest: sha(evidence) };
       writes.push(record);
       if (!writerBoundary) violations.push({ ...record, code: 'UNREGISTERED_SQL_WRITER' });
     }
