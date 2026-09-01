@@ -4,6 +4,8 @@ After=network-online.target
 [Service]
 Type=oneshot
 User=root
+Environment=KCML_RELEASE_SOURCE=/opt/kcml/current
+Environment=KCML_ACME_ZONE=hcasc.cz
 ExecStart=/opt/kajovocml-ng/current/deploy/scripts/renew-tls.sh
 NoNewPrivileges=yes
 PrivateTmp=yes
