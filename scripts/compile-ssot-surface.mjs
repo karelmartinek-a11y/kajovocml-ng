@@ -1141,8 +1141,10 @@ for (const entity of missing) {
   baseline.push('  display_name text,');
   baseline.push("  lifecycle text NOT NULL DEFAULT 'ACTIVE',");
   const columns = exactColumns.get(entity.name);
-  if (columns) for (const [name, definition] of columns) baseline.push(`  ${q(name)} ${definition},`);
-  else baseline.push("  document jsonb NOT NULL DEFAULT '{}'::jsonb,");
+  if (!columns) {
+    throw new Error(`POSTGRES_EXACT_SCHEMA_MISSING:${entity.name}`);
+  }
+  for (const [name, definition] of columns) baseline.push(`  ${q(name)} ${definition},`);
   // PostgreSQL generated columns require immutable expressions. The digest is
   // written by the canonical command transaction after validating the entity
   // contract, so it is an ordinary persisted value rather than a JSONB shortcut.
