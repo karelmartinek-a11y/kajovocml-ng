@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { assertStateTransition, validateAuthorityOwnership, type AuthorityOwnershipRecord, type OperationContract, type StateMachineContract } from '../../packages/contract-pack/src/index.js';
+import { auditWriterSources } from '../../scripts/lib/authority-writer-audit.mjs';
 
 const authority = JSON.parse(await readFile('contracts/registries/authority/authority-ownership.json', 'utf8')) as { records: AuthorityOwnershipRecord[] };
 const operations = JSON.parse(await readFile('contracts/registries/operations/operations.json', 'utf8')) as { records: OperationContract[] };
@@ -42,6 +44,27 @@ describe('TD-03 verified authority ownership', () => {
     expect(source?.traceAnchors.length).toBeGreaterThanOrEqual(authority.records.length);
     expect(validator?.operationIds.length).toBe(operations.records.length);
     expect(writerAudit?.requirementIds.length).toBeGreaterThan(0);
+  });
+
+  it('binds every canonical handler SQL write to one active registered writer', async () => {
+    const root = process.cwd();
+    const result = await auditWriterSources(root, [join(root, 'packages/domain/src/canonical-operation-handlers.ts')]);
+    const registeredWriterIds = new Set(authority.records.filter((record) => record.lifecycle === 'ACTIVE').map((record) => record.canonicalWriterId));
+    const counts = Object.fromEntries(result.writes.reduce((entries, write) => entries.set(write.writerBoundary, (entries.get(write.writerBoundary) ?? 0) + 1), new Map()));
+
+    expect(result.violations).toEqual([]);
+    expect(result.writes).toHaveLength(23);
+    expect(result.writes.every((write) => write.writerBoundary && registeredWriterIds.has(write.writerBoundary))).toBe(true);
+    expect(counts).toEqual({
+      'WRITER-RUNTIME': 5,
+      'WRITER-CHAT': 3,
+      'WRITER-AGENT': 2,
+      'WRITER-BROWSER': 3,
+      'WRITER-GENERATION': 2,
+      'WRITER-MCP': 5,
+      'WRITER-PROVENANCE': 1,
+      'WRITER-SELFTEST': 2
+    });
   });
 
   it('linearizes two concurrent commits against one expected version', async () => {
