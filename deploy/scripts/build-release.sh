@@ -15,7 +15,7 @@ pnpm -r --if-present build
 while IFS= read -r package_file; do
   package_name=$(jq -r .name "${package_file}"); app_dir=$(dirname "${package_file}"); app_name=$(basename "${app_dir}")
   [[ ${app_name} == owner-ui || ${app_name} == owner-device-bridge ]] && continue
-  pnpm --filter "${package_name}" deploy --prod --legacy "${stage}/release/apps/${app_name}"
+  pnpm --config.inject-workspace-packages=true --filter "${package_name}" deploy --prod "${stage}/release/apps/${app_name}"
 done < <(find apps -mindepth 2 -maxdepth 2 -name package.json -print | sort)
 install -d "${stage}/release/apps/owner-ui"; cp -a apps/owner-ui/dist "${stage}/release/apps/owner-ui/dist"
 cp -a contracts/. "${stage}/release/contracts/"; cp -a database/. "${stage}/release/database/"; cp -a deploy/. "${stage}/release/deploy/"
