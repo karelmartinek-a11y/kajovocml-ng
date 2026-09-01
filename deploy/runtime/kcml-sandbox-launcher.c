@@ -14,18 +14,42 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mount.h>
+#include <sys/socket.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/syscall.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
+#include <stdint.h>
 
 static void fail(const char *message) { fprintf(stderr, "kcml-sandbox-launcher: %s: %s\n", message, strerror(errno)); exit(70); }
 static const char *argument(int argc, char **argv, const char *name) { for (int i=1;i+1<argc;i++) if(strcmp(argv[i],name)==0) return argv[i+1]; return NULL; }
 static int separator(int argc, char **argv) { for(int i=1;i<argc;i++) if(strcmp(argv[i],"--")==0) return i; return -1; }
 static bool contained(const char *root, const char *path) { size_t length=strlen(root); return strncmp(root,path,length)==0 && (path[length]=='/' || path[length]=='\0'); }
 
+static void write_mapping(const char *path, uid_t host_id) {
+  char mapping[64]; int length = snprintf(mapping, sizeof(mapping), "0 %u 1\n", (unsigned)host_id);
+  int fd = open(path, O_WRONLY|O_CLOEXEC); if (fd < 0 || write(fd, mapping, (size_t)length) != length) fail(path);
+  close(fd);
+}
+
+static void establish_user_mapping(uid_t uid, gid_t gid) {
+  /* The generated UID/GID is root only inside this private namespace and is
+     mapped to the unprivileged runtime-host identity in the parent namespace. */
+  if (unshare(CLONE_NEWUSER) != 0) fail("user namespace");
+  int groups = open("/proc/self/setgroups", O_WRONLY|O_CLOEXEC);
+  if (groups >= 0) { if (write(groups, "deny\n", 5) != 5) fail("setgroups mapping"); close(groups); }
+  write_mapping("/proc/self/uid_map", uid);
+  write_mapping("/proc/self/gid_map", gid);
+}
+
+/* KCML_GENERATED_NODE_SECCOMP_PROFILE_V1: this is the immutable profile
+   KCML_GENERATED_HANDLER_NAMESPACE_PROFILE_V1: private mount/net/ipc/uts
+   boundary is established before the generated entrypoint is loaded.
+   digest source recorded in the Runtime Boundary Matrix. The launcher runs
+   this allowlist only after all privileged namespace/mount setup is complete. */
 static void install_seccomp_allowlist(void) {
   /* The generated handler has no network or broker authority. The allowlist is
      intentionally explicit; an unknown syscall is killed before exec. */
@@ -37,7 +61,8 @@ static void install_seccomp_allowlist(void) {
     SYS_getuid, SYS_geteuid, SYS_getgid, SYS_getegid, SYS_gettid, SYS_futex, SYS_set_robust_list,
     SYS_arch_prctl, SYS_clock_gettime, SYS_clock_nanosleep, SYS_exit, SYS_exit_group,
     SYS_openat, SYS_unlinkat, SYS_renameat, SYS_mkdirat, SYS_statx, SYS_faccessat2,
-    SYS_getrandom, SYS_prctl };
+    SYS_getrandom, SYS_prctl, SYS_execveat, SYS_clone, SYS_clone3, SYS_set_tid_address,
+    SYS_rseq, SYS_rt_sigaltstack, SYS_prlimit64, SYS_fcntl, SYS_close_range };
   struct sock_filter filter[sizeof(allowed)/sizeof(allowed[0]) + 3]; size_t index=0;
   filter[index++] = BPF_STMT(BPF_LD|BPF_W|BPF_ABS, (unsigned)offsetof(struct seccomp_data,nr));
   for(size_t i=0;i<sizeof(allowed)/sizeof(allowed[0]);i++) filter[index++] = BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,(unsigned)allowed[i],1,0);
@@ -61,23 +86,41 @@ static void file_sha256(int fd, char output[65]) {
 }
 
 int main(int argc, char **argv) {
-  const char *uid_text=argument(argc,argv,"--uid"), *gid_text=argument(argc,argv,"--gid"), *release_input=argument(argc,argv,"--release-root"), *work_input=argument(argc,argv,"--workspace-root"), *expected_input=argument(argc,argv,"--executable-digest");
+  const char *uid_text=argument(argc,argv,"--uid"), *gid_text=argument(argc,argv,"--gid"), *release_input=argument(argc,argv,"--release-root"), *work_input=argument(argc,argv,"--workspace-root"), *expected_input=argument(argc,argv,"--executable-digest"), *capability_fd_text=argument(argc,argv,"--capability-fd");
   int split=separator(argc,argv); if(!uid_text||!gid_text||!release_input||!work_input||!expected_input||split<0||split+1>=argc){fputs("invalid arguments\n",stderr);return 64;}
+  if (!capability_fd_text) { fputs("capability fd is required\n", stderr); return 64; }
+  int capability_fd = (int)strtol(capability_fd_text, NULL, 10);
+  if (capability_fd < 3) { fputs("invalid capability fd\n", stderr); return 64; }
   uid_t uid=(uid_t)strtoul(uid_text,NULL,10); gid_t gid=(gid_t)strtoul(gid_text,NULL,10); char release[PATH_MAX],work[PATH_MAX],executable[PATH_MAX];
   if(!realpath(release_input,release)||!realpath(work_input,work)||!realpath(argv[split+1],executable)) fail("realpath");
   if(!contained(release,executable)){fputs("executable escapes release\n",stderr);return 65;}
   int executable_fd=open(executable,O_RDONLY|O_CLOEXEC|O_NOFOLLOW);if(executable_fd<0)fail("open executable");struct stat status;if(fstat(executable_fd,&status)!=0||!S_ISREG(status.st_mode)){fputs("executable is not regular\n",stderr);return 66;}
   char actual[65];file_sha256(executable_fd,actual);const char *expected=strncmp(expected_input,"sha256:",7)==0?expected_input+7:expected_input;if(strlen(expected)!=64||strcmp(actual,expected)!=0){fputs("executable digest mismatch\n",stderr);return 67;}
   if(prctl(PR_SET_PDEATHSIG,SIGKILL)!=0||prctl(PR_SET_DUMPABLE,0)!=0)fail("prctl identity");
-  if(unshare(CLONE_NEWNS|CLONE_NEWIPC|CLONE_NEWUTS|CLONE_NEWNET)!=0)fail("unshare");
+  establish_user_mapping(uid, gid);
+  if(unshare(CLONE_NEWNS|CLONE_NEWIPC|CLONE_NEWUTS|CLONE_NEWNET|CLONE_NEWPID)!=0)fail("unshare");
+  pid_t namespace_init = fork();
+  if (namespace_init < 0) fail("pid namespace fork");
+  if (namespace_init > 0) {
+    int status = 0;
+    if (waitpid(namespace_init, &status, 0) < 0) fail("pid namespace wait");
+    if (WIFEXITED(status)) return WEXITSTATUS(status);
+    if (WIFSIGNALED(status)) { signal(WTERMSIG(status), SIG_DFL); raise(WTERMSIG(status)); }
+    return 70;
+  }
   if(mount(NULL,"/",NULL,MS_REC|MS_PRIVATE,NULL)!=0)fail("private mounts");
   if(mount(release,release,NULL,MS_BIND|MS_REC,NULL)!=0)fail("bind release");
   if(mount(NULL,release,NULL,MS_BIND|MS_REMOUNT|MS_RDONLY|MS_NODEV|MS_NOSUID,NULL)!=0)fail("readonly release");
   if(chdir(work)!=0)fail("chdir work");
   struct rlimit processes={64,64},files={1024,1024},core={0,0},size={1024ULL*1024ULL*1024ULL,1024ULL*1024ULL*1024ULL};
   setrlimit(RLIMIT_NPROC,&processes);setrlimit(RLIMIT_NOFILE,&files);setrlimit(RLIMIT_CORE,&core);setrlimit(RLIMIT_FSIZE,&size);
-  if(setgroups(0,NULL)!=0||setgid(gid)!=0||setuid(uid)!=0)fail("drop identity");
+  if (setgid(0) != 0 || setuid(0) != 0) fail("enter mapped identity");
   if(prctl(PR_SET_NO_NEW_PRIVS,1,0,0,0)!=0)fail("no_new_privs");
+  /* FD 3 is the only platform capability. It is an anonymous connected
+     socketpair endpoint, never a path or a reusable broker socket. */
+  if (capability_fd != 3 && dup3(capability_fd, 3, 0) < 0) fail("capability fd");
+  if (fcntl(3, F_SETFD, 0) != 0) fail("capability fd flags");
+  if (syscall(SYS_close_range, 4U, UINT32_MAX, 0U) != 0 && errno != ENOSYS) fail("close inherited fds");
   install_seccomp_allowlist();
   const char *execution=getenv("KCML_EXECUTION_ID");clearenv();setenv("LANG","C.UTF-8",1);setenv("PATH","/usr/bin:/bin",1);if(execution)setenv("KCML_EXECUTION_ID",execution,1);
   char **child=&argv[split+1];fexecve(executable_fd,child,environ);fail("fexecve");return 70;

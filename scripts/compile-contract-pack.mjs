@@ -373,20 +373,72 @@ async function main() {
     parallelTestIds: [`PG-CONCURRENT-${operation.operationId}`], crashTestIds: [`CRASH-${operation.operationId}`], requirementIds: operation.requirementIds,
     authoritySourceRefs: ['ssot://51/postgresql-transakcni-soubehovy-a-migracni-kontrakt/operation'], canonicalDigest: sha(canonical({ operationId: operation.operationId, profile: operation.transactionProfileId }))
   }));
-  const runtimes = ['WEB_API', 'RUNTIME_GATEWAY', 'RUNTIME_HOST', 'GENERATED_HANDLER', 'SECRET_BROKER', 'STATE_BROKER', 'EGRESS_GATEWAY', 'BROWSER_WORKER', 'BROWSER_HOST', 'BRIDGE_GATEWAY', 'OWNER_DEVICE_BRIDGE', 'WORKER'].map((runtimeType) => ({
-    runtimeBoundaryId: `RUNTIME-${runtimeType}`, runtimeType, processIdentity: 'KERNEL_SYSTEMD_DB_TUPLE', systemdUnit: `kcml-${runtimeType.toLowerCase().replaceAll('_', '-')}.service`,
-    osUser: `kcml-${runtimeType.toLowerCase().replaceAll('_', '-')}`, osGroup: `kcml-${runtimeType.toLowerCase().replaceAll('_', '-')}`, socketOrCapabilityChannels: runtimeType === 'GENERATED_HANDLER' ? ['ANONYMOUS_FD_3'] : ['SYSTEMD_UDS'],
-    peerIdentityContract: 'SO_PEERCRED_PIDFD_BOOT_START_INVOCATION_CGROUP', executionContextSource: 'SERVER_COMMITTED',
-    allowedNetworkFamilies: runtimeType === 'GENERATED_HANDLER' ? [] : ['AF_UNIX'], allowedEndpoints: [], allowedFilesystemRead: ['/opt/kajovocml-ng/current'],
-    allowedFilesystemWrite: runtimeType === 'GENERATED_HANDLER' ? ['/tmp', '/run', '/work'] : ['/var/lib/kajovocml-ng'], allowedCredentials: runtimeType === 'GENERATED_HANDLER' ? [] : ['SYSTEMD_SCOPED'],
-    allowedInheritedFds: runtimeType === 'GENERATED_HANDLER' ? [0, 1, 2, 3] : [0, 1, 2], allowedCapabilities: [], seccompProfileDigest: sha(canonical({ runtimeType, profile: 'SYSTEMD_SECCOMP_ALLOWLIST_V1' })),
-    namespaceProfileDigest: sha(canonical({ runtimeType, profile: 'SYSTEMD_NAMESPACE_ISOLATION_V1' })), cgroupProfile: 'FINITE_LIMITS',
-    prohibitedResources: runtimeType === 'GENERATED_HANDLER' ? ['NETWORK', 'POSTGRES', 'BROKERS', 'BROWSER_HOST', 'HOST_RUN', 'OWNER_API_KEY'] : ['UNDECLARED_RESOURCE'],
-    lifecycleStateMachineId: 'SM-RUNTIME_INSTANCE', runtimeGenerationPolicy: 'MONOTONIC', serviceGenerationPolicy: 'SYSTEMD_INVOCATION_ID', staleProcessFencing: 'ALL_WRITES',
-    shutdownDrainKillPolicy: 'DRAIN_TERM_KILL_CGROUP_EMPTY', childProcessPolicy: runtimeType === 'GENERATED_HANDLER' ? 'BROKERED_ALIAS_ONLY' : 'DECLARED',
-    cleanupPredicateId: 'CLOSURE-RUNTIME_INSTANCE', auditEvidence: ['PEER', 'PROCESS', 'FD', 'NAMESPACE', 'CGROUP'], testIds: [`RUNTIME-TEST-${runtimeType}`],
-    requirementIds: [], authoritySourceRefs: ['ssot://50/trusted-runtime-boundary-a-linux-ipc-security/runtime'], canonicalDigest: sha(canonical({ runtimeType }))
-  }));
+  const runtimeMatrixSourcePath = 'deploy/runtime/runtime-boundary-manifest.json';
+  const runtimeMatrixSource = JSON.parse(await readFile(join(root, runtimeMatrixSourcePath), 'utf8'));
+  if (runtimeMatrixSource.schemaVersion !== '1.0' || !Array.isArray(runtimeMatrixSource.runtimeTypes) || runtimeMatrixSource.runtimeTypes.length === 0) {
+    throw new Error('RUNTIME_BOUNDARY_MATRIX_SOURCE_INVALID');
+  }
+  const runtimeTestPath = 'tests/runtime-boundary/matrix.test.ts';
+  const runtimeTestLines = (await readFile(join(root, runtimeTestPath), 'utf8')).split('\n');
+  const runtimeRecords = [];
+  const runtimeEvidenceRecords = [];
+  const runtimeTypeIds = new Set();
+  for (const sourceRecord of runtimeMatrixSource.runtimeTypes) {
+    if (runtimeTypeIds.has(sourceRecord.runtimeType)) throw new Error(`RUNTIME_BOUNDARY_DUPLICATE_TYPE:${sourceRecord.runtimeType}`);
+    runtimeTypeIds.add(sourceRecord.runtimeType);
+    const requiredFields = ['runtimeBoundaryId', 'runtimeType', 'processIdentity', 'systemdUnit', 'osUser', 'osGroup', 'socketOrCapabilityChannels', 'peerIdentityContract', 'executionContextSource', 'allowedNetworkFamilies', 'allowedEndpoints', 'allowedFilesystemRead', 'allowedFilesystemWrite', 'allowedCredentials', 'allowedInheritedFds', 'allowedCapabilities', 'cgroupProfile', 'prohibitedResources', 'lifecycleStateMachineId', 'runtimeGenerationPolicy', 'serviceGenerationPolicy', 'staleProcessFencing', 'shutdownDrainKillPolicy', 'childProcessPolicy', 'cleanupPredicateId', 'auditEvidence', 'testIds', 'requirementRefs', 'evidence'];
+    for (const field of requiredFields) if (!(field in sourceRecord)) throw new Error(`RUNTIME_BOUNDARY_FIELD_MISSING:${sourceRecord.runtimeType}:${field}`);
+    if (sourceRecord.prohibitedResources.length === 0) throw new Error(`RUNTIME_BOUNDARY_PROHIBITIONS_EMPTY:${sourceRecord.runtimeType}`);
+    const evidence = sourceRecord.evidence;
+    const concreteSourcePaths = evidence.sourcePaths.filter((sourcePath) => sourcePath !== runtimeMatrixSourcePath);
+    if (concreteSourcePaths.length === 0) throw new Error(`RUNTIME_BOUNDARY_CONCRETE_SOURCE_MISSING:${sourceRecord.runtimeType}`);
+    for (const sourcePath of evidence.sourcePaths) {
+      await readFile(join(root, sourcePath));
+    }
+    for (const marker of evidence.sourceMarkers) {
+      let found = false;
+      for (const sourcePath of concreteSourcePaths) {
+        const lines = (await readFile(join(root, sourcePath), 'utf8')).split('\n');
+        const lineIndex = lines.findIndex((line) => line.includes(marker));
+        if (lineIndex >= 0) {
+          found = true;
+          break;
+        }
+      }
+      if (!found) throw new Error(`RUNTIME_BOUNDARY_SOURCE_MARKER_MISSING:${sourceRecord.runtimeType}:${marker}`);
+    }
+    const testLineIndex = runtimeTestLines.findIndex((line) => line.includes(evidence.testMarker));
+    if (testLineIndex < 0) throw new Error(`RUNTIME_BOUNDARY_TEST_MARKER_MISSING:${sourceRecord.runtimeType}:${evidence.testMarker}`);
+    const requirementIds = [];
+    for (const requirementRef of sourceRecord.requirementRefs) {
+      const requirement = requirements.find((candidate) => candidate.authoritySourceRefs.includes(requirementRef));
+      if (!requirement) throw new Error(`RUNTIME_BOUNDARY_REQUIREMENT_MISSING:${sourceRecord.runtimeType}:${requirementRef}`);
+      requirementIds.push(requirement.requirementId);
+    }
+    const record = { ...sourceRecord };
+    delete record.requirementRefs;
+    delete record.evidence;
+    record.requirementIds = [...new Set(requirementIds)].sort();
+    record.authoritySourceRefs = [...new Set([...(runtimeMatrixSource.authoritySourceRefs ?? []), ...sourceRecord.requirementRefs])].sort();
+    if (record.runtimeType === 'GENERATED_HANDLER') {
+      const launcherBytes = await readFile(join(root, 'deploy/runtime/kcml-sandbox-launcher.c'));
+      record.seccompProfileDigest = sha(launcherBytes);
+      record.namespaceProfileDigest = sha(canonical({ source: 'deploy/runtime/kcml-sandbox-launcher.c', profile: 'KCML_GENERATED_HANDLER_NAMESPACE_PROFILE_V1' }));
+      record.seccompProfileDigestSource = 'deploy/runtime/kcml-sandbox-launcher.c:KCML_GENERATED_NODE_SECCOMP_PROFILE_V1';
+      record.namespaceProfileDigestSource = 'deploy/runtime/kcml-sandbox-launcher.c:KCML_GENERATED_HANDLER_NAMESPACE_PROFILE_V1';
+    } else {
+      const unitSourcePath = sourceRecord.evidence.sourcePaths.find((sourcePath) => /\.service(?:\.in)?$/u.test(sourcePath)) ?? sourceRecord.evidence.sourcePaths[0];
+      const unitBytes = await readFile(join(root, unitSourcePath));
+      record.seccompProfileDigest = sha(unitBytes);
+      record.namespaceProfileDigest = sha(unitBytes);
+      record.seccompProfileDigestSource = unitSourcePath;
+      record.namespaceProfileDigestSource = unitSourcePath;
+    }
+    record.canonicalDigest = sha(canonical(record));
+    runtimeRecords.push(record);
+    runtimeEvidenceRecords.push({ sourceRecord, requirementIds, testLineIndex });
+  }
+  const runtimes = runtimeRecords;
   const errorRecords = parsed.errors.map((code) => ({
     errorCodeId: `ERR-${code}`, code, namespace: code.split('_')[0], classification: /UNKNOWN|CONFLICT|INCOMPLETE/u.test(code) ? 'MANUAL_OR_REFRESH' : 'FIXED',
     canonicalMeaning: code, sideEffectPoint: /OUTCOME|SUBMIT/u.test(code) ? 'POSSIBLE_EFFECT' : 'PRE_DISPATCH', terminalityRule: 'STATE_MACHINE_DEFINED',
@@ -452,6 +504,37 @@ async function main() {
     artifact.traceAnchors.push({ requirementId, locator, symbol, snippetDigest: sha(snippet) });
     artifact.requirementIds.push(requirementId);
   };
+  const runtimeMatrixArtifact = traceArtifact(runtimeMatrixSourcePath);
+  const runtimeTestArtifact = traceArtifact(runtimeTestPath);
+  const runtimeMatrixLines = (await readFile(join(root, runtimeMatrixSourcePath), 'utf8')).split('\n');
+  for (const { sourceRecord, requirementIds, testLineIndex } of runtimeEvidenceRecords) {
+    for (const requirementId of requirementIds) {
+      const requirement = requirementMap.get(requirementId);
+      if (!requirement) throw new Error(`RUNTIME_BOUNDARY_REQUIREMENT_LOOKUP_FAILED:${sourceRecord.runtimeType}:${requirementId}`);
+      requirement.domainModule = 'packages/runtime-boundary';
+      requirement.runtimeEvidenceKinds = ['RUNTIME_BOUNDARY_MATRIX', 'SYSTEMD_UNIT_IDENTITY', 'LINUX_BEHAVIORAL_EVIDENCE'];
+      requirement.testCaseIds = [...new Set(sourceRecord.testIds)];
+      requirement.acceptanceGateIds = ['TRUSTED_RUNTIME_BOUNDARY', 'GATE-CONTRACT-PACK'];
+      const evidenceArtifacts = new Set([runtimeMatrixArtifact.artifactId, runtimeTestArtifact.artifactId]);
+      for (const sourcePath of sourceRecord.evidence.sourcePaths) evidenceArtifacts.add(traceArtifact(sourcePath).artifactId);
+      requirement.artifactIds = [...evidenceArtifacts].sort();
+      requirement.status = 'ACTIVE';
+      const runtimeMatrixLineIndex = runtimeMatrixLines.findIndex((line) => line.includes(`"runtimeBoundaryId": "${sourceRecord.runtimeBoundaryId}"`));
+      if (runtimeMatrixLineIndex < 0) throw new Error(`RUNTIME_BOUNDARY_MATRIX_LOCATOR_MISSING:${sourceRecord.runtimeType}`);
+      appendTrace(runtimeMatrixArtifact, requirementId, `${runtimeMatrixSourcePath}:${runtimeMatrixLineIndex + 1}`, sourceRecord.runtimeBoundaryId, runtimeMatrixLines[runtimeMatrixLineIndex]);
+      appendTrace(runtimeTestArtifact, requirementId, `${runtimeTestPath}:${testLineIndex + 1}`, sourceRecord.evidence.testMarker, runtimeTestLines[testLineIndex]);
+      for (const marker of sourceRecord.evidence.sourceMarkers) {
+        for (const sourcePath of sourceRecord.evidence.sourcePaths.filter((candidate) => candidate !== runtimeMatrixSourcePath)) {
+          const sourceLines = (await readFile(join(root, sourcePath), 'utf8')).split('\n');
+          const sourceLineIndex = sourceLines.findIndex((line) => line.includes(marker));
+          if (sourceLineIndex >= 0) {
+            appendTrace(traceArtifact(sourcePath), requirementId, `${sourcePath}:${sourceLineIndex + 1}`, marker, sourceLines[sourceLineIndex]);
+            break;
+          }
+        }
+      }
+    }
+  }
   const handlerPath = 'packages/domain/src/operation-handler-catalog.ts';
   const testPath = 'tests/operations/catalog-coverage.test.ts';
   const handlerArtifact = traceArtifact(handlerPath);
