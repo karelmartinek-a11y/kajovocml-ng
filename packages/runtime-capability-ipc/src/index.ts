@@ -185,7 +185,9 @@ function consumeFrames(socket: Socket, onFrame: (value: unknown) => Promise<void
 
 async function verifyPeer(socket:Socket):Promise<void>{
   const helper=process.env.KCML_PEERCRED_HELPER??'/usr/libexec/kajovocml-ng/kcml-peercred';
-  const output=await new Promise<string>((resolve,reject)=>{const child=spawn(helper,['3'],{stdio:['ignore','pipe','pipe',socket]});let stdout='';let stderr='';child.stdout?.on('data',(value:Buffer)=>stdout+=value.toString('utf8'));child.stderr?.on('data',(value:Buffer)=>stderr+=value.toString('utf8'));child.once('error',reject);child.once('exit',code=>code===0?resolve(stdout):reject(new Error(`PEERCRED_HELPER_FAILED:${code}:${stderr.trim()}`)));});
+  const socketFd=(socket as Socket&{_handle?:{fd?:number}})._handle?.fd;
+  if(!Number.isInteger(socketFd)||Number(socketFd)<0)throw new Error('IPC_PEER_SOCKET_FD_UNAVAILABLE');
+  const output=await new Promise<string>((resolve,reject)=>{const child=spawn(helper,['3'],{stdio:['ignore','pipe','pipe',Number(socketFd)]});let stdout='';let stderr='';child.stdout?.on('data',(value:Buffer)=>stdout+=value.toString('utf8'));child.stderr?.on('data',(value:Buffer)=>stderr+=value.toString('utf8'));child.once('error',reject);child.once('exit',code=>code===0?resolve(stdout):reject(new Error(`PEERCRED_HELPER_FAILED:${code}:${stderr.trim()}`)));});
   const identity=z.object({pid:z.number().int().positive(),uid:z.number().int().nonnegative(),gid:z.number().int().nonnegative()}).parse(JSON.parse(output));
   const configured=(process.env.KCML_ALLOWED_PEER_UIDS??'').split(',').filter(Boolean).map(Number);
   if(process.env.NODE_ENV==='production'&&configured.length===0)throw new Error('IPC_PEER_ALLOWLIST_REQUIRED');
