@@ -54,8 +54,10 @@ ALTER TABLE kcml.operational_alert DROP CONSTRAINT IF EXISTS operational_alert_f
 ALTER TABLE kcml.operational_alert DROP CONSTRAINT IF EXISTS operational_alert_seen_interval_check;
 ALTER TABLE kcml.operational_alert ADD CONSTRAINT operational_alert_seen_interval_check CHECK (first_seen_at<=last_seen_at);
 ALTER TABLE kcml.operational_alert DROP CONSTRAINT IF EXISTS operational_alert_check;
+ALTER TABLE kcml.operational_alert DROP CONSTRAINT IF EXISTS operational_alert_closed_timestamp_check;
 ALTER TABLE kcml.operational_alert ADD CONSTRAINT operational_alert_closed_timestamp_check CHECK ((status='CLOSED')=(closed_at IS NOT NULL));
 ALTER TABLE kcml.operational_alert DROP CONSTRAINT IF EXISTS operational_alert_check1;
+ALTER TABLE kcml.operational_alert DROP CONSTRAINT IF EXISTS operational_alert_suppression_interval_check;
 ALTER TABLE kcml.operational_alert ADD CONSTRAINT operational_alert_suppression_interval_check CHECK (status<>'SUPPRESSED' OR suppressed_until IS NOT NULL);
 ALTER TABLE kcml.operational_alert DROP CONSTRAINT IF EXISTS operational_alert_episode_id_key;
 ALTER TABLE kcml.operational_alert ADD CONSTRAINT operational_alert_episode_id_key UNIQUE (episode_id);

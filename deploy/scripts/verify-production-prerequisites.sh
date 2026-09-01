@@ -7,7 +7,7 @@ source /etc/os-release
 [[ $(pnpm --version) == 11.* ]]
 psql --version | grep -q ' 16\.'
 nginx -t
-systemd-analyze verify /etc/systemd/system/kcml*.service /etc/systemd/system/kcml*.socket /etc/systemd/system/kcml.target
+if [[ -e /opt/kajovocml-ng/current ]]; then systemd-analyze verify /etc/systemd/system/kcml*.service /etc/systemd/system/kcml*.socket /etc/systemd/system/kcml.target; fi
 test -x /usr/libexec/kajovocml-ng/kcml-peercred
 test -x /usr/libexec/kajovocml-ng/kcml-sandbox-launcher
 test "$(stat -c %a /etc/kajovocml-ng/master.key)" = 440

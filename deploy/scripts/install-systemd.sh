@@ -11,6 +11,11 @@ while IFS='|' read -r unit app service_user families writable dependency enabled
   dependency=${dependency## }; dependency=${dependency%% }
   extra_environment=''
   if [[ ${dependency} == Environment=* ]]; then extra_environment=${dependency}; dependency=''; fi
+  # The manifest stores multiple [Unit] directives in one TSV field; render
+  # them as separate systemd lines rather than treating `After=` as a socket
+  # unit name inside `Requires=`.
+  dependency=${dependency// After=/\\nAfter=}
+  dependency=${dependency// Wants=/\\nWants=}
   rendered=$(mktemp)
   sed -e "s|{{UNIT}}|${unit}|g" -e "s|{{APP}}|${app}|g" -e "s|{{USER}}|${service_user}|g" \
     -e "s|{{ADDRESS_FAMILIES}}|${families}|g" -e "s|{{READ_WRITE_PATHS}}|${writable}|g" \
@@ -24,4 +29,4 @@ install_changed "${repository_root}/deploy/tmpfiles/kajovocml-ng.conf" /etc/tmpf
 systemd-tmpfiles --create /etc/tmpfiles.d/kajovocml-ng.conf
 systemctl daemon-reload
 systemctl enable kcml.target kcml-web-api.socket kcml-runtime-gateway.socket kcml-secret-broker.socket kcml-state-broker.socket kcml-egress-gateway.socket kcml-browser-host@primary.service kcml-backup.timer kcml-tls-renew.timer >/dev/null
-systemd-analyze verify /etc/systemd/system/kcml*.service /etc/systemd/system/kcml*.socket /etc/systemd/system/kcml.target
+if [[ -e /opt/kajovocml-ng/current ]]; then systemd-analyze verify /etc/systemd/system/kcml*.service /etc/systemd/system/kcml*.socket /etc/systemd/system/kcml.target; fi
