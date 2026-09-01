@@ -9,8 +9,9 @@ for file in deploy/systemd/*.service deploy/systemd/*.socket deploy/systemd/*.ta
 done
 cc -O2 -Wall -Wextra -Werror deploy/runtime/kcml-peercred.c -o /tmp/kcml-peercred-test
 cc -O2 -Wall -Wextra -Werror deploy/runtime/kcml-sandbox-launcher.c -lcrypto -o /tmp/kcml-sandbox-launcher-test
-if [[ -f /usr/include/node/node_api.h ]]; then
-  cc -O2 -Wall -Wextra -Werror -fPIC -shared -I/usr/include/node deploy/runtime/kcml-fd-cloexec-addon.c -o /tmp/kcml-fd-cloexec-td19.node
+node_include_dir=${KCML_NODE_INCLUDE_DIR:-$(node -e "const path=require('node:path');process.stdout.write(path.resolve(path.dirname(process.execPath),'../include/node'))")}
+if [[ -f ${node_include_dir}/node_api.h ]]; then
+  cc -O2 -Wall -Wextra -Werror -fPIC -shared -I"${node_include_dir}" deploy/runtime/kcml-fd-cloexec-addon.c -o /tmp/kcml-fd-cloexec-td19.node
 else
   echo 'NOT_EXECUTED_ENVIRONMENTAL: Node.js 24 headers unavailable for fd CLOEXEC addon'
 fi
