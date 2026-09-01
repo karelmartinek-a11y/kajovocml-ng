@@ -126,6 +126,7 @@ export class PlatformRecoveryCoordinator {
     await this.options.faultInjector?.('AFTER_RECOVERY_RECONCILING',{attemptId:authority.attemptId,recoveryEpoch:authority.recoveryEpoch,fencingToken:authority.fencingToken});
     await this.classifyCommands(authority,workerId);
     await this.classifyOutbox(authority,workerId);
+    await this.classifyCurrentDeployment(authority,workerId);
     await this.classifyRemainingInventory(authority,workerId);
     await this.options.faultInjector?.('BEFORE_RECOVERY_READY_TRANSITION',{attemptId:authority.attemptId,recoveryEpoch:authority.recoveryEpoch,fencingToken:authority.fencingToken});
     return this.finalize(authority,workerId);
@@ -205,6 +206,19 @@ export class PlatformRecoveryCoordinator {
       await insertRecoveryItem(client,authority,record,uncertain?'MANUAL_REVIEW':'RESUME',uncertain,uncertain?null:'TRANSACTIONAL_OUTBOX',uncertain?null:outboxId,safeJson({reason:uncertain?'POSSIBLE_EXTERNAL_DISPATCH_REQUIRES_RECONCILIATION':'IDEMPOTENT_DOMAIN_EVENT_DELIVERY_RESUME',previousStatus:String(outbox.status)}));
     });
   }
+
+  private async classifyCurrentDeployment(authority:RecoveryAuthority,workerId:string):Promise<void>{await inTransaction(this.pool,'SERIALIZABLE',async(client)=>{
+    await exclusiveRecoveryLock(client);await this.assertFence(client,authority,workerId);
+    const current=(await client.query(`SELECT run.*,head.current_epoch,head.current_release_id,head.source_sha AS current_source_sha,head.deployment_id
+      FROM kcml.application_deployment_head head JOIN kcml.deployment_run run ON run.id=head.deployment_id
+      WHERE head.singleton_key=1 AND run.status IN ('PLANNED','PREFLIGHT','BACKUP','MIGRATING','INSTALLING','SWITCHING','VERIFYING','ROLLING_BACK') FOR UPDATE OF head,run`)).rows[0];
+    if(!current)return;
+    const exactCurrent=BigInt(current.current_epoch)===authority.deploymentEpoch&&BigInt(current.deployment_epoch)===authority.deploymentEpoch&&String(current.release_id)===String(current.current_release_id)&&String(current.source_sha)===String(current.current_source_sha)&&String(current.platform_incarnation_id)===authority.platformIncarnationId;
+    if(!exactCurrent)return;
+    const record=(await collectInventory(client)).find((item)=>item.ownerKind==='DEPLOYMENT_RUN'&&item.ownerId===String(current.id));if(!record)return;
+    const existing=Number((await client.query(`SELECT count(*)::int AS count FROM kcml.platform_recovery_item WHERE recovery_attempt_id=$1 AND owner_kind='DEPLOYMENT_RUN' AND owner_id=$2`,[authority.attemptId,String(current.id)])).rows[0]?.count??0)>0;
+    if(!existing)await insertRecoveryItem(client,authority,record,'RESUME',false,'DEPLOYMENT_RUN',String(current.id),safeJson({reason:'CURRENT_DEPLOYMENT_HEAD_EXACTLY_MATCHES_IN_FLIGHT_RUN',releaseId:String(current.release_id),sourceSha:String(current.source_sha),deploymentEpoch:String(current.deployment_epoch),status:String(current.status)}));
+  });}
 
   private async classifyRemainingInventory(authority:RecoveryAuthority,workerId:string):Promise<void>{await inTransaction(this.pool,'SERIALIZABLE',async(client)=>{
     await exclusiveRecoveryLock(client);await this.assertFence(client,authority,workerId);
