@@ -24,4 +24,11 @@ describe('production acceptance contract', () => {
     expect(`${deploy}\n${rollback}`).not.toMatch(/psql[^\n]*-v[^\n]*-c\s/u);
     expect(deploy).toContain("<<'SQL'");
   });
+
+  it('uses password-authenticated PostgreSQL Unix sockets inside AF_UNIX-only services', async () => {
+    const bootstrap = await readFile('deploy/scripts/bootstrap-production-server.sh', 'utf8');
+    expect(bootstrap).toContain('local kajovocml_ng kajovocml_app scram-sha-256');
+    expect(bootstrap).toContain('@localhost/kajovocml_ng?host=%2Fvar%2Frun%2Fpostgresql');
+    expect(bootstrap).not.toContain('@127.0.0.1:5432/kajovocml_ng');
+  });
 });

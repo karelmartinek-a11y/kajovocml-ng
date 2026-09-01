@@ -51,9 +51,19 @@ SELECT format('ALTER ROLE kajovocml_app PASSWORD %L', :'app_password') \gexec
 SELECT 'CREATE DATABASE kajovocml_ng OWNER kajovocml_app TEMPLATE template0 ENCODING ''UTF8''' WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname='kajovocml_ng') \gexec
 REVOKE ALL ON DATABASE kajovocml_ng FROM PUBLIC;
 SQL
+hba_file=$(runuser -u postgres -- psql -Atqc 'SHOW hba_file')
+hba_candidate=$(mktemp)
+{
+  printf '%s\n' 'local kajovocml_ng kajovocml_app scram-sha-256'
+  grep -vxF 'local kajovocml_ng kajovocml_app scram-sha-256' "${hba_file}"
+} >"${hba_candidate}"
+backup_if_changed "${hba_file}" "${hba_candidate}"
+install -o postgres -g postgres -m 0640 "${hba_candidate}" "${hba_file}"
+rm -f "${hba_candidate}"
+runuser -u postgres -- psql -c 'SELECT pg_reload_conf()' >/dev/null
 runtime_candidate=$(mktemp)
 cat >"${runtime_candidate}" <<EOF
-DATABASE_URL=postgresql://kajovocml_app:${db_password}@127.0.0.1:5432/kajovocml_ng
+DATABASE_URL=postgresql://kajovocml_app:${db_password}@localhost/kajovocml_ng?host=%2Fvar%2Frun%2Fpostgresql
 KCML_MASTER_KEY_FILE=/etc/kajovocml-ng/master.key
 KCML_MASTER_KEY_ID=host-master-v1
 KCML_PUBLIC_ORIGIN=https://kaja.hcasc.cz
