@@ -460,7 +460,7 @@
       "routeKey": "POST /components/:id/enable",
       "contractDigest": "79313fcd49ce3b9aa478fb50692b68d6baaab475bf146e7f14fb510dd208dd18",
       "entity": "component",
-      "operation": "component.enable",
+      "operation": "component.control.enable",
       "mutating": true
     },
     {
@@ -470,7 +470,7 @@
       "routeKey": "POST /components/:id/disable",
       "contractDigest": "e1b0ba910dbca4bfa5e7f022f16dbd442beed56ffe4eb031af95502cb65d9459",
       "entity": "component",
-      "operation": "component.disable",
+      "operation": "component.control.disable",
       "mutating": true
     },
     {
@@ -990,7 +990,7 @@
       "routeKey": "POST /mcp-call-runs/:callId/cancel",
       "contractDigest": "5ebf63ced06abcb1d0a481c9ea323c7fc43a791ceb61c8fb9f55166835040d50",
       "entity": "mcp_call_run",
-      "operation": "mcp.tools.cancel",
+      "operation": "mcp.subscription.cancel",
       "mutating": true
     },
     {
@@ -1060,7 +1060,7 @@
       "routeKey": "POST /mcp-subscriptions/:subscriptionId/cancel",
       "contractDigest": "f3063e9fdf9006d92e571e00b4b096540f71ea226f3e863bd94249c71e848f37",
       "entity": "mcp_subscription",
-      "operation": "mcp.tools.cancel",
+      "operation": "mcp.subscription.cancel",
       "mutating": true
     },
     {
@@ -1140,7 +1140,7 @@
       "routeKey": "POST /mcp-tasks/:taskId/cancel",
       "contractDigest": "37d1de99a868eacd6eab2f2a5d74d66d1e58a3167601c6724811373991342fed",
       "entity": "mcp_task",
-      "operation": "mcp.tools.cancel",
+      "operation": "mcp.subscription.cancel",
       "mutating": true
     },
     {
@@ -1260,7 +1260,7 @@
       "routeKey": "GET /mcp-prompts",
       "contractDigest": "28bf3cc0b8e9a595aa0f8e60f0e68304bb86f27473407a056baa0498c5387121",
       "entity": "component_prompt_contract",
-      "operation": "mcp.prompts.list",
+      "operation": "mcp.prompts.get",
       "mutating": false
     },
     {
@@ -1270,7 +1270,7 @@
       "routeKey": "GET /mcp-prompts/:id",
       "contractDigest": "234ca1472d025c7b65e5dc5671561a9e4b6c748417592dc2437a5ce7cf600d9b",
       "entity": "component_prompt_contract",
-      "operation": "mcp.prompts.list",
+      "operation": "mcp.prompts.get",
       "mutating": false
     },
     {
@@ -2500,7 +2500,7 @@
       "routeKey": "POST /generation/jobs/:id/blockers/:blockerId/resolve",
       "contractDigest": "f49d26acccd20a7a9f8d340b070055d98e099fbf20d6f8807e84215403f0ce55",
       "entity": "generation_blocker",
-      "operation": "generation.capability.resolve",
+      "operation": "generation.blocker.resolve",
       "mutating": true
     },
     {
@@ -2820,7 +2820,7 @@
       "routeKey": "POST /browser-sessions/:sessionId/pages/:pageId/close",
       "contractDigest": "7c6d12a174487fcc468aaa450ce78eda6d35cc8f45f39859f96fe9296da9f251",
       "entity": "browser_page",
-      "operation": "browser.session.close",
+      "operation": "browser.page.close",
       "mutating": true
     },
     {
@@ -2880,7 +2880,7 @@
       "routeKey": "GET /browser-sessions/:sessionId/actions/:actionId",
       "contractDigest": "243c7c2fc945a1025db42c3a9caa1bc5be1ca0ad7f5329d1b846ce6f4b9a3387",
       "entity": "browser_action_run",
-      "operation": "browser.session.observe",
+      "operation": "browser.action.status",
       "mutating": false
     },
     {
@@ -2890,7 +2890,7 @@
       "routeKey": "GET /browser-sessions/:sessionId/actions/:actionId/attempts",
       "contractDigest": "4f792e177cbb83ae0fbce55cf4ee29af460c8091e1e5d6710f97333bb0e2c954",
       "entity": "browser_action_attempt",
-      "operation": "browser.session.observe",
+      "operation": "browser.action.status",
       "mutating": false
     },
     {
@@ -3110,7 +3110,7 @@
       "routeKey": "POST /browser-sessions/:sessionId/resume",
       "contractDigest": "322155b4b64e0e103c0ef9cc9e71239e2b84ecc74b57c1a9909d235fa9f8cace",
       "entity": "browser_session",
-      "operation": "browser.session.resume",
+      "operation": "browser.cleanup.resume",
       "mutating": true
     },
     {
@@ -3130,7 +3130,7 @@
       "routeKey": "POST /browser-sessions/:sessionId/close",
       "contractDigest": "b3c04145f5d159aef7d6bc76e1ee8e9bdc9f9cc7ff0b0bf56a713ba9129feaa9",
       "entity": "browser_session",
-      "operation": "browser.session.close",
+      "operation": "browser.page.close",
       "mutating": true
     },
     {
@@ -3240,7 +3240,7 @@
       "routeKey": "POST /browser-accounts/:accountId/verify",
       "contractDigest": "cfa253076c7bf2d900248298110b2510af9b777277c797faf4e79ad81d33577e",
       "entity": "browser_account_binding",
-      "operation": "browser.runtimeBuild.verify",
+      "operation": "browser.account.verify",
       "mutating": true
     },
     {
@@ -3500,7 +3500,7 @@
       "routeKey": "POST /browser-automations/:id/revisions/:revisionId/verify",
       "contractDigest": "1c3c8e82bd6b11e738367757fa0b34c384f15ab2bd085a5afd921b12744c63f7",
       "entity": "browser_automation_revision",
-      "operation": "browser.runtimeBuild.verify",
+      "operation": "browser.account.verify",
       "mutating": true
     },
     {

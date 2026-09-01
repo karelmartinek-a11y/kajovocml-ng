@@ -15,6 +15,9 @@ function canonical(value) {
   return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}`;
 }
 
+const stableCompare = (left, right) => left < right ? -1 : left > right ? 1 : 0;
+const stableSort = (values) => [...values].sort(stableCompare);
+
 function sha(value) {
   const bytes = typeof value === 'string' ? encoder.encode(value) : value;
   return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
@@ -296,11 +299,67 @@ const gates = [
   'TRUSTED_RUNTIME_BOUNDARY', 'POSTGRES_CHAOS_PASS', 'OPENAI_CHAOS_PASS', 'BROWSER_CHAOS_PASS', 'PRODUCTION_SHAPED_PASS'
 ];
 
+const sourceEvidenceSchema = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema', $id: 'kcml://registry/source-evidence', type: 'object', additionalProperties: false,
+  required: ['sourceRef', 'relationKind', 'canonicalRecordId', 'canonicalRequirementIds', 'relationDigest'],
+  properties: {
+    sourceRef: { type: 'string', pattern: '^ssot://[^.].*$' },
+    relationKind: { enum: ['AUTHORITY', 'SPECIALIZATION', 'REFERENCE'] },
+    canonicalRecordId: { type: 'string', minLength: 1 },
+    canonicalRequirementIds: { type: 'array', items: { type: 'string', minLength: 1 }, uniqueItems: true },
+    relationDigest: { type: 'string', pattern: '^sha256:[0-9a-f]{64}$' }
+  }
+};
+
+const commonRecordProperties = {
+  recordId: { type: 'string', minLength: 1 }, recordKind: { type: 'string', minLength: 1 }, schemaVersion: { const: '1.0' },
+  authoritySourceRefs: { type: 'array', items: { type: 'string', pattern: '^ssot://[^.].*$' }, minItems: 1, uniqueItems: true },
+  sourceRelations: { type: 'array', items: { $ref: 'kcml://registry/source-evidence' }, minItems: 1 },
+  requirementIds: { type: 'array', items: { type: 'string', minLength: 1 }, uniqueItems: true },
+  canonicalName: { type: 'string', minLength: 1 }, canonicalDigest: { type: 'string', pattern: '^sha256:[0-9a-f]{64}$' },
+  lifecycle: { enum: ['ACTIVE', 'SUPERSEDED', 'RETIRED'] }, supersedes: { type: 'array', items: { type: 'string' }, uniqueItems: true },
+  supersededBy: { type: 'array', items: { type: 'string' }, uniqueItems: true }, extensions: { type: 'object' }
+};
+const commonRequired = ['recordId', 'recordKind', 'schemaVersion', 'authoritySourceRefs', 'sourceRelations', 'requirementIds', 'canonicalName', 'canonicalDigest', 'lifecycle', 'supersedes', 'supersededBy', 'extensions'];
+const arrayField = { type: 'array' };
+const stringField = { type: 'string' };
+const booleanField = { type: 'boolean' };
+
+const registrySchemaRequirements = {
+  REQUIREMENT_REGISTRY: ['requirementId', 'shortName', 'domain', 'normativeLevel', 'authorityRoot', 'ownerIntentRelation', 'canonicalStatement', 'specializationSourceRefs', 'subjectKind', 'subjectId', 'domainModule', 'aggregateRoots', 'stateMachineIds', 'operationIds', 'apiOperationIds', 'uiSurfaceIds', 'chatCapabilityIds', 'persistenceObjectIds', 'bindingIds', 'errorCodeIds', 'testCaseIds', 'acceptanceGateIds', 'runtimeEvidenceKinds', 'artifactIds', 'closurePredicateIds', 'status'],
+  OPERATION_CATALOG: ['operationId', 'operationName', 'operationRevision', 'operationFamily', 'exposureClass', 'canonicalWriterId', 'aggregateRoot', 'commandSchemaRef', 'responseSchemaRef', 'expectedStates', 'expectedStateVersionPolicy', 'stateMachineId', 'allowedTransitionIds', 'idempotencyScope', 'idempotencyKeySource', 'requestDigestProfile', 'concurrencyScope', 'concurrencyKeyDerivation', 'concurrencyClaimPoint', 'deadlinePolicy', 'sideEffectClass', 'subsystemSideEffectClass', 'retryClass', 'retryDirectiveMapRef', 'transactionProfileId', 'orderedLockPlanId', 'fencingPolicy', 'checkpointPolicy', 'possibleEffectTrigger', 'reconciliationOracleId', 'cancellationPolicy', 'terminalOutcomes', 'auditEventTypes', 'outboxPurposes', 'successorPolicy', 'cleanupPolicy', 'activationRelation', 'apiOperationIds', 'uiActionIds', 'chatCapabilityIds', 'selfTestCaseIds', 'acceptanceGateIds'],
+  STATE_MACHINE_REGISTRY: ['stateMachineId', 'aggregateKind', 'aggregateRootTable', 'canonicalWriterId', 'initialStates', 'states', 'terminalStates', 'suspendedDecisionStates', 'recoveryStates', 'transitions', 'forbiddenTransitionPolicy', 'stateVersionField', 'cancellationVersionField', 'fencingFields', 'activationFields', 'linearizationProfile', 'lateEvidencePolicy', 'closurePredicateId', 'operationIds', 'acceptanceGateIds'],
+  POSTGRES_CONTRACT_MATRIX: ['postgresContractId', 'operationId', 'transactionProfileId', 'isolationLevel', 'transactionSegments', 'orderedAdvisoryLocks', 'orderedRowLocks', 'absentRowGuard', 'readAfterLockGuards', 'stateVersionCas', 'fencingPredicate', 'platformIncarnationPredicate', 'applicationDeploymentEpochPredicate', 'bindingActivationPredicate', 'uniqueConstraints', 'checkConstraints', 'foreignKeys', 'deferredConstraintTriggers', 'idempotencyUniqueness', 'sequenceAllocation', 'outboxWrites', 'inboxWrites', 'successorReservation', 'successorEnqueue', 'externalEffectSplit', 'sqlstateRetryMap', 'migrationImplications', 'rollbackCompatibility', 'parallelTestIds', 'crashTestIds'],
+  RUNTIME_BOUNDARY_MATRIX: ['runtimeBoundaryId', 'runtimeType', 'processIdentity', 'systemdUnit', 'osUser', 'osGroup', 'socketOrCapabilityChannels', 'peerIdentityContract', 'executionContextSource', 'allowedNetworkFamilies', 'allowedEndpoints', 'allowedFilesystemRead', 'allowedFilesystemWrite', 'allowedCredentials', 'allowedInheritedFds', 'allowedCapabilities', 'seccompProfileDigest', 'namespaceProfileDigest', 'cgroupProfile', 'prohibitedResources', 'lifecycleStateMachineId', 'runtimeGenerationPolicy', 'serviceGenerationPolicy', 'staleProcessFencing', 'shutdownDrainKillPolicy', 'childProcessPolicy', 'cleanupPredicateId', 'auditEvidence', 'testIds'],
+  BINDING_REGISTRY: ['bindingId', 'sourceRevisionId', 'targetOperationId', 'routeOperationId', 'lifecycle', 'contractDigest', 'exact'],
+  AUTHORITY_OWNERSHIP_REGISTRY: ['authorityObjectKind', 'canonicalWriterId', 'ownerModule', 'ownerServiceOrWorker', 'stateMachineId', 'allowedOperationIds', 'authoritativePersistence', 'acceptedEvidenceProducers', 'prohibitedDirectWriters', 'projectionConsumers', 'closurePredicateId'],
+  ERROR_RETRY_REGISTRY: ['errorCodeId', 'code', 'namespace', 'classification', 'canonicalMeaning', 'sideEffectPoint', 'terminalityRule', 'recoveryRuleKind', 'fixedRetryDirective', 'recoveryDecisionTableId', 'sameLogicalOperationRequired', 'refreshRequired', 'reconciliationRequired', 'manualReviewRequired', 'requiredSnapshotFields', 'affectedObjectKinds', 'httpMappings', 'kcipMappings', 'mcpMappings', 'uiMessageKey', 'canonicalOwnerActions', 'auditEvidenceKinds', 'testCaseIds'],
+  FAULT_CATALOG: ['faultPointId', 'operationId', 'phase', 'faultKinds', 'expectedOutcome', 'testCaseIds'],
+  RECOVERY_ORACLE_REGISTRY: ['recoveryOracleId', 'subjectId', 'observedAuthoritativeStateSchema', 'requiredEvidence', 'forbiddenEvidenceAssumptions', 'rules', 'defaultOutcome', 'manualReviewSchemaRef', 'conflictingOperationBlockKeys', 'closurePredicateId', 'testCaseIds'],
+  CLOSURE_PREDICATE_REGISTRY: ['closurePredicateId', 'rootKind', 'terminalStates', 'requiredChildPredicates', 'forbiddenPendingChildKinds', 'forbiddenProvisionalKinds', 'leaseAndFencePredicate', 'sideEffectPredicate', 'pointerAndEpochPredicate', 'runtimeProcessPredicate', 'bindingPredicate', 'queueOutboxInboxPredicate', 'artifactFilesystemPredicate', 'cleanupPredicate', 'auditEvidencePredicate', 'manualReviewPredicate', 'directQueryIds', 'passExpression', 'failureCode'],
+  ACCEPTANCE_GATE_REGISTRY: ['gateId', 'gateKind', 'blocking', 'subjectScope', 'inputs', 'inputDigests', 'evaluatorId', 'evaluatorVersion', 'evaluatorDigest', 'environmentProfile', 'requiredEvidence', 'dependencies', 'passPredicate', 'failCodes', 'notApplicablePredicate', 'resultSchemaRef'],
+  EXPOSURE_PARITY_REGISTRY: ['operationId', 'exposureClass', 'apiOperationIds', 'uiSurfaceIds', 'uiActionIds', 'chatCapabilityIds', 'auditEventTypes', 'selfTestCaseIds', 'acceptanceGateIds', 'parentOperationId', 'notApplicableReasons'],
+  ARTIFACT_TRACE_REGISTRY: ['artifactId', 'artifactKind', 'repositoryPath', 'contentDigest', 'ownerModule', 'operationIds', 'stateMachineIds', 'registryRecordIds', 'testIds', 'releaseIds', 'generatedFrom', 'generationToolDigest', 'lifecycle']
+};
+const registrySchemaFilenames = {
+  REQUIREMENT_REGISTRY: 'requirement-registry.schema.json', OPERATION_CATALOG: 'operation-catalog.schema.json', STATE_MACHINE_REGISTRY: 'state-machine-registry.schema.json',
+  POSTGRES_CONTRACT_MATRIX: 'postgres-contract-matrix.schema.json', RUNTIME_BOUNDARY_MATRIX: 'runtime-boundary-matrix.schema.json', BINDING_REGISTRY: 'binding-registry.schema.json',
+  AUTHORITY_OWNERSHIP_REGISTRY: 'authority-ownership-registry.schema.json', ERROR_RETRY_REGISTRY: 'error-retry-registry.schema.json', FAULT_CATALOG: 'fault-catalog.schema.json',
+  RECOVERY_ORACLE_REGISTRY: 'recovery-oracle-registry.schema.json', CLOSURE_PREDICATE_REGISTRY: 'closure-predicate-registry.schema.json', ACCEPTANCE_GATE_REGISTRY: 'acceptance-gate-registry.schema.json',
+  EXPOSURE_PARITY_REGISTRY: 'exposure-parity-registry.schema.json', ARTIFACT_TRACE_REGISTRY: 'artifact-trace-registry.schema.json'
+};
+
+const schemaField = (field) => field.endsWith('Ids') || field.endsWith('Refs') || field.endsWith('States') || field.endsWith('Kinds') || field.endsWith('Types') || field.endsWith('Fields') || field.endsWith('Locks') || field.endsWith('Predicates') || field.endsWith('Writes') || field.endsWith('Outcomes') || field.endsWith('Evidence') || field.endsWith('Digests') || field === 'transitions' || field === 'rules' || field === 'inputs' || field === 'dependencies' || field === 'failCodes' || field === 'httpMappings' || field === 'kcipMappings' || field === 'mcpMappings' || field === 'allowedInheritedFds' || field === 'notApplicableReasons' || field === 'requiredChildPredicates' || field === 'forbiddenPendingChildKinds' || field === 'forbiddenProvisionalKinds' || field === 'directQueryIds' || field === 'terminalOutcomes' || field === 'auditEventTypes' || field === 'outboxPurposes' || field === 'auditEvidence' ? arrayField : field === 'generationToolDigest' ? { type: ['string', 'null'] } : field === 'blocking' || field.endsWith('Predicate') || field === 'stateVersionCas' || field === 'fencingPredicate' || field === 'platformIncarnationPredicate' || field === 'applicationDeploymentEpochPredicate' || field === 'bindingActivationPredicate' || field === 'exact' || field.endsWith('Required') || field === 'refreshRequired' || field === 'reconciliationRequired' || field === 'manualReviewRequired' || field === 'sameLogicalOperationRequired' ? booleanField : field === 'operationRevision' || field === 'evaluatorVersion' ? { type: 'integer' } : stringField;
+
+function makeRegistrySchema(kind) {
+  const properties = { ...commonRecordProperties, recordKind: { const: kind } };
+  for (const field of registrySchemaRequirements[kind]) if (!(field in properties)) properties[field] = schemaField(field);
+  return { $schema: 'https://json-schema.org/draft/2020-12/schema', $id: `kcml://registry/${kind.toLowerCase()}`, type: 'object', additionalProperties: true, required: [...commonRequired, ...registrySchemaRequirements[kind]], properties };
+}
+
 const schemas = {
-  'common-record.schema.json': {
-    $schema: 'https://json-schema.org/draft/2020-12/schema', $id: 'kcml://registry/common-record', type: 'object',
-    required: ['canonicalDigest'], properties: { canonicalDigest: { type: 'string', pattern: '^sha256:[0-9a-f]{64}$' } }
-  },
+  'source-evidence.schema.json': sourceEvidenceSchema,
+  'common-record.schema.json': { $schema: 'https://json-schema.org/draft/2020-12/schema', $id: 'kcml://registry/common-record', type: 'object', required: commonRequired, properties: { ...commonRecordProperties } },
   'operation-command.schema.json': {
     $schema: 'https://json-schema.org/draft/2020-12/schema', $id: 'kcml://operation/command', type: 'object', additionalProperties: false,
     required: ['operation', 'targetId', 'arguments'], properties: { operation: { type: 'string' }, targetId: { type: ['string', 'null'], format: 'uuid' }, arguments: { type: 'object' }, expectedStateVersion: { type: ['integer', 'null'], minimum: 0 }, expectedActivationEpoch: { type: ['integer', 'null'], minimum: 0 }, deadlineAt: { type: ['string', 'null'], format: 'date-time' } }
@@ -310,23 +369,66 @@ const schemas = {
     required: ['correlationId', 'logicalOperationId', 'resultDigest'], properties: { correlationId: { type: 'string', format: 'uuid' }, logicalOperationId: { type: 'string', format: 'uuid' }, resultDigest: { type: 'string' } }
   }
 };
+for (const kind of Object.keys(registrySchemaRequirements)) schemas[registrySchemaFilenames[kind]] = makeRegistrySchema(kind);
 
 async function collectArtifacts(directory = root) {
   const ignored = new Set(['node_modules', 'dist', '.git', 'artifacts']);
   const entries = await readdir(directory, { withFileTypes: true });
   const output = [];
-  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+  for (const entry of entries.sort((a, b) => stableCompare(a.name, b.name))) {
     if (ignored.has(entry.name) || entry.name.startsWith('._')) continue;
     const path = join(directory, entry.name);
     if (entry.isDirectory()) output.push(...await collectArtifacts(path));
-    else if (entry.isFile() && !path.includes('/contracts/registries/')) output.push(path);
+    else if (entry.isFile() && !path.includes('/contracts/registries/') && !path.includes('/contracts/registry-schemas/')) output.push(path);
   }
   return output;
+}
+
+function registryRecordId(kind, record) {
+  const fields = {
+    REQUIREMENT_REGISTRY: 'requirementId', OPERATION_CATALOG: 'operationId', STATE_MACHINE_REGISTRY: 'stateMachineId',
+    POSTGRES_CONTRACT_MATRIX: 'postgresContractId', RUNTIME_BOUNDARY_MATRIX: 'runtimeBoundaryId', BINDING_REGISTRY: 'bindingId',
+    AUTHORITY_OWNERSHIP_REGISTRY: 'authorityObjectKind', ERROR_RETRY_REGISTRY: 'errorCodeId', FAULT_CATALOG: 'faultPointId',
+    RECOVERY_ORACLE_REGISTRY: 'recoveryOracleId', CLOSURE_PREDICATE_REGISTRY: 'closurePredicateId', ACCEPTANCE_GATE_REGISTRY: 'gateId',
+    EXPOSURE_PARITY_REGISTRY: 'operationId', ARTIFACT_TRACE_REGISTRY: 'artifactId'
+  };
+  const id = record[fields[kind]];
+  if (typeof id !== 'string' || id.length === 0) throw new Error(`REGISTRY_RECORD_ID_MISSING:${kind}`);
+  return id;
+}
+
+function makeSourceEvidence(sourceRef, relationKind, canonicalRecordId, canonicalRequirementIds) {
+  const relation = { sourceRef, relationKind, canonicalRecordId, canonicalRequirementIds: stableSort([...new Set(canonicalRequirementIds)]) };
+  return { ...relation, relationDigest: sha(canonical(relation)) };
+}
+
+function decorateRecord(kind, record) {
+  const recordId = registryRecordId(kind, record);
+  const requirementIds = stableSort([...new Set(record.requirementIds ?? [])]);
+  const authoritySourceRefs = stableSort([...new Set(record.authoritySourceRefs ?? [])]);
+  if (authoritySourceRefs.length === 0) throw new Error(`REGISTRY_AUTHORITY_SOURCE_MISSING:${kind}:${recordId}`);
+  const decorated = {
+    ...record,
+    recordId,
+    recordKind: kind,
+    schemaVersion: '1.0',
+    authoritySourceRefs,
+    sourceRelations: authoritySourceRefs.map((sourceRef) => makeSourceEvidence(sourceRef, 'AUTHORITY', recordId, requirementIds)),
+    requirementIds,
+    canonicalName: record.canonicalName ?? record.operationName ?? record.shortName ?? recordId,
+    lifecycle: record.lifecycle ?? 'ACTIVE',
+    supersedes: stableSort(record.supersedes ?? []),
+    supersededBy: stableSort(record.supersededBy ?? []),
+    extensions: record.extensions ?? {}
+  };
+  const { canonicalDigest: _ignored, ...identity } = decorated;
+  return { ...decorated, canonicalDigest: sha(canonical(identity)) };
 }
 
 async function main() {
   const ssotBytes = await readFile(ssotPath);
   const ssot = ssotBytes.toString('utf8');
+  const compilerDigest = sha(await readFile(fileURLToPath(import.meta.url)));
   const parsed = parseSsot(ssot);
   const requirementMap = new Map();
   for (const atom of parsed.atoms) {
@@ -338,7 +440,7 @@ async function main() {
       requirementMap.set(record.requirementId, record);
     }
   }
-  const requirements = [...requirementMap.values()].sort((a, b) => a.requirementId.localeCompare(b.requirementId));
+  const requirements = [...requirementMap.values()].sort((a, b) => stableCompare(a.requirementId, b.requirementId));
   const requirementByStatement = new Map(requirements.map((requirement) => [requirement.canonicalStatement, requirement]));
   const operations = parsed.operations.map((name) => {
     const requirement = requirementByStatement.get(name);
@@ -356,6 +458,7 @@ async function main() {
       requirement.testCaseIds = [`TEST-OPERATION-CATALOG-${operation.operationId}`];
       requirement.acceptanceGateIds = ['GATE-OPERATION-CATALOG'];
       requirement.closurePredicateIds = [`CLOSURE-${operation.aggregateRoot}`];
+      requirement.status = 'ACTIVE';
     }
     return operation;
   });
@@ -416,6 +519,7 @@ async function main() {
     uiSurfaceIds: [`UI-${surfaceFor(operation.operationName)}`], uiActionIds: operation.uiActionIds, chatCapabilityIds: operation.chatCapabilityIds,
     auditEventTypes: operation.auditEventTypes, selfTestCaseIds: operation.selfTestCaseIds, acceptanceGateIds: operation.acceptanceGateIds,
     parentOperationId: operation.exposureClass === 'INTERNAL_PROTOCOL' ? 'OP-COMPONENT-REGISTER' : null, notApplicableReasons: [], requirementIds: operation.requirementIds,
+    authoritySourceRefs: ['ssot://55/ui-api-chat-audit-self-test-parity/exposure-parity'],
     canonicalDigest: sha(canonical({ operation: operation.operationId, exposure: operation.exposureClass }))
   }));
   const authorities = [...new Set(operations.map((operation) => operation.aggregateRoot))].map((kind) => ({
@@ -428,16 +532,22 @@ async function main() {
   // Do not emit inferred directory-level records as traceability evidence. The registry stays empty
   // until a file-level mapping is backed by content digests and bidirectional requirement evidence.
   const artifacts = [];
+  const addArtifact = (repositoryPath, bytes, options = {}) => {
+    const contentDigest = sha(bytes);
+    const artifactId = `ART-${sha(`${repositoryPath}\u0000${contentDigest}`).slice(7)}`;
+    const ownerModule = repositoryPath.split('/')[0] === 'packages' ? repositoryPath.split('/').slice(0, 2).join('/') : repositoryPath.split('/')[0];
+    artifacts.push({ artifactId, artifactKind: options.artifactKind ?? 'REPOSITORY_FILE', repositoryPath, contentDigest, ownerModule,
+      operationIds: [], stateMachineIds: [], registryRecordIds: [], testIds: [], releaseIds: [], generatedFrom: options.generatedFrom ?? [], generationToolDigest: options.generationToolDigest ?? null,
+      lifecycle: 'ACTIVE', requirementIds: [], evidenceRefs: [`file://${repositoryPath}`], reverseTraceRequired: true, traceAnchors: [],
+      authoritySourceRefs: options.authoritySourceRefs ?? ['ssot://55/artifact-traceability/file-level'], canonicalDigest: sha(canonical({ repositoryPath, contentDigest })) });
+  };
   for (const artifactPath of await collectArtifacts()) {
     const bytes = await readFile(artifactPath);
     const repositoryPath = relative(root, artifactPath).replaceAll('\\', '/');
     // Content digests remain the evidence identity; artifact IDs additionally
     // include the repository path so identical project configuration files do
     // not collapse into duplicate registry records.
-    const artifactId = `ART-${sha(`${repositoryPath}\u0000${sha(bytes)}`).slice(7)}`;
-    artifacts.push({ artifactId, repositoryPath, artifactKind: 'REPOSITORY_FILE', contentDigest: sha(bytes), sizeBytes: bytes.length,
-      requirementIds: [], evidenceRefs: [`file://${repositoryPath}`], reverseTraceRequired: true,
-      authoritySourceRefs: ['ssot://55/artifact-traceability/file-level'], canonicalDigest: sha(canonical({ repositoryPath, contentDigest: sha(bytes) })) });
+    addArtifact(repositoryPath, bytes);
   }
   const artifactByPath = new Map(artifacts.map((artifact) => [artifact.repositoryPath, artifact]));
   const touchedTraceArtifacts = new Set();
@@ -467,6 +577,10 @@ async function main() {
     if (lineIndex < 0) throw new Error(`OPERATION_HANDLER_TRACE_ANCHOR_MISSING:${operation.operationName}`);
     appendTrace(handlerArtifact, requirement.requirementId, `${handlerPath}:${lineIndex + 1}`, operation.operationName, handlerLines[lineIndex]);
     appendTrace(testArtifact, requirement.requirementId, `${testPath}:${testLineIndex + 1}`, `TEST-OPERATION-CATALOG-${operation.operationId}`, testLines[testLineIndex]);
+    handlerArtifact.operationIds.push(operation.operationId);
+    testArtifact.operationIds.push(operation.operationId);
+    testArtifact.testIds.push(`TEST-OPERATION-CATALOG-${operation.operationId}`);
+    handlerArtifact.registryRecordIds.push(operation.operationId);
     requirement.artifactIds = [handlerArtifact.artifactId, testArtifact.artifactId];
     requirement.runtimeEvidenceKinds = ['DECLARED_HANDLER_BINDING', 'CATALOG_STRUCTURE_TEST'];
   }
@@ -509,6 +623,10 @@ async function main() {
     if (sourceLineIndex < 0 || integrationLineIndex < 0) throw new Error(`EXACT_OPERATION_EVIDENCE_ANCHOR_MISSING:${evidence.operationName}`);
     appendTrace(sourceArtifact, requirement.requirementId, `${evidence.sourcePath}:${sourceLineIndex + 1}`, evidence.operationName, sourceLines[sourceLineIndex]);
     appendTrace(integrationArtifact, requirement.requirementId, `${evidence.testPath}:${integrationLineIndex + 1}`, evidence.testCaseId, integrationLines[integrationLineIndex]);
+    sourceArtifact.operationIds.push(operation.operationId);
+    sourceArtifact.registryRecordIds.push(operation.operationId);
+    integrationArtifact.operationIds.push(operation.operationId);
+    integrationArtifact.testIds.push(evidence.testCaseId);
     requirement.artifactIds = [...new Set([...requirement.artifactIds, sourceArtifact.artifactId, integrationArtifact.artifactId])].sort();
     requirement.testCaseIds = [evidence.testCaseId];
     requirement.runtimeEvidenceKinds = evidence.runtimeEvidenceKinds ?? ['EXACT_OPERATION_HANDLER', 'POSTGRES_CANONICAL_COMMAND_INTEGRATION', 'TERMINAL_IDEMPOTENCY_REPLAY'];
@@ -696,14 +814,22 @@ async function main() {
     requirement.runtimeEvidenceKinds=['POSTGRES_PLATFORM_RECOVERY_HEAD_PROOF'];requirement.artifactIds=[sourceArtifact.artifactId,integrationArtifact.artifactId].sort();requirement.status='ACTIVE';
   }
   for (const artifact of touchedTraceArtifacts) {
-    artifact.requirementIds = [...new Set(artifact.requirementIds)].sort();
-    artifact.traceAnchors.sort((left, right) => left.requirementId.localeCompare(right.requirementId) || left.locator.localeCompare(right.locator));
-    artifact.canonicalDigest = sha(canonical({ repositoryPath: artifact.repositoryPath, contentDigest: artifact.contentDigest, requirementIds: artifact.requirementIds, traceAnchors: artifact.traceAnchors }));
+    artifact.requirementIds = stableSort([...new Set(artifact.requirementIds)]);
+    artifact.operationIds = stableSort([...new Set(artifact.operationIds)]);
+    artifact.stateMachineIds = stableSort([...new Set(artifact.stateMachineIds)]);
+    artifact.registryRecordIds = stableSort([...new Set(artifact.registryRecordIds)]);
+    artifact.testIds = stableSort([...new Set(artifact.testIds)]);
+    artifact.traceAnchors.sort((left, right) => stableCompare(`${left.requirementId}:${left.locator}`, `${right.requirementId}:${right.locator}`));
   }
   const architectureBlockers = [];
   const surfaceSqlForArchitecture = await readFile(join(root, 'database/baseline/00000000000001_ssot_surface.sql'), 'utf8');
   if ((surfaceSqlForArchitecture.match(/document jsonb NOT NULL DEFAULT '\{\}'::jsonb/giu) ?? []).length > 0) architectureBlockers.push({ code: 'GENERIC_ENTITY_SCHEMA', summary: 'Physical entity schemas still contain generic document storage.' });
   if (requirements.some((requirement) => requirement.artifactIds.length === 0)) architectureBlockers.push({ code: 'TRACEABILITY_INCOMPLETE', summary: 'Requirements do not yet have implementation artifact evidence.' });
+
+  const schemaManifest = { schemaVersion: '1.0', schemas: Object.keys(schemas).sort().map((name) => ({ ref: `contracts/registry-schemas/${name}`, digest: sha(canonical(schemas[name])) })) };
+  schemaManifest.digest = sha(canonical(schemaManifest));
+  for (const [name, schema] of Object.entries(schemas)) addArtifact(`contracts/registry-schemas/${name}`, `${canonical(schema)}\n`, { artifactKind: 'GENERATED_SCHEMA', generatedFrom: ['SSOT_CURRENT.md'], generationToolDigest: compilerDigest, authoritySourceRefs: ['ssot://55/machine-readable-contract-pack/schema'] });
+  addArtifact('contracts/registry-schemas/bundle-manifest.json', `${canonical(schemaManifest)}\n`, { artifactKind: 'GENERATED_SCHEMA_BUNDLE', generatedFrom: ['SSOT_CURRENT.md'], generationToolDigest: compilerDigest, authoritySourceRefs: ['ssot://55/machine-readable-contract-pack/schema-bundle'] });
 
   const registries = [
     ['REQUIREMENT_REGISTRY', 'requirements/requirements.json', requirements],
@@ -722,19 +848,41 @@ async function main() {
     ['ARTIFACT_TRACE_REGISTRY', 'artifact-trace/artifact-trace.json', artifacts]
   ];
 
+  // Materialize reverse requirement edges from the requirement record itself.
+  // This makes the generated pack self-auditing: every forward edge must have
+  // a matching requirementIds entry on the target registry record.
+  const registryTargets = new Map(registries.map(([kind, , records]) => [kind, new Map(records.map((record) => [registryRecordId(kind, record), record]))]));
+  const reverseFields = [
+    ['stateMachineIds', 'STATE_MACHINE_REGISTRY'], ['operationIds', 'OPERATION_CATALOG'], ['bindingIds', 'BINDING_REGISTRY'],
+    ['errorCodeIds', 'ERROR_RETRY_REGISTRY'], ['acceptanceGateIds', 'ACCEPTANCE_GATE_REGISTRY'], ['closurePredicateIds', 'CLOSURE_PREDICATE_REGISTRY'],
+    ['artifactIds', 'ARTIFACT_TRACE_REGISTRY']
+  ];
+  for (const requirement of requirements) {
+    for (const [field, kind] of reverseFields) for (const targetId of requirement[field] ?? []) {
+      const target = registryTargets.get(kind)?.get(targetId);
+      if (!target) throw new Error(`TRACE_TARGET_MISSING:${requirement.requirementId}:${kind}:${targetId}`);
+      target.requirementIds ??= [];
+      target.requirementIds.push(requirement.requirementId);
+    }
+  }
+  const compiledRegistries = registries.map(([kind, dataRefSuffix, records]) => [
+    kind,
+    dataRefSuffix,
+    records.map((record) => decorateRecord(kind, record)).sort((left, right) => stableCompare(left.recordId, right.recordId))
+  ]);
+
   const outputs = new Map();
   for (const [name, schema] of Object.entries(schemas)) outputs.set(`contracts/registry-schemas/${name}`, `${canonical(schema)}\n`);
-  const schemaManifest = { schemaVersion: '1.0', schemas: Object.keys(schemas).sort().map((name) => ({ ref: `contracts/registry-schemas/${name}`, digest: sha(canonical(schemas[name])) })) };
-  schemaManifest.digest = sha(canonical(schemaManifest));
   outputs.set('contracts/registry-schemas/bundle-manifest.json', `${canonical(schemaManifest)}\n`);
 
   const registryManifest = [];
-  for (const [kind, dataRefSuffix, records] of registries) {
+  const registrySchemaRef = new Map(compiledRegistries.map(([kind]) => [kind, `contracts/registry-schemas/${registrySchemaFilenames[kind]}`]));
+  for (const [kind, dataRefSuffix, records] of compiledRegistries) {
     const data = { schemaVersion: '1.0', kind, records };
     const path = `contracts/registries/${dataRefSuffix}`;
     const bytes = `${canonical(data)}\n`;
     outputs.set(path, bytes);
-    registryManifest.push({ kind, schemaRef: 'contracts/registry-schemas/common-record.schema.json', dataRef: path, recordCount: records.length, digest: sha(bytes) });
+    registryManifest.push({ kind, schemaRef: registrySchemaRef.get(kind), dataRef: path, recordCount: records.length, digest: sha(bytes) });
   }
 
   const scriptBytes = await readFile(fileURLToPath(import.meta.url));
@@ -776,8 +924,7 @@ async function main() {
     }
   }
   if (mismatches.length > 0) throw new Error(`CONTRACT_PACK_DRIFT\n${mismatches.join('\n')}`);
-  const actualArtifacts = await collectArtifacts();
-  process.stdout.write(`${checkOnly ? 'verified' : 'generated'} requirements=${requirements.length} operations=${operations.length} files=${outputs.size} repositoryArtifacts=${actualArtifacts.length} pack=${manifest.packDigest}\n`);
+  process.stdout.write(`${checkOnly ? 'verified' : 'generated'} requirements=${requirements.length} operations=${operations.length} files=${outputs.size} repositoryArtifacts=${artifacts.length} pack=${manifest.packDigest}\n`);
 }
 
 await main();
