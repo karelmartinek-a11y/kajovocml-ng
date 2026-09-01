@@ -34,8 +34,10 @@ const baseEvidence = (): ClosureDatabaseEvidence => ({
 describe('TD-06 terminal closure direct-state oracle', () => {
   it('loads concrete production closure records with versioned direct queries', async () => {
     const records = await loadClosureRecords(process.cwd());
-    expect(records).toHaveLength(20);
-    expect(new Set(records.map((item) => item.closurePredicateId)).size).toBe(20);
+    // The compiled registry covers every current terminal root kind; this is
+    // intentionally exact so an omitted root cannot be hidden by a subset.
+    expect(records).toHaveLength(26);
+    expect(new Set(records.map((item) => item.closurePredicateId)).size).toBe(26);
     for (const item of records) {
       expect(item.directQueryIds).toEqual([
         `QUERY-CLOSURE-${item.rootKind}-DB-V1`,
