@@ -49,12 +49,15 @@ async function runStatus(pool:DatabasePool,targetId:string|null):Promise<unknown
       CROSS JOIN kcml.platform_recovery_head recovery
       LEFT JOIN kcml.self_test_case_result result ON result.test_run_id=run.id
       WHERE run.id=$1 AND platform.singleton_key=1 AND deployment.singleton_key=1 AND recovery.singleton_key=1
-      GROUP BY run.id,platform.platform_incarnation_id,deployment.current_epoch,recovery.recovery_epoch,recovery.state,
+    GROUP BY run.id,platform.platform_incarnation_id,deployment.current_epoch,recovery.recovery_epoch,recovery.state,
         recovery.database_start_identity,recovery.platform_incarnation_id,recovery.application_deployment_epoch`,[runId])).rows[0];
     if(!row)throw new DomainError('SELF_TEST_RUN_NOT_FOUND','Self-test run does not exist',404,'DO_NOT_RETRY');
+    const closureEvidence=(await client.query(`SELECT terminal_root_kind,terminal_root_id,terminal_state_version,closure_version,
+        inventory_watermarks,predicate_results,'sha256:'||encode(result_digest,'hex') AS result_digest,created_at
+      FROM kcml.terminal_closure_evidence ORDER BY created_at DESC,terminal_root_kind,terminal_root_id LIMIT 100`)).rows;
     const status=String(row.run.status);const terminal=['PASS','FAIL','CANCELLED','NOT_EXECUTED_ENVIRONMENTAL'].includes(status);const executed=status!=='NOT_EXECUTED_ENVIRONMENTAL';const passed=status==='PASS';
     const checks={recoveryReady:row.recovery_state==='READY'&&row.database_identity_current===true&&row.recovery_lineage_current===true,runLineageCurrent:String(row.run.platform_incarnation_id)===String(row.current_platform_incarnation_id)&&BigInt(row.run.application_deployment_epoch)===BigInt(row.current_deployment_epoch),terminalTimestampsConsistent:terminal?row.run.completed_at!==null:row.run.completed_at===null,evidenceDigestShapesValid:Number(row.inventory.invalidDigestCount)===0,environmentalNotReportedAsPass:status!=='NOT_EXECUTED_ENVIRONMENTAL'||(executed===false&&!passed)};
-    const issues=Object.entries(checks).filter(([,checkPassed])=>!checkPassed).map(([name])=>`SELF_TEST_STATUS_${name.replace(/([a-z0-9])([A-Z])/gu,'$1_$2').toUpperCase()}`);const evidence={runId,status,terminal,executed,passed,consistent:issues.length===0,checks,issues,run:row.run,inventory:row.inventory,authorityHead:{platformIncarnationId:row.current_platform_incarnation_id,applicationDeploymentEpoch:row.current_deployment_epoch,recoveryEpoch:row.recovery_epoch,recoveryState:row.recovery_state}};return {...evidence,evidenceDigest:canonicalDigest(safeJson(evidence))};
+    const issues=Object.entries(checks).filter(([,checkPassed])=>!checkPassed).map(([name])=>`SELF_TEST_STATUS_${name.replace(/([a-z0-9])([A-Z])/gu,'$1_$2').toUpperCase()}`);const evidence={runId,status,terminal,executed,passed,consistent:issues.length===0,checks,issues,run:row.run,inventory:row.inventory,closureEvidence,authorityHead:{platformIncarnationId:row.current_platform_incarnation_id,applicationDeploymentEpoch:row.current_deployment_epoch,recoveryEpoch:row.recovery_epoch,recoveryState:row.recovery_state}};return {...evidence,evidenceDigest:canonicalDigest(safeJson(evidence))};
   });
 }
 
@@ -69,8 +72,11 @@ async function readEvidence(pool:DatabasePool,targetId:string|null,args:JsonObje
         'sha256:'||encode(canonical_digest,'hex') AS canonical_digest,octet_length(canonical_digest)=32 AS digest_shape_valid,created_at
       FROM kcml.self_test_case_result WHERE test_run_id=$1 AND ($2::uuid IS NULL OR id=$2)
         AND ($3::bigint IS NULL OR sequence=$3) ORDER BY sequence,id LIMIT $4`,[runId,evidenceId??null,sequence??null,limit])).rows;
+    const closureEvidence=(await client.query(`SELECT terminal_root_kind,terminal_root_id,terminal_state_version,closure_version,
+        inventory_watermarks,predicate_results,'sha256:'||encode(result_digest,'hex') AS result_digest,created_at
+      FROM kcml.terminal_closure_evidence ORDER BY created_at DESC,terminal_root_kind,terminal_root_id LIMIT 100`)).rows;
     if((evidenceId!==undefined||sequence!==undefined)&&rows.length!==1)throw new DomainError('SELF_TEST_EVIDENCE_NOT_FOUND','Selected self-test evidence does not exist in the target run',404,'DO_NOT_RETRY');
-    const issues=rows.filter(row=>!row.digest_shape_valid).map(row=>`SELF_TEST_EVIDENCE_DIGEST_INVALID:${String(row.id)}`);const evidence={runId,runStatus:run.status,sourceSha:run.source_sha,releaseId:run.release_id,environmentDigest:`sha256:${Buffer.from(run.environment_digest).toString('hex')}`,platformIncarnationId:run.platform_incarnation_id,applicationDeploymentEpoch:String(run.application_deployment_epoch),consistent:issues.length===0,issues,count:rows.length,evidence:rows};return {...evidence,evidenceDigest:canonicalDigest(safeJson(evidence))};
+    const issues=rows.filter(row=>!row.digest_shape_valid).map(row=>`SELF_TEST_EVIDENCE_DIGEST_INVALID:${String(row.id)}`);const evidence={runId,runStatus:run.status,sourceSha:run.source_sha,releaseId:run.release_id,environmentDigest:`sha256:${Buffer.from(run.environment_digest).toString('hex')}`,platformIncarnationId:run.platform_incarnation_id,applicationDeploymentEpoch:String(run.application_deployment_epoch),consistent:issues.length===0,issues,count:rows.length,evidence:rows,closureEvidence};return {...evidence,evidenceDigest:canonicalDigest(safeJson(evidence))};
   });
 }
 

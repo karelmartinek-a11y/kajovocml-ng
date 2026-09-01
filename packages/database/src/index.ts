@@ -96,6 +96,33 @@ export async function inTransactionProfile<T>(
   }
 }
 
+/**
+ * Read-only snapshot used by terminal closure oracles.  `DEFERRABLE` is
+ * intentional: a closure report must observe a safe serializable snapshot or
+ * fail before it starts evaluating predicates.  It must never silently fall
+ * back to a weaker isolation level.
+ */
+export async function inSerializableReadOnlyDeferrable<T>(
+  pool: DatabasePool,
+  body: (client: DatabaseClient) => Promise<T>
+): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('SET TRANSACTION ISOLATION LEVEL SERIALIZABLE, READ ONLY, DEFERRABLE');
+    await client.query("SET LOCAL lock_timeout = '5s'");
+    await client.query("SET LOCAL idle_in_transaction_session_timeout = '15s'");
+    const value = await body(client);
+    await client.query('COMMIT');
+    return value;
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export async function withSerializableRetry<T>(
   pool: DatabasePool,
   body: (client: DatabaseClient) => Promise<T>,
