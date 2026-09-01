@@ -1141,8 +1141,10 @@ for (const entity of missing) {
   baseline.push('  display_name text,');
   baseline.push("  lifecycle text NOT NULL DEFAULT 'ACTIVE',");
   const columns = exactColumns.get(entity.name);
-  if (columns) for (const [name, definition] of columns) baseline.push(`  ${q(name)} ${definition},`);
-  else baseline.push("  document jsonb NOT NULL DEFAULT '{}'::jsonb,");
+  if (!columns) {
+    throw new Error(`POSTGRES_EXACT_SCHEMA_MISSING:${entity.name}`);
+  }
+  for (const [name, definition] of columns) baseline.push(`  ${q(name)} ${definition},`);
   // PostgreSQL generated columns require immutable expressions. The digest is
   // written by the canonical command transaction after validating the entity
   // contract, so it is an ordinary persisted value rather than a JSONB shortcut.
@@ -1172,6 +1174,23 @@ for (const entity of missing) {
 for (const entity of entities) {
   baseline.push(`COMMENT ON TABLE kcml.${q(entity.name)} IS ${sqlLiteral(`SSOT_CURRENT.md chapter 25 entity ${entity.name}; contract sha256 ${entity.contractDigest}`)};`);
 }
+baseline.push(`CREATE OR REPLACE FUNCTION kcml.guard_generation_phase_run() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE allowed boolean := false;
+BEGIN
+  IF NEW.state_version <= OLD.state_version THEN RAISE EXCEPTION 'generation_phase_run state_version must increase' USING ERRCODE='40001'; END IF;
+  IF OLD.state IN ('SUCCEEDED','FAILED','CANCELLED') THEN RAISE EXCEPTION 'generation_phase_run terminal row is immutable' USING ERRCODE='55000'; END IF;
+  allowed := OLD.state = NEW.state OR
+    (OLD.state = 'QUEUED' AND NEW.state IN ('RUNNING','CANCEL_REQUESTED','CANCELLED')) OR
+    (OLD.state = 'RUNNING' AND NEW.state IN ('WAITING_FOR_DEPENDENCY','WAITING_FOR_OWNER','REPAIRING','SUCCEEDED','FAILED','CANCEL_REQUESTED','CANCELLED')) OR
+    (OLD.state IN ('WAITING_FOR_DEPENDENCY','WAITING_FOR_OWNER') AND NEW.state IN ('RUNNING','REPAIRING','FAILED','CANCEL_REQUESTED','CANCELLED')) OR
+    (OLD.state = 'REPAIRING' AND NEW.state IN ('RUNNING','SUCCEEDED','FAILED','CANCEL_REQUESTED','CANCELLED')) OR
+    (OLD.state = 'CANCEL_REQUESTED' AND NEW.state IN ('FAILED','CANCELLED'));
+  IF NOT allowed THEN RAISE EXCEPTION 'invalid generation_phase_run state transition % -> %', OLD.state, NEW.state USING ERRCODE='23514'; END IF;
+  NEW.updated_at := clock_timestamp(); RETURN NEW;
+END $$;`);
+baseline.push('DROP TRIGGER IF EXISTS guard_generation_phase_run ON kcml.generation_phase_run;');
+baseline.push('CREATE TRIGGER guard_generation_phase_run BEFORE UPDATE ON kcml.generation_phase_run FOR EACH ROW EXECUTE FUNCTION kcml.guard_generation_phase_run();');
+baseline.push('');
 baseline.push('');
 baseline.push('ALTER TABLE kcml.ai_model_call DROP CONSTRAINT IF EXISTS ai_model_call_request_descriptor_fk;');
 baseline.push('ALTER TABLE kcml.ai_model_call ADD CONSTRAINT ai_model_call_request_descriptor_fk FOREIGN KEY (request_descriptor_id) REFERENCES kcml.openai_request_descriptor(id);');

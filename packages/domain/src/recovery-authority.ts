@@ -1,16 +1,18 @@
 import type { DatabaseClient } from '@kcml/database';
+import { lockAdvisoryShared } from '@kcml/database';
 import { DomainError } from './errors.js';
 
 export interface RecoveryAuthorityHead extends Record<string, unknown> {
   platform_incarnation_id: string;
   current_epoch: string | number | bigint;
   recovery_epoch: string | number | bigint;
+  recovery_fencing_token: string | number | bigint;
 }
 
 export async function lockAndVerifyPlatformRecovery(client: DatabaseClient): Promise<RecoveryAuthorityHead> {
-  await client.query(`SELECT pg_advisory_xact_lock_shared(hashtextextended('PLATFORM_RECOVERY_BARRIER',0))`);
+  await lockAdvisoryShared(client, 'PLATFORM_RECOVERY_BARRIER', 'platform');
   const row = (await client.query(`SELECT recovery.database_start_identity,recovery.platform_incarnation_id,
-      recovery.application_deployment_epoch,recovery.recovery_epoch,recovery.state,
+      recovery.application_deployment_epoch,recovery.recovery_epoch,recovery.current_fencing_token AS recovery_fencing_token,recovery.state,
       platform.platform_incarnation_id AS current_platform_incarnation_id,
       deployment.current_epoch,kcml.current_database_start_identity() AS current_database_start_identity
     FROM kcml.platform_recovery_head recovery
@@ -33,6 +35,7 @@ export async function lockAndVerifyPlatformRecovery(client: DatabaseClient): Pro
   return {
     platform_incarnation_id: String(row.platform_incarnation_id),
     current_epoch: row.current_epoch,
-    recovery_epoch: row.recovery_epoch
+    recovery_epoch: row.recovery_epoch,
+    recovery_fencing_token: row.recovery_fencing_token
   };
 }

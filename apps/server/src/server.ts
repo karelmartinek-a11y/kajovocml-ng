@@ -7,7 +7,7 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import { createDatabasePool, verifyDatabaseContract, type DatabasePool } from '@kcml/database';
-import { CanonicalOperationService, DomainError, EnvelopeCipher, OperationCatalogService, OwnerAuthenticationService, SecretManager, SsotSurfaceService, SystemChatService, tokenDigest, type SessionPrincipal } from '@kcml/domain';
+import { CanonicalOperationService, canonicalizeDomainError, DomainError, EnvelopeCipher, OperationCatalogService, OwnerAuthenticationService, SecretManager, SsotSurfaceService, SystemChatService, closureReportForRoot, loadClosureRecords, tokenDigest, type SessionPrincipal } from '@kcml/domain';
 import { MetricsRegistry, StructuredLogger, correlationId } from '@kcml/observability';
 import { DatabaseOpenAISecretProvider, ResponsesRuntime } from '@kcml/openai-runtime';
 import { compileAuthorityLineage } from '@kcml/agentic-authority';
@@ -82,7 +82,7 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
   const provider = new DatabaseOpenAISecretProvider(async () => {
     const row = await pool.query(`SELECT id FROM kcml.secret_record WHERE stable_name='OPENAI_API_KEY' AND deleted_at IS NULL`);
     const id = row.rows[0]?.id;
-    if (!id) throw new DomainError('OPENAI_API_KEY_MISSING', 'OpenAI credential is not configured', 409);
+    if (!id) throw new DomainError('OPENAI_CONFIGURATION_REQUIRED', 'OpenAI credential is not configured', 409);
     return (await secrets.reveal(id, 'openai-runtime')).value;
   });
   const responses = new ResponsesRuntime(pool, provider);
@@ -96,8 +96,9 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
   app.addHook('onResponse', async (request, reply) => { reply.header('x-correlation-id', request.requestCorrelationId); metrics.increment('kcml_http_requests_total', { method: request.method, status: String(reply.statusCode) }); });
   app.setErrorHandler((error, request, reply) => {
     const domain = error instanceof DomainError ? error : new DomainError('INTERNAL_ERROR', 'Internal service error', 500);
-    logger.error('request.failed', { correlationId: request.requestCorrelationId, code: domain.code, error: error instanceof Error ? error.message : String(error) });
-    void reply.status(domain.httpStatus).send({ error: { code: domain.code, message: domain.message, retryDirective: domain.retryDirective, details: domain.details, correlationId: request.requestCorrelationId } });
+    const canonical = canonicalizeDomainError(domain);
+    logger.error('request.failed', { correlationId: request.requestCorrelationId, code: canonical.code, error: error instanceof Error ? error.message : String(error), errorRecordDigest: canonical.recordDigest });
+    void reply.status(canonical.record.httpMappings[0] ?? domain.httpStatus).send({ error: { code: canonical.code, message: domain.message, classification: canonical.classification, sideEffectPoint: canonical.sideEffectPoint, retryDirective: canonical.retryDirective, recordDigest: canonical.recordDigest, details: domain.details, correlationId: request.requestCorrelationId } });
   });
 
   const authenticate = async (request: FastifyRequest, requireMfa = true): Promise<void> => {
@@ -158,7 +159,7 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
     'POST /auth/login','POST /auth/login/mfa','POST /auth/logout','POST /auth/api-key-session','GET /session','POST /session/reauthenticate',
     'GET /owner/security','POST /owner/mfa/enroll','POST /owner/mfa/verify','POST /owner/recovery-codes/rotate','GET /owner/sessions','DELETE /owner/sessions/:id','POST /owner/sessions/revoke-others','POST /owner/sessions/revoke-all',
     'GET /owner/api-key','GET /owner/api-key/value','POST /owner/api-key/rotate','GET /owner/api-key/usage',
-    'GET /system/health','GET /system/readiness','GET /system/version','GET /system/capabilities',
+    'GET /system/health','GET /system/readiness','GET /system/version','GET /system/capabilities','GET /system/closure',
     'GET /secrets','POST /secrets','GET /secrets/:id','PATCH /secrets/:id','DELETE /secrets/:id','GET /secrets/:id/value','POST /secrets/:id/versions','GET /secrets/:id/versions','POST /secrets/generate-password','POST /secrets/import','POST /secrets/export',
     'GET /audit/integrity','POST /audit/integrity/verify',
     'POST /chat/ask','POST /browser-sessions/:sessionId/preview-tickets'
@@ -168,6 +169,7 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
   app.post('/api/v1/operations/:operationKey/invoke', async (request) => {
     await authenticate(request);
     const operationKey = decodeURIComponent((request.params as { operationKey: string }).operationKey);
+    if (catalog.get(operationKey).exposureClass === 'INTERNAL_PROTOCOL') throw new DomainError('EXPOSURE_PARITY_INCOMPLETE', `Internal protocol operation ${operationKey} has no public REST exposure`, 404, 'DO_NOT_RETRY');
     return apiSafe(await operations.execute(operationKey, request.body, { callerFingerprint: callerFingerprint(request), actorId: ownerId(request), correlationId: request.requestCorrelationId, idempotencyKey: idempotencyKey(request) }));
   });
 
@@ -226,6 +228,13 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
   });
   app.get('/api/v1/system/version', async (request) => { await authenticate(request); return { product: 'KájovoCML NG', version: '2026.8.30-8', releaseId: process.env.KCML_RELEASE_ID ?? 'development', sourceSha: process.env.KCML_SOURCE_SHA ?? null, deploymentEpoch: await deploymentEpoch(pool), ssotSurfaceFingerprint: SSOT_SURFACE_FINGERPRINT }; });
   app.get('/api/v1/system/capabilities', async (request) => { await authenticate(request); const configured = await pool.query(`SELECT stable_name,kind,active_version_id IS NOT NULL AS configured FROM kcml.secret_record WHERE deleted_at IS NULL ORDER BY stable_name`); return { apiRoutes: SSOT_ROUTES.length, databaseEntities: SSOT_ENTITY_NAMES.length, operationCatalog: catalog.operations.length, credentials: apiSafe(configured.rows) }; });
+  app.get('/api/v1/system/closure', async (request) => {
+    await authenticate(request);
+    const query = z.object({ rootKind: z.string().min(1).optional(), rootId: z.string().uuid().nullable().optional() }).strict().parse(request.query ?? {});
+    const records = await loadClosureRecords(repositoryRoot);
+    if (!query.rootKind) return { closureVersion: 1, rootKinds: records.filter((record) => record.lifecycle === 'ACTIVE').map((record) => ({ rootKind: record.rootKind, closurePredicateId: record.closurePredicateId, directQueryIds: record.directQueryIds, passExpression: record.passExpression, terminalStates: record.terminalStates })) };
+    return apiSafe(await closureReportForRoot(pool, query.rootKind, query.rootId ?? null, repositoryRoot));
+  });
 
   app.get('/api/v1/secrets', async (request) => { await authenticate(request); return secrets.list(); });
   app.post('/api/v1/secrets', async (request) => { await authenticate(request); return secrets.create(request.body, ownerId(request), randomUUID(), request.requestCorrelationId); });

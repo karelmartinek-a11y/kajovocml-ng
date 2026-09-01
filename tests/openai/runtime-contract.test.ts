@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
+import { buildOpenAIRequestPayload, canTransitionOpenAILocalState, normalizeOpenAIResponse } from '../../packages/openai-runtime/src/index.js';
 
 describe('OpenAI trusted runtime contract', () => {
   it('uses official packages and Responses API only inside the trusted runtime', async () => {
@@ -11,5 +12,29 @@ describe('OpenAI trusted runtime contract', () => {
     expect(source).toContain('maxRetries:0');
     const server = await readFile('apps/server/package.json', 'utf8');
     expect(server).not.toContain('"openai"');
+  });
+});
+
+describe('OpenAI persisted lifecycle behavior', () => {
+  it('exposes exactly the SSOT local transition graph and rejects marker transitions', () => {
+    expect(canTransitionOpenAILocalState('QUEUED', 'SUBMITTING')).toBe(true);
+    expect(canTransitionOpenAILocalState('SUBMITTING', 'STREAMING')).toBe(true);
+    expect(canTransitionOpenAILocalState('STREAMING', 'WAITING_FOR_TOOL_OUTPUT')).toBe(true);
+    expect(canTransitionOpenAILocalState('WAITING_FOR_TOOL_OUTPUT', 'COMPLETED')).toBe(true);
+    expect(canTransitionOpenAILocalState('QUEUED', 'COMPLETED')).toBe(false);
+    expect(canTransitionOpenAILocalState('COMPLETED', 'SUBMITTING')).toBe(false);
+  });
+
+  it('normalizes provider status separately from local refusal/incomplete/tool semantics', () => {
+    expect(normalizeOpenAIResponse({ status: 'completed' }, [{ type: 'function_call', call_id: 'call-1', name: 'tool', arguments: '{}' }])).toEqual({ state: 'WAITING_FOR_TOOL_OUTPUT', kind: 'TOOL_CALLS' });
+    expect(normalizeOpenAIResponse({ status: 'completed' }, [{ type: 'message', content: [{ type: 'refusal' }] }])).toEqual({ state: 'REFUSED', kind: 'NO_OUTPUT' });
+    expect(normalizeOpenAIResponse({ status: 'incomplete' }, [{ type: 'message', content: [{ type: 'output_text', text: '{' }] }])).toEqual({ state: 'INCOMPLETE' });
+    expect(normalizeOpenAIResponse({ status: 'completed' }, [{ type: 'message', content: [{ type: 'output_text', text: 'ok' }] }])).toEqual({ state: 'COMPLETED', kind: 'FINAL_OUTPUT' });
+  });
+
+  it('makes background persistence explicit and forbids mixed continuation handles', () => {
+    const request = { parentRunId: 'run', ownerKind: 'AGENT_RUN' as const, model: 'gpt-test', instructions: 'test', input: 'hello', authority: {} as never };
+    expect(buildOpenAIRequestPayload(request, false, true)).toMatchObject({ background: true, store: true, stream: false });
+    expect(() => buildOpenAIRequestPayload({ ...request, previousResponseId: 'resp', conversationId: 'conv' }, false, true)).toThrow('mutually exclusive');
   });
 });

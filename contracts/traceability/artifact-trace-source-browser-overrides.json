@@ -1,0 +1,102 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "ARTIFACT_TRACE_SOURCE",
+  "records": [
+    {
+      "repositoryPath": "packages/browser-preview-protocol/src/index.ts",
+      "requirementIds": [
+        "KCML-REQ-BROWSER-707e7ba8eb2bd2b8c22e5000500c866a4e17e300303d5664ab5a3324df63e791",
+        "KCML-REQ-BROWSER-063f2fc0c2a709c13a063c81536295177019fbfe32434d529c3f8c1cfdff8016"
+      ],
+      "operationIds": ["OP-BROWSER-PREVIEW-RESYNC", "OP-BROWSER-PREVIEW-TICKET-CREATE"],
+      "registryRecordIds": ["OP-BROWSER-PREVIEW-RESYNC", "OP-BROWSER-PREVIEW-TICKET-CREATE", "ORACLE-SIDE-EFFECT"],
+      "testIds": [],
+      "traceAnchors": []
+    },
+    {
+      "repositoryPath": "database/migrations/20260901000101_browser_lifecycle_contract.sql",
+      "requirementIds": [
+        "KCML-REQ-BROWSER-028a37088c596a05ca911c4b663f4336122685aa2d0ac10d7c3e2e57a60e8d03",
+        "KCML-REQ-BROWSER-98bbf07d09405da38565d16e846e730e036cdaba13bfb6735a2b8afec6fcc3a7",
+        "KCML-REQ-BROWSER-847a0282d70df21139577211b6a79e5c12b6f5ba02519b5953dbfd406eeb7526",
+        "KCML-REQ-POSTGRES-353385a4ec8569f948b6dbcb40fa2238c1b3d01acc204846123138bf46ddf608",
+        "KCML-REQ-POSTGRES-a39d6dc4a6b3f5b60ecfdf499c5fc45cecaa48f694e3894327bcbe0633c2296e"
+      ],
+      "operationIds": [
+        "OP-BROWSER-ACTION-DISPATCHPHASE",
+        "OP-BROWSER-ARTIFACT-CREATED",
+        "OP-BROWSER-DOWNLOAD-PERSIST",
+        "OP-BROWSER-SESSION-CREATE"
+      ],
+      "stateMachineIds": ["SM-BROWSER_SESSION"],
+      "registryRecordIds": [],
+      "testIds": ["TEST-TD-05-BROWSER-LIFECYCLE"],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-BROWSER-028a37088c596a05ca911c4b663f4336122685aa2d0ac10d7c3e2e57a60e8d03",
+          "locator": "database/migrations/20260901000101_browser_lifecycle_contract.sql:10",
+          "symbol": "browser_session_lifecycle_contract_check",
+          "snippetDigest": "sha256:029be7bc58dbc364bfea1199187eb28405f00feb94cf45913e98cfdbed9aa31a"
+        },
+        {
+          "requirementId": "KCML-REQ-BROWSER-98bbf07d09405da38565d16e846e730e036cdaba13bfb6735a2b8afec6fcc3a7",
+          "locator": "database/migrations/20260901000101_browser_lifecycle_contract.sql:14",
+          "symbol": "browser_action_dispatch_phase_contract_check",
+          "snippetDigest": "sha256:1df53f1328495959ab9c028176163b1a1c42a1ea10fc57675685eb5323c8bfa5"
+        },
+        {
+          "requirementId": "KCML-REQ-BROWSER-847a0282d70df21139577211b6a79e5c12b6f5ba02519b5953dbfd406eeb7526",
+          "locator": "database/migrations/20260901000101_browser_lifecycle_contract.sql:18",
+          "symbol": "browser_download_completed_contract_check",
+          "snippetDigest": "sha256:d77080aeaba23636d9b5dd0c87b82c1319eec630925b430de89caf8e9156a35e"
+        },
+        {
+          "requirementId": "KCML-REQ-POSTGRES-a39d6dc4a6b3f5b60ecfdf499c5fc45cecaa48f694e3894327bcbe0633c2296e",
+          "locator": "database/migrations/20260901000101_browser_lifecycle_contract.sql:1",
+          "symbol": "KCML_PHASE_PLAN",
+          "snippetDigest": "sha256:24b770f13de33f8e4685cabededd0daccd5bff7deae3403f1323eca54eae88c0"
+        }
+      ]
+    },
+    {
+      "repositoryPath": "tests/browser/lifecycle.test.ts",
+      "requirementIds": [
+        "KCML-REQ-BROWSER-028a37088c596a05ca911c4b663f4336122685aa2d0ac10d7c3e2e57a60e8d03",
+        "KCML-REQ-BROWSER-98bbf07d09405da38565d16e846e730e036cdaba13bfb6735a2b8afec6fcc3a7",
+        "KCML-REQ-BROWSER-847a0282d70df21139577211b6a79e5c12b6f5ba02519b5953dbfd406eeb7526"
+      ],
+      "operationIds": [
+        "OP-BROWSER-ACTION-DISPATCHPHASE",
+        "OP-BROWSER-ACTION-RECONCILE",
+        "OP-BROWSER-ACTION-START",
+        "OP-BROWSER-ARTIFACT-CREATED",
+        "OP-BROWSER-CHALLENGE-REQUIRED",
+        "OP-BROWSER-DOWNLOAD-PERSIST",
+        "OP-BROWSER-DOWNLOAD-STARTED"
+      ],
+      "stateMachineIds": ["SM-BROWSER_SESSION"],
+      "registryRecordIds": ["ORACLE-SIDE-EFFECT"],
+      "testIds": ["TEST-TD-05-BROWSER-LIFECYCLE"],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-BROWSER-028a37088c596a05ca911c4b663f4336122685aa2d0ac10d7c3e2e57a60e8d03",
+          "locator": "tests/browser/lifecycle.test.ts:14",
+          "symbol": "TD-05 persisted Browser Interaction Plane contract",
+          "snippetDigest": "sha256:9211c409125be33e706f06e412f53f3ca1d3a3fc8211f7d3b9fb792f864f9024"
+        },
+        {
+          "requirementId": "KCML-REQ-BROWSER-98bbf07d09405da38565d16e846e730e036cdaba13bfb6735a2b8afec6fcc3a7",
+          "locator": "tests/browser/lifecycle.test.ts:56",
+          "symbol": "browser.action.dispatchPhase",
+          "snippetDigest": "sha256:9981686756edc1b96ff9cf3bf6fe72343459f1a82ca9f5d282434d9b4b740f0a"
+        },
+        {
+          "requirementId": "KCML-REQ-BROWSER-847a0282d70df21139577211b6a79e5c12b6f5ba02519b5953dbfd406eeb7526",
+          "locator": "tests/browser/lifecycle.test.ts:62",
+          "symbol": "browser.download.persist",
+          "snippetDigest": "sha256:bb5a9aaf42aeb12c1a5c6488dac0818bcde7808f5a972a3d805d547829dbaed1"
+        }
+      ]
+    }
+  ]
+}

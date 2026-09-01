@@ -19,6 +19,12 @@ while IFS= read -r package_file; do
 done < <(find apps -mindepth 2 -maxdepth 2 -name package.json -print | sort)
 install -d "${stage}/release/apps/owner-ui"; cp -a apps/owner-ui/dist "${stage}/release/apps/owner-ui/dist"
 cp -a contracts/. "${stage}/release/contracts/"; cp -a database/. "${stage}/release/database/"; cp -a deploy/. "${stage}/release/deploy/"
+if [[ -f /usr/include/node/node_api.h ]]; then
+  cc -O2 -Wall -Wextra -Werror -fPIC -shared -I/usr/include/node deploy/runtime/kcml-fd-cloexec-addon.c -o "${stage}/release/deploy/runtime/kcml-fd-cloexec.node"
+else
+  echo 'Node.js 24 headers unavailable; release cannot contain the required fd CLOEXEC addon.' >&2
+  exit 77
+fi
 cp package.json pnpm-lock.yaml pnpm-workspace.yaml SSOT_CURRENT.md "${stage}/release/"
 printf '%s\n' "${source_sha}" >"${stage}/release/SOURCE_SHA"; printf '%s\n' "${release_id}" >"${stage}/release/RELEASE_ID"
 node -e 'const fs=require("fs");const p=process.argv;fs.writeFileSync(p[1],JSON.stringify({format:"KCML-RELEASE/1",releaseId:p[2],sourceSha:p[3],builtAt:new Date().toISOString(),node:process.version,pnpm:p[4],platform:process.platform,architecture:process.arch},null,2)+"\n")' "${stage}/release/release.json" "${release_id}" "${source_sha}" "$(pnpm --version)"

@@ -4,6 +4,119 @@ import { spawn } from 'node:child_process';
 import { chmod, unlink } from 'node:fs/promises';
 import { z } from '@kcml/schemas';
 
+/** The anonymous handler channel is deliberately separate from the legacy
+ * broker UDS API below. It carries no bearer key or server identity envelope;
+ * the trusted runtime host supplies that context after validating the child.
+ */
+export const RUNTIME_IPC_PROTOCOL = 'KCML-RUNTIME-IPC/1' as const;
+export const RUNTIME_IPC_MAGIC = Buffer.from('KCR1', 'ascii');
+export const RUNTIME_IPC_MAX_PAYLOAD = 1024 * 1024;
+export const RUNTIME_IPC_HEADER_BYTES = 16;
+
+export const runtimeFrameType = {
+  HELLO: 1, READY: 2, REQUEST: 3, RESPONSE: 4, ERROR: 5, STREAM_OPEN: 6,
+  STREAM_CHUNK: 7, STREAM_CREDIT: 8, STREAM_END: 9, CANCEL: 10,
+  SHUTDOWN: 11, HEARTBEAT: 12
+} as const;
+export type RuntimeFrameType = keyof typeof runtimeFrameType;
+
+export interface RuntimeFrame {
+  frameType: RuntimeFrameType;
+  flags: number;
+  sequence: number;
+  payload: unknown;
+}
+
+export const runtimeCapabilityRequestSchema = z.object({
+  requestId: z.string().uuid(),
+  operation: z.enum(['secret', 'callComponent', 'callExternal', 'state', 'logger', 'runtime']),
+  capabilityAlias: z.string().min(1).max(256).nullable(),
+  deadlineAt: z.string().datetime({ offset: true }),
+  cancellationVersion: z.number().int().nonnegative(),
+  correlationId: z.string().uuid(),
+  payload: z.unknown()
+}).strict();
+export type RuntimeCapabilityRequest = z.infer<typeof runtimeCapabilityRequestSchema>;
+
+export function encodeRuntimeFrame(frame: RuntimeFrame): Buffer {
+  const frameType = runtimeFrameType[frame.frameType];
+  if (!frameType) throw new Error('RUNTIME_PROTOCOL_UNKNOWN_FRAME');
+  const payload = Buffer.from(JSON.stringify(frame.payload), 'utf8');
+  if (payload.length > RUNTIME_IPC_MAX_PAYLOAD) throw new Error('RUNTIME_PAYLOAD_TOO_LARGE');
+  if (!Number.isSafeInteger(frame.sequence) || frame.sequence < 0 || frame.sequence > 0xffffffff) throw new Error('RUNTIME_PROTOCOL_SEQUENCE_INVALID');
+  const header = Buffer.alloc(RUNTIME_IPC_HEADER_BYTES);
+  RUNTIME_IPC_MAGIC.copy(header, 0);
+  header.writeUInt8(1, 4);
+  header.writeUInt8(frameType, 5);
+  header.writeUInt16BE(frame.flags, 6);
+  header.writeUInt32BE(payload.length, 8);
+  header.writeUInt32BE(frame.sequence, 12);
+  return Buffer.concat([header, payload]);
+}
+
+export function decodeRuntimeFrameHeader(header: Buffer): { frameType: RuntimeFrameType; flags: number; payloadLength: number; sequence: number } {
+  if (header.length !== RUNTIME_IPC_HEADER_BYTES || !header.subarray(0, 4).equals(RUNTIME_IPC_MAGIC) || header.readUInt8(4) !== 1) throw new Error('RUNTIME_PROTOCOL_INVALID_HEADER');
+  const frameType = (Object.entries(runtimeFrameType).find(([, value]) => value === header.readUInt8(5))?.[0] ?? null) as RuntimeFrameType | null;
+  if (!frameType) throw new Error('RUNTIME_PROTOCOL_UNKNOWN_FRAME');
+  const payloadLength = header.readUInt32BE(8);
+  if (payloadLength > RUNTIME_IPC_MAX_PAYLOAD) throw new Error('RUNTIME_PAYLOAD_TOO_LARGE');
+  return { frameType, flags: header.readUInt16BE(6), payloadLength, sequence: header.readUInt32BE(12) };
+}
+
+function consumeRuntimeFrames(socket: Socket, onFrame: (frame: RuntimeFrame) => Promise<void>): void {
+  let pending = Buffer.alloc(0);
+  let expectedSequence = 0;
+  socket.on('data', (chunk: Buffer) => {
+    pending = Buffer.concat([pending, chunk]);
+    while (pending.length >= RUNTIME_IPC_HEADER_BYTES) {
+      let header: ReturnType<typeof decodeRuntimeFrameHeader>;
+      try {
+        header = decodeRuntimeFrameHeader(pending.subarray(0, RUNTIME_IPC_HEADER_BYTES));
+      } catch (error: unknown) {
+        socket.destroy(error instanceof Error ? error : new Error(String(error)));
+        return;
+      }
+      if (header.sequence !== expectedSequence) {
+        socket.destroy(new Error('RUNTIME_PROTOCOL_SEQUENCE_INVALID'));
+        return;
+      }
+      if (pending.length < RUNTIME_IPC_HEADER_BYTES + header.payloadLength) return;
+      const payloadBytes = pending.subarray(RUNTIME_IPC_HEADER_BYTES, RUNTIME_IPC_HEADER_BYTES + header.payloadLength);
+      pending = pending.subarray(RUNTIME_IPC_HEADER_BYTES + header.payloadLength);
+      expectedSequence += 1;
+      let payload: unknown;
+      try { payload = JSON.parse(payloadBytes.toString('utf8')); } catch { socket.destroy(new Error('RUNTIME_PROTOCOL_INVALID_JSON')); return; }
+      void onFrame({ frameType: header.frameType, flags: header.flags, sequence: header.sequence, payload }).catch((error: unknown) => socket.destroy(error instanceof Error ? error : new Error(String(error))));
+    }
+  });
+}
+
+export function createCapabilityFdServer(socket: Socket, handler: (request: RuntimeCapabilityRequest) => Promise<unknown>): void {
+  let responseSequence = 0;
+  consumeRuntimeFrames(socket, async (frame) => {
+    if (frame.frameType !== 'REQUEST') throw new Error('RUNTIME_PROTOCOL_UNEXPECTED_FRAME');
+    const request = runtimeCapabilityRequestSchema.parse(frame.payload);
+    const payload = await handler(request);
+    socket.write(encodeRuntimeFrame({ frameType: 'RESPONSE', flags: 0, sequence: responseSequence++, payload: { requestId: request.requestId, payload } }));
+  });
+}
+
+export function invokeCapabilityOnFd(socket: Socket, request: RuntimeCapabilityRequest): Promise<unknown> {
+  const validated = runtimeCapabilityRequestSchema.parse(request);
+  socket.write(encodeRuntimeFrame({ frameType: 'REQUEST', flags: 0, sequence: 0, payload: validated }));
+  return new Promise((resolve, reject) => {
+    const onError = (error: Error) => reject(error);
+    socket.once('error', onError);
+    consumeRuntimeFrames(socket, async (frame) => {
+      if (frame.frameType !== 'RESPONSE') throw new Error('RUNTIME_PROTOCOL_UNEXPECTED_FRAME');
+      const response = z.object({ requestId: z.string().uuid(), payload: z.unknown() }).strict().parse(frame.payload);
+      if (response.requestId !== validated.requestId) throw new Error('RUNTIME_PROTOCOL_REQUEST_MISMATCH');
+      socket.off('error', onError);
+      resolve(response.payload);
+    });
+  });
+}
+
 export const capabilityRequestSchema = z.object({
   protocol: z.literal('KCML-CAPABILITY-IPC/1'),
   requestId: z.string().uuid(),

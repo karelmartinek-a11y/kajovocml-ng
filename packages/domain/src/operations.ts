@@ -1,9 +1,9 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseClient, DatabasePool } from '@kcml/database';
-import { allocateContiguousSequence, inTransaction, lockAdvisory } from '@kcml/database';
-import { loadOperationCatalog, type OperationContract } from '@kcml/contract-pack';
+import { allocateContiguousSequence, inTransactionProfile, lockAdvisory } from '@kcml/database';
+import { authorityForOperation, loadAuthorityOwnershipRegistry, loadOperationCatalog, loadRegistry, validateAuthorityOwnership, validateExposureParity, type AuthorityOwnershipRecord, type ExposureParityContract, type OperationContract, type StateMachineContract } from '@kcml/contract-pack';
 import { canonicalDigest, canonicalJson, operationCommandSchema, sha256, type CanonicalJsonValue, type OperationResult } from '@kcml/schemas';
-import { DomainError } from './errors.js';
+import { canonicalizeDomainError, DomainError } from './errors.js';
 import { assertOperationHandlerCoverage, operationHandlerFor } from './operation-handler-catalog.js';
 import { exactComponentMutationOperations, exactComponentQueryOperations, executeExactComponentMutation, executeExactComponentQuery } from './component-operations.js';
 import { exactRuntimeQueryOperations, executeExactRuntimeQuery } from './runtime-operations.js';
@@ -11,6 +11,8 @@ import { lockAndVerifyPlatformRecovery, type RecoveryAuthorityHead } from './rec
 import { exactSecretQueryOperations, executeExactSecretQuery } from './secret-operations.js';
 import { exactSelfTestQueryOperations, executeExactSelfTestQuery } from './self-test-operations.js';
 import { exactMonitorMutationOperations, exactMonitorQueryOperations, executeExactMonitorMutation, executeExactMonitorQuery } from './monitor-operations.js';
+import { mutationHandlerFor, queryHandlerFor, validateCanonicalOperationCommand } from './canonical-operation-handlers.js';
+import { createGenerationJob } from './generation-lifecycle.js';
 
 function requiredSourceSha(): string {
   const value = process.env.KCML_SOURCE_SHA;
@@ -92,33 +94,15 @@ async function checkpointRecoveryAuthorized(client:DatabaseClient,row:any,checkp
     WHERE head.singleton_key=1 AND head.state='READY' AND head.recovery_epoch=$1 AND item.owner_kind='DOMAIN_COMMAND' AND item.owner_id=$2 AND item.classification='TERMINAL_REPLAY' AND item.blocking=false`,[row.recovery_epoch,String(row.command_id)])).rows[0];
   return Boolean(recoveryItem);
 }
-const implementedMutationOperations = new Set([
-  ...exactComponentMutationOperations,
-  ...exactMonitorMutationOperations,
-  'generation.job.create',
-  'browser.session.create',
-  'selfTest.run.start'
-]);
-const implementedQueryOperations = new Set([
-  ...exactComponentQueryOperations,
-  ...exactRuntimeQueryOperations,
-  ...exactSecretQueryOperations,
-  ...exactSelfTestQueryOperations,
-  ...exactMonitorQueryOperations,
-  'audit.integrity.verify'
-]);
-function assertExactOperationImplemented(operationName:string):void{
-  if(implementedMutationOperations.has(operationName)||implementedQueryOperations.has(operationName))return;
-  throw new DomainError('OPERATION_HANDLER_NOT_IMPLEMENTED',`Operation ${operationName} is catalogued but does not yet have an exact SSOT-conformant handler`,501,'DO_NOT_RETRY',{operationName});
-}
 
-export interface CommandContext { callerFingerprint:string; actorId:string; correlationId:string; causationId?:string|null; idempotencyKey?:string|null; }
+export interface CommandContext { callerFingerprint:string; actorId:string; correlationId:string; causationId?:string|null; idempotencyKey?:string|null; recoveryFence?:{recoveryEpoch:bigint;fencingToken:bigint}; }
 
 export class OperationCatalogService {
   readonly #byName = new Map<string, OperationContract>();
-  private constructor(readonly operations: readonly OperationContract[]) { for(const operation of operations)this.#byName.set(operation.operationName,operation); }
-  public static async load(repositoryRoot=process.cwd()):Promise<OperationCatalogService>{const catalog=await loadOperationCatalog(repositoryRoot);assertOperationHandlerCoverage(catalog.records);return new OperationCatalogService(catalog.records);}
+  private constructor(readonly operations: readonly OperationContract[], readonly authorities: readonly AuthorityOwnershipRecord[]) { for(const operation of operations)this.#byName.set(operation.operationName,operation); }
+  public static async load(repositoryRoot=process.cwd()):Promise<OperationCatalogService>{const [catalog,authorityRegistry,stateMachineRegistry,exposureRegistry]=await Promise.all([loadOperationCatalog(repositoryRoot),loadAuthorityOwnershipRegistry(repositoryRoot),loadRegistry<StateMachineContract>('STATE_MACHINE_REGISTRY',repositoryRoot),loadRegistry<ExposureParityContract>('EXPOSURE_PARITY_REGISTRY',repositoryRoot)]);assertOperationHandlerCoverage(catalog.records);validateAuthorityOwnership(catalog.records,authorityRegistry.records,stateMachineRegistry.records);validateExposureParity(catalog.records,exposureRegistry.records);return new OperationCatalogService(catalog.records,authorityRegistry.records);}
   public get(name:string):OperationContract{const operation=this.#byName.get(name);if(!operation)throw new DomainError('OPERATION_NOT_FOUND',`Unknown operation ${name}`,404);return operation;}
+  public authorityFor(operation:OperationContract):AuthorityOwnershipRecord{return authorityForOperation(operation.operationId,this.authorities);}
   public publicView():unknown[]{return this.operations.map(({operationName,operationId,operationRevision,operationFamily,exposureClass,sideEffectClass,retryClass,canonicalDigest,expectedStateVersionPolicy,idempotencyKeySource})=>({operationName,operationId,operationRevision,operationFamily,exposureClass,sideEffectClass,retryClass,canonicalDigest,expectedStateVersionPolicy,idempotencyKeySource}));}
 }
 
@@ -127,8 +111,9 @@ export class CanonicalOperationService {
 
   public async execute(operationName:string,commandInput:unknown,context:CommandContext):Promise<OperationResult>{
     const operation=this.catalog.get(operationName);
-    assertExactOperationImplemented(operationName);
+    this.catalog.authorityFor(operation);
     const command=operationCommandSchema.parse({...((commandInput??{}) as object),operation:operationName});
+    validateCanonicalOperationCommand(operation, command.targetId, command.arguments);
     if(command.deadlineAt&&new Date(command.deadlineAt)<=new Date())throw new DomainError('DEADLINE_EXCEEDED','The absolute command deadline has elapsed',408);
     if(operation.sideEffectClass==='READ_ONLY'||operation.exposureClass==='OWNER_QUERY')return this.executeQuery(operation,command.targetId,command.arguments,context);
     if(!context.idempotencyKey)throw new DomainError('IDEMPOTENCY_KEY_REQUIRED','Idempotency-Key is required for mutating operations',400);
@@ -141,9 +126,10 @@ export class CanonicalOperationService {
     const scopeDigest=createHash('sha256').update(scopeText).digest();
     const keyDigest=createHash('sha256').update(context.idempotencyKey).digest();
 
-    return inTransaction(this.pool,'SERIALIZABLE',async(client)=>{
+    return inTransactionProfile(this.pool,'ONLINE_MUTATION',async(client)=>{
       await lockAdvisory(client,'IDEMPOTENCY_SCOPE',`${scopeDigest.toString('hex')}:${keyDigest.toString('hex')}`);
       const recoveryHead=await lockAndVerifyPlatformRecovery(client);
+      if(context.recoveryFence && (context.recoveryFence.recoveryEpoch!==BigInt(recoveryHead.recovery_epoch)||context.recoveryFence.fencingToken!==BigInt(recoveryHead.recovery_fencing_token)))throw new DomainError('RECOVERY_FENCE_LOST','Recovery action was not admitted with the current recovery fence',409,'RECONCILE_THEN_RETRY');
       const activationResult=await client.query(`SELECT current_epoch AS activation_epoch FROM kcml.activation_head WHERE singleton_key=1 FOR SHARE`);
       const heads={...recoveryHead,activation_epoch:activationResult.rows[0]?.activation_epoch};
       if(heads.activation_epoch===undefined)throw new DomainError('AUTHORITY_HEADS_MISSING','Activation authority head is missing',503,'RETRY_SAME_OPERATION');
@@ -204,7 +190,7 @@ export class CanonicalOperationService {
     else if(exactSelfTestQueryOperations.has(operation.operationName))result=await executeExactSelfTestQuery(this.pool,operation.operationName,targetId,args);
     else if(exactMonitorQueryOperations.has(operation.operationName))result=await executeExactMonitorQuery(this.pool,operation.operationName,targetId,args);
     else if(operation.operationName==='audit.integrity.verify')result=await verifyAuditChain(this.pool);
-    else throw new DomainError('OPERATION_HANDLER_NOT_IMPLEMENTED',`Operation ${operation.operationName} has no exact consistent-read handler`,501,'DO_NOT_RETRY',{operationName:operation.operationName});
+    else result=await queryHandlerFor(operation)(this.pool,{operation,targetId,arguments:args});
     return this.acceptedResult(randomUUID(),randomUUID(),context.correlationId,0n,0n,await currentActivationEpoch(this.pool),false,result,'SUCCEEDED');
   }
 
@@ -248,7 +234,7 @@ export interface WorkerOptions {queueNames:readonly string[];workerId:string;lea
 export class CanonicalCommandWorker {
   public constructor(private readonly pool:DatabasePool,private readonly catalog:OperationCatalogService,private readonly options:WorkerOptions){}
   public async runOnce():Promise<boolean>{
-    const claim=await inTransaction(this.pool,'READ COMMITTED',async(client)=>{
+    const claim=await inTransactionProfile(this.pool,'WORKER_COMMIT',async(client)=>{
       const recoveryHead=await lockAndVerifyPlatformRecovery(client);
       const candidateResult=await client.query(`SELECT q.id,q.command_id FROM kcml.queue_item q JOIN kcml.domain_command c ON c.id=q.command_id
         WHERE q.queue_name=ANY($1) AND q.available_at<=clock_timestamp()
@@ -292,11 +278,11 @@ export class CanonicalCommandWorker {
   }
 
   private async applyCommand(row:any):Promise<unknown>{
-    const operation=this.catalog.get(row.operation_name);const handler=operationHandlerFor(operation.operationName);const args=(row.request.arguments??{}) as JsonObject;
+    const operation=this.catalog.get(row.operation_name);this.catalog.authorityFor(operation);const handler=operationHandlerFor(operation.operationName);const args=(row.request.arguments??{}) as JsonObject;
     if(row.queue_name!==handler.queue)throw new DomainError('OPERATION_QUEUE_BINDING_MISMATCH',`${operation.operationName} was delivered on ${row.queue_name}, expected ${handler.queue}`,409,'DO_NOT_RETRY');
     if(handler.strategy==='CONSISTENT_QUERY')throw new DomainError('READ_OPERATION_QUEUED',`${operation.operationName} must execute on the consistent-read path`,409,'DO_NOT_RETRY');
     return this.applyInCommandTransaction(row,async(client,head)=>{
-      if(operation.operationName==='generation.job.create')return this.createGeneration(client,head,args,row);
+      if(operation.operationName==='generation.job.create')return createGenerationJob(client,args,{platformIncarnationId:head.platform_incarnation_id,applicationDeploymentEpoch:BigInt(head.current_epoch),logicalOperationId:row.logical_operation_id,correlationId:row.correlation_id});
       if(operation.operationName==='browser.session.create')return this.createBrowserSession(client,head,args,row);
       if(operation.operationName==='selfTest.run.start')return this.createTestRun(client,head,args,row);
       if(exactMonitorMutationOperations.has(operation.operationName))return executeExactMonitorMutation(client,{
@@ -310,12 +296,24 @@ export class CanonicalCommandWorker {
         expectedStateVersion:row.request.expectedStateVersion===null||row.request.expectedStateVersion===undefined?null:BigInt(row.request.expectedStateVersion),
         logicalOperationId:row.logical_operation_id,correlationId:row.correlation_id,platformIncarnationId:head.platform_incarnation_id,applicationDeploymentEpoch:BigInt(head.current_epoch)
       });
-      throw new DomainError('OPERATION_HANDLER_NOT_IMPLEMENTED',`Operation ${operation.operationName} reached a worker without an exact SSOT-conformant mutation handler`,501,'DO_NOT_RETRY',{operationName:operation.operationName});
+      return mutationHandlerFor(operation)(client,{
+        operation,
+        commandId: row.command_id,
+        targetId:row.target_id,
+        arguments:args,
+        logicalOperationId:row.logical_operation_id,
+        correlationId:row.correlation_id,
+        expectedStateVersion:row.request.expectedStateVersion===null||row.request.expectedStateVersion===undefined?null:BigInt(row.request.expectedStateVersion),
+        activationEpoch:BigInt(row.activation_epoch),
+        platformIncarnationId:head.platform_incarnation_id,
+        applicationDeploymentEpoch:BigInt(head.current_epoch),
+        recoveryEpoch:BigInt(head.recovery_epoch)
+      });
     });
   }
 
   private async applyInCommandTransaction(row:any,apply:(client:DatabaseClient,head:RecoveryAuthorityHead)=>Promise<unknown>):Promise<unknown>{
-    return inTransaction(this.pool,'SERIALIZABLE',async(client)=>{
+    return inTransactionProfile(this.pool,'WORKER_COMMIT',async(client)=>{
       const head=await lockAndVerifyPlatformRecovery(client);
       if(BigInt(row.recovery_epoch)!==BigInt(head.recovery_epoch))throw new DomainError('STALE_RECOVERY_EPOCH','Worker command recovery epoch is stale',409,'RECONCILE_THEN_RETRY');
       const checkpoint=(await client.query(`SELECT * FROM kcml.domain_command_execution_checkpoint WHERE command_id=$1`,[row.command_id])).rows[0];
@@ -331,10 +329,10 @@ export class CanonicalCommandWorker {
     });
   }
 
-  private async createGeneration(client:DatabaseClient,head:RecoveryAuthorityHead,args:JsonObject,row:any):Promise<unknown>{const result=await client.query(`INSERT INTO kcml.generation_job(mode,objective,target_object_ids,source_artifact_ids,model,platform_incarnation_id,application_deployment_epoch)VALUES($1,$2,$3,$4,$5,$6,$7)RETURNING *`,[args.mode??'CREATE',args.objective??'OWNER generation request',args.targetObjectIds??[],args.sourceArtifactIds??[],args.model??null,head.platform_incarnation_id,head.current_epoch]);return result.rows[0];}
+  private async createGeneration(client:DatabaseClient,head:RecoveryAuthorityHead,args:JsonObject,row:any):Promise<unknown>{return createGenerationJob(client,args,{platformIncarnationId:head.platform_incarnation_id,applicationDeploymentEpoch:BigInt(head.current_epoch),logicalOperationId:row.logical_operation_id,correlationId:row.correlation_id});}
   private async createBrowserSession(client:DatabaseClient,head:RecoveryAuthorityHead,args:JsonObject,row:any):Promise<unknown>{const result=await client.query(`INSERT INTO kcml.browser_session(parent_kind,parent_id,purpose,execution_target,runtime_build_id,account_binding_id,operation_scope,current_url,platform_incarnation_id,application_deployment_epoch)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)RETURNING *`,[args.parentKind??'OWNER_CHAT',dbUuid(args.parentId)??row.logical_operation_id,args.purpose??'OWNER browser session',args.executionTarget??'SERVER_MANAGED',args.runtimeBuildId??process.env.KCML_BROWSER_RUNTIME_BUILD??'playwright-1.58.2',dbUuid(args.accountBindingId),args.operationScope??{},args.targetUrl??null,head.platform_incarnation_id,head.current_epoch]);return result.rows[0];}
   private async createTestRun(client:DatabaseClient,head:RecoveryAuthorityHead,args:JsonObject,_row:any):Promise<unknown>{const env=jsonSafe({releaseId:process.env.KCML_RELEASE_ID??'development',sourceSha:requiredSourceSha()});const result=await client.query(`INSERT INTO kcml.self_test_run(suite_key,run_kind,source_sha,release_id,environment_digest,seed,platform_incarnation_id,application_deployment_epoch)VALUES($1,$2,$3,$4,$5,$6,$7,$8)RETURNING *`,[args.suiteKey??'self-test',args.runKind??'SELF_TEST',requiredSourceSha(),process.env.KCML_RELEASE_ID??'development',digestBytes(canonicalDigest(env)),args.seed??null,head.platform_incarnation_id,head.current_epoch]);return result.rows[0];}
-  private async complete(row:any,output:unknown):Promise<void>{await inTransaction(this.pool,'SERIALIZABLE',async(client)=>{
+  private async complete(row:any,output:unknown):Promise<void>{await inTransactionProfile(this.pool,'WORKER_COMMIT',async(client)=>{
     const recoveryHead=await lockAndVerifyPlatformRecovery(client);if(BigInt(row.recovery_epoch)!==BigInt(recoveryHead.recovery_epoch))throw new DomainError('STALE_RECOVERY_EPOCH','Worker terminal write recovery epoch is stale',409,'RECONCILE_THEN_RETRY');
     const checkpoint=(await client.query(`SELECT * FROM kcml.domain_command_execution_checkpoint WHERE command_id=$1`,[row.command_id])).rows[0];
     if(!checkpoint||!await checkpointRecoveryAuthorized(client,row,checkpoint))throw new DomainError('COMMAND_CHECKPOINT_MISSING','Successful terminalization requires the exact immutable execution checkpoint from the same recovery epoch or an authorized terminal-replay classification',409,'RECONCILE_THEN_RETRY');
@@ -351,23 +349,30 @@ export class CanonicalCommandWorker {
     await terminalizeCommandGuards(client,row.command_id,row.logical_operation_id,row.concurrency_claim_id??null);
     await audit(client,'domain.command.succeeded',this.options.workerId,'DOMAIN_COMMAND',row.command_id,row.correlation_id,null,{commandId:row.command_id,operationName:row.operation_name,resultDigest:canonicalDigest(safeOutput)});
   });}
-  private async fail(row:any,error:unknown):Promise<void>{const message=error instanceof Error?error.message:String(error);await inTransaction(this.pool,'SERIALIZABLE',async(client)=>{
+  private async fail(row:any,error:unknown):Promise<void>{const message=error instanceof Error?error.message:String(error);await inTransactionProfile(this.pool,'WORKER_COMMIT',async(client)=>{
     const recoveryHead=await lockAndVerifyPlatformRecovery(client);if(BigInt(row.recovery_epoch)!==BigInt(recoveryHead.recovery_epoch))throw new DomainError('STALE_RECOVERY_EPOCH','Worker failure write recovery epoch is stale',409,'RECONCILE_THEN_RETRY');
     const checkpointExists=Number((await client.query(`SELECT count(*)::int AS count FROM kcml.domain_command_execution_checkpoint WHERE command_id=$1`,[row.command_id])).rows[0]?.count??0)>0;
     if(checkpointExists)throw new DomainError('APPLIED_COMMAND_CANNOT_FAIL','An applied command with immutable checkpoint must resume terminal replay instead of becoming failed',409,'RECONCILE_THEN_RETRY');
     await verifyWorkerClaimAndAdmission(client,row,['ADMITTED'],false);
     const locked=await client.query(`SELECT * FROM kcml.queue_item WHERE id=$1 FOR UPDATE`,[row.id]);const current=locked.rows[0];if(!current||current.status!=='CLAIMED'||current.lease_owner!==this.options.workerId)return;
-    const retry=Number(current.attempt_count)<Number(current.max_attempts)&&!(error instanceof DomainError&&error.retryDirective==='DO_NOT_RETRY');
+    const canonicalError = canonicalizeDomainError(error);
+    // A domain handler may expose a narrower, exact contract code while the
+    // transport projection is still supplied by the stable error registry.
+    // Never turn its explicit DO_NOT_RETRY terminality into a retry merely
+    // because the projection is conservative.
+    const effectiveRetryDirective=error instanceof DomainError?error.retryDirective:canonicalError.retryDirective;
+    const effectiveCode=error instanceof DomainError?error.code:canonicalError.code;
+    const retry=Number(current.attempt_count)<Number(current.max_attempts)&&effectiveRetryDirective!=='DO_NOT_RETRY';
     if(retry){
       await client.query(`UPDATE kcml.queue_item SET status='READY',available_at=clock_timestamp()+make_interval(secs=>least(300,power(2,attempt_count)::int)),lease_owner=NULL,lease_expires_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`,[row.id]);
-      await client.query(`UPDATE kcml.domain_command SET status='ACCEPTED',error=$2,state_version=state_version+1 WHERE id=$1`,[row.command_id,{code:'WORKER_RETRY',message}]);
+      await client.query(`UPDATE kcml.domain_command SET status='ACCEPTED',error=$2,state_version=state_version+1 WHERE id=$1`,[row.command_id,{code:canonicalError.code,message,classification:canonicalError.classification,sideEffectPoint:canonicalError.sideEffectPoint,retryDirective:canonicalError.retryDirective,recordDigest:canonicalError.recordDigest,details:error instanceof DomainError?error.details:null}]);
     }else{
-      const failure={code:error instanceof DomainError?error.code:'COMMAND_FAILED',message,retryDirective:error instanceof DomainError?error.retryDirective:'DO_NOT_RETRY' as const,details:error instanceof DomainError?error.details:null};
+      const failure={code:effectiveCode,message,classification:canonicalError.classification,sideEffectPoint:canonicalError.sideEffectPoint,retryDirective:effectiveRetryDirective,recordDigest:canonicalError.recordDigest,details:error instanceof DomainError?error.details:null};
       const failureDigest=canonicalDigest(jsonSafe(failure));const terminalResponse:OperationResult={status:'FAILED_FINAL',metadata:{correlationId:row.correlation_id,logicalOperationId:row.logical_operation_id,commandId:row.command_id,stateVersion:0n,eventSequence:0n,activationEpoch:0n,resultDigest:failureDigest,idempotencyReplay:false,serverTime:new Date().toISOString()},result:null,error:failure};
       const safeTerminal=jsonSafe(terminalResponse);const terminalDigest=digestBytes(canonicalDigest(safeTerminal));
       await client.query(`UPDATE kcml.queue_item SET status='FAILED_FINAL',lease_owner=NULL,lease_expires_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`,[row.id]);
       await client.query(`UPDATE kcml.domain_command SET status='FAILED_FINAL',error=$2,completed_at=clock_timestamp(),state_version=state_version+1 WHERE id=$1`,[row.command_id,failure]);
-      await client.query(`UPDATE kcml.domain_idempotency_record SET lifecycle='FAILED_FINAL',response_status=$2,response_body=$3,response_digest=$4,terminal_outcome_digest=$4,completed_at=clock_timestamp(),updated_at=clock_timestamp(),state_version=state_version+1 WHERE command_id=$1`,[row.command_id,error instanceof DomainError?error.httpStatus:500,safeTerminal,terminalDigest]);
+      await client.query(`UPDATE kcml.domain_idempotency_record SET lifecycle='FAILED_FINAL',response_status=$2,response_body=$3,response_digest=$4,terminal_outcome_digest=$4,completed_at=clock_timestamp(),updated_at=clock_timestamp(),state_version=state_version+1 WHERE command_id=$1`,[row.command_id,canonicalError.record.httpMappings[0] ?? (error instanceof DomainError ? error.httpStatus : 500),safeTerminal,terminalDigest]);
       await terminalizeCommandGuards(client,row.command_id,row.logical_operation_id,row.concurrency_claim_id??null);
     }
   });}

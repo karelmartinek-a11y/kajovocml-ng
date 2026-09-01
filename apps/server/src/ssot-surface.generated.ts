@@ -268,7 +268,7 @@ export const SSOT_ROUTES = [
     "path": "/auth/api-key-session",
     "routeKey": "POST /auth/api-key-session",
     "entity": "owner_session",
-    "operation": "ownerApiKey.session.exchange",
+    "operation": null,
     "mutating": true
   },
   {
@@ -356,7 +356,7 @@ export const SSOT_ROUTES = [
     "path": "/owner/api-key",
     "routeKey": "GET /owner/api-key",
     "entity": "owner_api_credential",
-    "operation": "ownerApiKey.read",
+    "operation": null,
     "mutating": false
   },
   {
@@ -364,7 +364,7 @@ export const SSOT_ROUTES = [
     "path": "/owner/api-key/value",
     "routeKey": "GET /owner/api-key/value",
     "entity": "owner_api_credential",
-    "operation": "ownerApiKey.reveal",
+    "operation": null,
     "mutating": false
   },
   {
@@ -372,7 +372,7 @@ export const SSOT_ROUTES = [
     "path": "/owner/api-key/rotate",
     "routeKey": "POST /owner/api-key/rotate",
     "entity": "owner_api_credential",
-    "operation": "ownerApiKey.rotate",
+    "operation": null,
     "mutating": true
   },
   {
@@ -380,7 +380,7 @@ export const SSOT_ROUTES = [
     "path": "/owner/api-key/usage",
     "routeKey": "GET /owner/api-key/usage",
     "entity": "owner_api_credential",
-    "operation": "ownerApiKey.read",
+    "operation": null,
     "mutating": false
   },
   {
@@ -396,7 +396,7 @@ export const SSOT_ROUTES = [
     "path": "/dashboard/layout",
     "routeKey": "PUT /dashboard/layout",
     "entity": "dashboard_node_position",
-    "operation": null,
+    "operation": "component.revision.publish",
     "mutating": true
   },
   {
@@ -420,7 +420,7 @@ export const SSOT_ROUTES = [
     "path": "/dashboard/connections/preview",
     "routeKey": "POST /dashboard/connections/preview",
     "entity": "dashboard_connection",
-    "operation": null,
+    "operation": "component.revision.publish",
     "mutating": true
   },
   {
@@ -428,7 +428,7 @@ export const SSOT_ROUTES = [
     "path": "/dashboard/connections",
     "routeKey": "POST /dashboard/connections",
     "entity": "dashboard_connection",
-    "operation": null,
+    "operation": "component.register",
     "mutating": true
   },
   {
@@ -436,7 +436,7 @@ export const SSOT_ROUTES = [
     "path": "/dashboard/connections/:id/binding",
     "routeKey": "PUT /dashboard/connections/:id/binding",
     "entity": "dashboard_connection",
-    "operation": null,
+    "operation": "component.revision.publish",
     "mutating": true
   },
   {
@@ -444,7 +444,7 @@ export const SSOT_ROUTES = [
     "path": "/dashboard/connections/:id",
     "routeKey": "DELETE /dashboard/connections/:id",
     "entity": "dashboard_connection",
-    "operation": null,
+    "operation": "component.deregister",
     "mutating": true
   },
   {
@@ -452,7 +452,7 @@ export const SSOT_ROUTES = [
     "path": "/dashboard/nodes/:id/suspension",
     "routeKey": "PUT /dashboard/nodes/:id/suspension",
     "entity": "component",
-    "operation": null,
+    "operation": "component.suspend",
     "mutating": true
   },
   {
@@ -468,7 +468,7 @@ export const SSOT_ROUTES = [
     "path": "/dashboard/nodes/:id/deregister",
     "routeKey": "POST /dashboard/nodes/:id/deregister",
     "entity": "component",
-    "operation": null,
+    "operation": "component.deregister",
     "mutating": true
   },
   {
@@ -476,7 +476,7 @@ export const SSOT_ROUTES = [
     "path": "/dashboard/secrets/:secretId/bindings",
     "routeKey": "POST /dashboard/secrets/:secretId/bindings",
     "entity": "secret_binding",
-    "operation": null,
+    "operation": "secret.bind",
     "mutating": true
   },
   {
@@ -484,7 +484,7 @@ export const SSOT_ROUTES = [
     "path": "/dashboard/secrets/:secretId/bindings/:nodeId",
     "routeKey": "DELETE /dashboard/secrets/:secretId/bindings/:nodeId",
     "entity": "secret_binding",
-    "operation": null,
+    "operation": "secret.unbind",
     "mutating": true
   },
   {
@@ -500,7 +500,7 @@ export const SSOT_ROUTES = [
     "path": "/dashboard/secrets/:secretId/bindings/bulk",
     "routeKey": "POST /dashboard/secrets/:secretId/bindings/bulk",
     "entity": "secret_binding",
-    "operation": null,
+    "operation": "secret.bind",
     "mutating": true
   },
   {
@@ -532,7 +532,7 @@ export const SSOT_ROUTES = [
     "path": "/components/:id",
     "routeKey": "PATCH /components/:id",
     "entity": "component",
-    "operation": null,
+    "operation": "component.revision.publish",
     "mutating": true
   },
   {
@@ -548,7 +548,7 @@ export const SSOT_ROUTES = [
     "path": "/components/:id/revisions",
     "routeKey": "POST /components/:id/revisions",
     "entity": "component_revision",
-    "operation": "component.register",
+    "operation": "component.revision.publish",
     "mutating": true
   },
   {
@@ -636,7 +636,7 @@ export const SSOT_ROUTES = [
     "path": "/components/:id/repair",
     "routeKey": "POST /components/:id/repair",
     "entity": "component",
-    "operation": "component.register",
+    "operation": "component.restore",
     "mutating": true
   },
   {
@@ -652,7 +652,7 @@ export const SSOT_ROUTES = [
     "path": "/components/:id/e2e-runs",
     "routeKey": "POST /components/:id/e2e-runs",
     "entity": "component_e2e_run",
-    "operation": "component.register",
+    "operation": "component.verify",
     "mutating": true
   },
   {
@@ -660,7 +660,7 @@ export const SSOT_ROUTES = [
     "path": "/components/:id/state-queries",
     "routeKey": "POST /components/:id/state-queries",
     "entity": "component_state_history",
-    "operation": "component.register",
+    "operation": "component.verify",
     "mutating": true
   },
   {
@@ -668,7 +668,7 @@ export const SSOT_ROUTES = [
     "path": "/components/:id/heartbeat-challenges",
     "routeKey": "POST /components/:id/heartbeat-challenges",
     "entity": "component_pulse_contract",
-    "operation": "component.register",
+    "operation": "component.verify",
     "mutating": true
   },
   {
@@ -724,7 +724,7 @@ export const SSOT_ROUTES = [
     "path": "/mcp-servers",
     "routeKey": "POST /mcp-servers",
     "entity": "mcp_server_revision_profile",
-    "operation": null,
+    "operation": "mcp.contract.compatibility",
     "mutating": true
   },
   {
@@ -740,7 +740,7 @@ export const SSOT_ROUTES = [
     "path": "/mcp-servers/:id",
     "routeKey": "PATCH /mcp-servers/:id",
     "entity": "mcp_server_revision_profile",
-    "operation": null,
+    "operation": "mcp.contract.compatibility",
     "mutating": true
   },
   {
@@ -756,7 +756,7 @@ export const SSOT_ROUTES = [
     "path": "/mcp-servers/:id/revisions",
     "routeKey": "POST /mcp-servers/:id/revisions",
     "entity": "mcp_server_revision_profile",
-    "operation": null,
+    "operation": "mcp.contract.compatibility",
     "mutating": true
   },
   {
@@ -788,7 +788,7 @@ export const SSOT_ROUTES = [
     "path": "/mcp-servers/:id/revisions/:revisionId/activate",
     "routeKey": "POST /mcp-servers/:id/revisions/:revisionId/activate",
     "entity": "mcp_server_revision_profile",
-    "operation": null,
+    "operation": "mcp.contract.compatibility",
     "mutating": true
   },
   {
@@ -812,7 +812,7 @@ export const SSOT_ROUTES = [
     "path": "/mcp-servers/:id/discovery-snapshots",
     "routeKey": "POST /mcp-servers/:id/discovery-snapshots",
     "entity": "mcp_discovery_snapshot",
-    "operation": null,
+    "operation": "mcp.discovery.snapshot",
     "mutating": true
   },
   {
@@ -860,7 +860,7 @@ export const SSOT_ROUTES = [
     "path": "/mcp-servers/:id/request-metadata-test",
     "routeKey": "POST /mcp-servers/:id/request-metadata-test",
     "entity": "mcp_server_revision_profile",
-    "operation": null,
+    "operation": "mcp.contract.validate",
     "mutating": true
   },
   {
@@ -868,7 +868,7 @@ export const SSOT_ROUTES = [
     "path": "/mcp-servers/:id/streamable-http-test",
     "routeKey": "POST /mcp-servers/:id/streamable-http-test",
     "entity": "mcp_server_revision_profile",
-    "operation": null,
+    "operation": "mcp.contract.validate",
     "mutating": true
   },
   {
@@ -876,7 +876,7 @@ export const SSOT_ROUTES = [
     "path": "/mcp-servers/:id/cache-pagination-test",
     "routeKey": "POST /mcp-servers/:id/cache-pagination-test",
     "entity": "mcp_server_revision_profile",
-    "operation": null,
+    "operation": "mcp.cache.invalidate",
     "mutating": true
   },
   {
@@ -884,7 +884,7 @@ export const SSOT_ROUTES = [
     "path": "/mcp-servers/:id/mrtr-test",
     "routeKey": "POST /mcp-servers/:id/mrtr-test",
     "entity": "mcp_server_revision_profile",
-    "operation": null,
+    "operation": "mcp.tools.reconcile",
     "mutating": true
   },
   {
@@ -892,7 +892,7 @@ export const SSOT_ROUTES = [
     "path": "/mcp-servers/:id/tasks-test",
     "routeKey": "POST /mcp-servers/:id/tasks-test",
     "entity": "mcp_server_revision_profile",
-    "operation": null,
+    "operation": "mcp.task.update",
     "mutating": true
   },
   {
@@ -900,7 +900,7 @@ export const SSOT_ROUTES = [
     "path": "/mcp-servers/:id/wire-edge-matrix",
     "routeKey": "POST /mcp-servers/:id/wire-edge-matrix",
     "entity": "mcp_server_revision_profile",
-    "operation": null,
+    "operation": "mcp.wire.verify",
     "mutating": true
   },
   {
@@ -948,7 +948,7 @@ export const SSOT_ROUTES = [
     "path": "/mcp-servers/:id/subscriptions/list-test",
     "routeKey": "POST /mcp-servers/:id/subscriptions/list-test",
     "entity": "mcp_server_revision_profile",
-    "operation": null,
+    "operation": "mcp.subscription.listen",
     "mutating": true
   },
   {
@@ -1068,7 +1068,7 @@ export const SSOT_ROUTES = [
     "path": "/mcp-subscriptions/:subscriptionId/cancel",
     "routeKey": "POST /mcp-subscriptions/:subscriptionId/cancel",
     "entity": "mcp_subscription",
-    "operation": "mcp.tools.cancel",
+    "operation": "mcp.subscription.cancel",
     "mutating": true
   },
   {
@@ -1132,7 +1132,7 @@ export const SSOT_ROUTES = [
     "path": "/mcp-tasks/:taskId/cancel",
     "routeKey": "POST /mcp-tasks/:taskId/cancel",
     "entity": "mcp_task",
-    "operation": "mcp.tools.cancel",
+    "operation": "mcp.task.cancel",
     "mutating": true
   },
   {
@@ -1156,7 +1156,7 @@ export const SSOT_ROUTES = [
     "path": "/mcp-tools",
     "routeKey": "POST /mcp-tools",
     "entity": "component_tool_contract",
-    "operation": null,
+    "operation": "mcp.contract.compatibility",
     "mutating": true
   },
   {
@@ -1204,7 +1204,7 @@ export const SSOT_ROUTES = [
     "path": "/mcp-resources/:id",
     "routeKey": "GET /mcp-resources/:id",
     "entity": "component_resource_contract",
-    "operation": "mcp.resources.list",
+    "operation": "mcp.resources.read",
     "mutating": false
   },
   {
@@ -1236,7 +1236,7 @@ export const SSOT_ROUTES = [
     "path": "/mcp-prompts/:id",
     "routeKey": "GET /mcp-prompts/:id",
     "entity": "component_prompt_contract",
-    "operation": "mcp.prompts.list",
+    "operation": "mcp.prompts.get",
     "mutating": false
   },
   {
@@ -1252,7 +1252,7 @@ export const SSOT_ROUTES = [
     "path": "/mcp-aliases/preview",
     "routeKey": "POST /mcp-aliases/preview",
     "entity": "mcp_tool_alias",
-    "operation": null,
+    "operation": "mcp.contract.compatibility",
     "mutating": true
   },
   {
@@ -1260,7 +1260,7 @@ export const SSOT_ROUTES = [
     "path": "/mcp-aliases",
     "routeKey": "POST /mcp-aliases",
     "entity": "mcp_tool_alias",
-    "operation": null,
+    "operation": "mcp.contract.compatibility",
     "mutating": true
   },
   {
@@ -1268,7 +1268,7 @@ export const SSOT_ROUTES = [
     "path": "/mcp-aliases/:id",
     "routeKey": "DELETE /mcp-aliases/:id",
     "entity": "mcp_tool_alias",
-    "operation": null,
+    "operation": "mcp.discovery.invalidate",
     "mutating": true
   },
   {
@@ -1284,7 +1284,7 @@ export const SSOT_ROUTES = [
     "path": "/agents",
     "routeKey": "POST /agents",
     "entity": "agent_definition",
-    "operation": null,
+    "operation": "agent.eval.start",
     "mutating": true
   },
   {
@@ -1300,7 +1300,7 @@ export const SSOT_ROUTES = [
     "path": "/agents/:id",
     "routeKey": "PATCH /agents/:id",
     "entity": "agent_definition",
-    "operation": null,
+    "operation": "agent.eval.result",
     "mutating": true
   },
   {
@@ -1316,7 +1316,7 @@ export const SSOT_ROUTES = [
     "path": "/agents/:id/revisions",
     "routeKey": "POST /agents/:id/revisions",
     "entity": "agent_revision",
-    "operation": null,
+    "operation": "agent.eval.start",
     "mutating": true
   },
   {
@@ -1332,7 +1332,7 @@ export const SSOT_ROUTES = [
     "path": "/agents/:id/revisions/:revisionId/validate",
     "routeKey": "POST /agents/:id/revisions/:revisionId/validate",
     "entity": "agent_revision",
-    "operation": null,
+    "operation": "agent.eval.result",
     "mutating": true
   },
   {
@@ -1340,7 +1340,7 @@ export const SSOT_ROUTES = [
     "path": "/agents/:id/revisions/:revisionId/verify",
     "routeKey": "POST /agents/:id/revisions/:revisionId/verify",
     "entity": "agent_revision",
-    "operation": null,
+    "operation": "agent.eval.result",
     "mutating": true
   },
   {
@@ -1348,7 +1348,7 @@ export const SSOT_ROUTES = [
     "path": "/agents/:id/revisions/:revisionId/activate",
     "routeKey": "POST /agents/:id/revisions/:revisionId/activate",
     "entity": "agent_revision",
-    "operation": null,
+    "operation": "agent.eval.result",
     "mutating": true
   },
   {
@@ -1356,7 +1356,7 @@ export const SSOT_ROUTES = [
     "path": "/agents/:id/revisions/:revisionId/compatibility",
     "routeKey": "POST /agents/:id/revisions/:revisionId/compatibility",
     "entity": "agent_revision",
-    "operation": null,
+    "operation": "agent.eval.result",
     "mutating": true
   },
   {
@@ -1372,7 +1372,7 @@ export const SSOT_ROUTES = [
     "path": "/agents/:id/revisions/:revisionId/tool-bindings/preview",
     "routeKey": "POST /agents/:id/revisions/:revisionId/tool-bindings/preview",
     "entity": "agent_tool_binding",
-    "operation": null,
+    "operation": "agent.tool.request",
     "mutating": true
   },
   {
@@ -1404,7 +1404,7 @@ export const SSOT_ROUTES = [
     "path": "/agents/:id/enable",
     "routeKey": "POST /agents/:id/enable",
     "entity": "agent_definition",
-    "operation": null,
+    "operation": "agent.run.start",
     "mutating": true
   },
   {
@@ -1412,7 +1412,7 @@ export const SSOT_ROUTES = [
     "path": "/agents/:id/disable",
     "routeKey": "POST /agents/:id/disable",
     "entity": "agent_definition",
-    "operation": null,
+    "operation": "agent.run.cancel",
     "mutating": true
   },
   {
@@ -1420,7 +1420,7 @@ export const SSOT_ROUTES = [
     "path": "/agents/:id/repair",
     "routeKey": "POST /agents/:id/repair",
     "entity": "agent_definition",
-    "operation": null,
+    "operation": "agent.run.manualReview",
     "mutating": true
   },
   {
@@ -1428,7 +1428,7 @@ export const SSOT_ROUTES = [
     "path": "/agents/:id/runs",
     "routeKey": "POST /agents/:id/runs",
     "entity": "agent_run",
-    "operation": null,
+    "operation": "agent.run.start",
     "mutating": true
   },
   {
@@ -1468,7 +1468,7 @@ export const SSOT_ROUTES = [
     "path": "/agent-runs/:runId/messages",
     "routeKey": "POST /agent-runs/:runId/messages",
     "entity": "agent_message",
-    "operation": null,
+    "operation": "agent.message.append",
     "mutating": true
   },
   {
@@ -1572,7 +1572,7 @@ export const SSOT_ROUTES = [
     "path": "/agent-sessions/:sessionId/close",
     "routeKey": "POST /agent-sessions/:sessionId/close",
     "entity": "agent_session",
-    "operation": null,
+    "operation": "agent.session.compact",
     "mutating": true
   },
   {
@@ -1588,7 +1588,7 @@ export const SSOT_ROUTES = [
     "path": "/agents/:id/memory/search",
     "routeKey": "POST /agents/:id/memory/search",
     "entity": "agent_memory_namespace",
-    "operation": null,
+    "operation": "agent.memory.read",
     "mutating": true
   },
   {
@@ -1596,7 +1596,7 @@ export const SSOT_ROUTES = [
     "path": "/agents/:id/memory/items",
     "routeKey": "POST /agents/:id/memory/items",
     "entity": "agent_memory_item",
-    "operation": null,
+    "operation": "agent.memory.write",
     "mutating": true
   },
   {
@@ -1604,7 +1604,7 @@ export const SSOT_ROUTES = [
     "path": "/agents/:id/memory/items/:itemId",
     "routeKey": "DELETE /agents/:id/memory/items/:itemId",
     "entity": "agent_memory_item",
-    "operation": null,
+    "operation": "agent.memory.write",
     "mutating": true
   },
   {
@@ -1620,7 +1620,7 @@ export const SSOT_ROUTES = [
     "path": "/agents/:id/eval-suites",
     "routeKey": "POST /agents/:id/eval-suites",
     "entity": "agent_eval_suite",
-    "operation": null,
+    "operation": "agent.eval.start",
     "mutating": true
   },
   {
@@ -1636,7 +1636,7 @@ export const SSOT_ROUTES = [
     "path": "/agent-eval-suites/:suiteId/runs",
     "routeKey": "POST /agent-eval-suites/:suiteId/runs",
     "entity": "agent_eval_suite",
-    "operation": null,
+    "operation": "agent.eval.start",
     "mutating": true
   },
   {
@@ -1668,7 +1668,7 @@ export const SSOT_ROUTES = [
     "path": "/agents/:id/triggers",
     "routeKey": "POST /agents/:id/triggers",
     "entity": "agent_trigger",
-    "operation": null,
+    "operation": "agent.delegate.request",
     "mutating": true
   },
   {
@@ -1676,7 +1676,7 @@ export const SSOT_ROUTES = [
     "path": "/agents/:id/triggers/:triggerId",
     "routeKey": "PATCH /agents/:id/triggers/:triggerId",
     "entity": "agent_trigger",
-    "operation": null,
+    "operation": "agent.delegate.request",
     "mutating": true
   },
   {
@@ -1684,7 +1684,7 @@ export const SSOT_ROUTES = [
     "path": "/agents/:id/triggers/:triggerId",
     "routeKey": "DELETE /agents/:id/triggers/:triggerId",
     "entity": "agent_trigger",
-    "operation": null,
+    "operation": "agent.delegate.request",
     "mutating": true
   },
   {
@@ -1724,7 +1724,7 @@ export const SSOT_ROUTES = [
     "path": "/chat/conversations/:id/messages",
     "routeKey": "POST /chat/conversations/:id/messages",
     "entity": "system_chat_message",
-    "operation": null,
+    "operation": "chat.message.append",
     "mutating": true
   },
   {
@@ -1740,7 +1740,7 @@ export const SSOT_ROUTES = [
     "path": "/chat/conversations/:id/cancel",
     "routeKey": "POST /chat/conversations/:id/cancel",
     "entity": "system_chat_conversation",
-    "operation": null,
+    "operation": "chat.command.execute",
     "mutating": true
   },
   {
@@ -1756,7 +1756,7 @@ export const SSOT_ROUTES = [
     "path": "/chat/conversations/:id/browser-sessions",
     "routeKey": "POST /chat/conversations/:id/browser-sessions",
     "entity": "browser_session_binding",
-    "operation": null,
+    "operation": "chat.browser.session.create",
     "mutating": true
   },
   {
@@ -1772,7 +1772,7 @@ export const SSOT_ROUTES = [
     "path": "/chat/ask",
     "routeKey": "POST /chat/ask",
     "entity": "system_chat_action",
-    "operation": "chat.conversation.create",
+    "operation": null,
     "mutating": true
   },
   {
@@ -1844,7 +1844,7 @@ export const SSOT_ROUTES = [
     "path": "/ai/model-calls/:id/retrieve",
     "routeKey": "POST /ai/model-calls/:id/retrieve",
     "entity": "ai_model_call",
-    "operation": null,
+    "operation": "agent.model.completed",
     "mutating": true
   },
   {
@@ -1852,7 +1852,7 @@ export const SSOT_ROUTES = [
     "path": "/ai/model-calls/:id/resume-stream",
     "routeKey": "POST /ai/model-calls/:id/resume-stream",
     "entity": "ai_model_call",
-    "operation": null,
+    "operation": "agent.model.completed",
     "mutating": true
   },
   {
@@ -1860,7 +1860,7 @@ export const SSOT_ROUTES = [
     "path": "/ai/model-calls/:id/request-cancel",
     "routeKey": "POST /ai/model-calls/:id/request-cancel",
     "entity": "ai_model_call",
-    "operation": null,
+    "operation": "agent.model.started",
     "mutating": true
   },
   {
@@ -1868,7 +1868,7 @@ export const SSOT_ROUTES = [
     "path": "/ai/model-calls/:id/reconcile",
     "routeKey": "POST /ai/model-calls/:id/reconcile",
     "entity": "ai_model_call",
-    "operation": null,
+    "operation": "agent.model.completed",
     "mutating": true
   },
   {
@@ -1892,7 +1892,7 @@ export const SSOT_ROUTES = [
     "path": "/ai/model-capabilities/refresh",
     "routeKey": "POST /ai/model-capabilities/refresh",
     "entity": "openai_model_capability_snapshot",
-    "operation": null,
+    "operation": "agent.model.started",
     "mutating": true
   },
   {
@@ -1940,7 +1940,7 @@ export const SSOT_ROUTES = [
     "path": "/generation/jobs/:id/messages",
     "routeKey": "POST /generation/jobs/:id/messages",
     "entity": "generation_message",
-    "operation": null,
+    "operation": "generation.message.append",
     "mutating": true
   },
   {
@@ -1972,7 +1972,7 @@ export const SSOT_ROUTES = [
     "path": "/generation/jobs/:id/sources",
     "routeKey": "POST /generation/jobs/:id/sources",
     "entity": "generation_source",
-    "operation": null,
+    "operation": "generation.source.add",
     "mutating": true
   },
   {
@@ -2012,7 +2012,7 @@ export const SSOT_ROUTES = [
     "path": "/generation/jobs/:id/capability-snapshots/refresh",
     "routeKey": "POST /generation/jobs/:id/capability-snapshots/refresh",
     "entity": "generation_capability_snapshot",
-    "operation": null,
+    "operation": "generation.capability.resolve",
     "mutating": true
   },
   {
@@ -2204,7 +2204,7 @@ export const SSOT_ROUTES = [
     "path": "/generation/jobs/:id/validation-runs",
     "routeKey": "POST /generation/jobs/:id/validation-runs",
     "entity": "generation_validation_run",
-    "operation": null,
+    "operation": "generation.validation.run",
     "mutating": true
   },
   {
@@ -2220,7 +2220,7 @@ export const SSOT_ROUTES = [
     "path": "/generation/jobs/:id/blockers/:blockerId/resolve",
     "routeKey": "POST /generation/jobs/:id/blockers/:blockerId/resolve",
     "entity": "generation_blocker",
-    "operation": "generation.capability.resolve",
+    "operation": "generation.blocker.resolve",
     "mutating": true
   },
   {
@@ -2252,7 +2252,7 @@ export const SSOT_ROUTES = [
     "path": "/generation/jobs/:id/follow-up",
     "routeKey": "POST /generation/jobs/:id/follow-up",
     "entity": "generation_job",
-    "operation": null,
+    "operation": "generation.message.append",
     "mutating": true
   },
   {
@@ -2300,7 +2300,7 @@ export const SSOT_ROUTES = [
     "path": "/generation/jobs/:id/browser/session",
     "routeKey": "POST /generation/jobs/:id/browser/session",
     "entity": "browser_session",
-    "operation": null,
+    "operation": "browser.session.create",
     "mutating": true
   },
   {
@@ -2324,7 +2324,7 @@ export const SSOT_ROUTES = [
     "path": "/generation/jobs/:id/browser/credentials",
     "routeKey": "POST /generation/jobs/:id/browser/credentials",
     "entity": "browser_session",
-    "operation": null,
+    "operation": "browser.auth.verify",
     "mutating": true
   },
   {
@@ -2340,7 +2340,7 @@ export const SSOT_ROUTES = [
     "path": "/generation/jobs/:id/browser/operation-scope",
     "routeKey": "POST /generation/jobs/:id/browser/operation-scope",
     "entity": "browser_operation_scope",
-    "operation": null,
+    "operation": "browser.session.state",
     "mutating": true
   },
   {
@@ -2348,7 +2348,7 @@ export const SSOT_ROUTES = [
     "path": "/generation/jobs/:id/browser/confirmations",
     "routeKey": "POST /generation/jobs/:id/browser/confirmations",
     "entity": "browser_irreversible_confirmation",
-    "operation": null,
+    "operation": "browser.challenge.resolve",
     "mutating": true
   },
   {
@@ -2364,7 +2364,7 @@ export const SSOT_ROUTES = [
     "path": "/generation/jobs/:id/browser/teaching",
     "routeKey": "POST /generation/jobs/:id/browser/teaching",
     "entity": "browser_teaching_run",
-    "operation": null,
+    "operation": "browser.teaching.start",
     "mutating": true
   },
   {
@@ -2380,7 +2380,7 @@ export const SSOT_ROUTES = [
     "path": "/generation/jobs/:id/browser/teaching/replay",
     "routeKey": "POST /generation/jobs/:id/browser/teaching/replay",
     "entity": "browser_teaching_run",
-    "operation": null,
+    "operation": "browser.automation.run",
     "mutating": true
   },
   {
@@ -2388,7 +2388,7 @@ export const SSOT_ROUTES = [
     "path": "/generation/jobs/:id/browser/takeover",
     "routeKey": "POST /generation/jobs/:id/browser/takeover",
     "entity": "browser_session",
-    "operation": null,
+    "operation": "browser.control.transfer",
     "mutating": true
   },
   {
@@ -2396,7 +2396,7 @@ export const SSOT_ROUTES = [
     "path": "/generation/jobs/:id/browser/return-to-ai",
     "routeKey": "POST /generation/jobs/:id/browser/return-to-ai",
     "entity": "browser_session",
-    "operation": null,
+    "operation": "browser.control.release",
     "mutating": true
   },
   {
@@ -2452,7 +2452,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-sessions/:sessionId/pages",
     "routeKey": "POST /browser-sessions/:sessionId/pages",
     "entity": "browser_page",
-    "operation": "browser.session.create",
+    "operation": "browser.page.open",
     "mutating": true
   },
   {
@@ -2476,7 +2476,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-sessions/:sessionId/pages/:pageId/close",
     "routeKey": "POST /browser-sessions/:sessionId/pages/:pageId/close",
     "entity": "browser_page",
-    "operation": "browser.session.close",
+    "operation": "browser.page.close",
     "mutating": true
   },
   {
@@ -2516,7 +2516,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-sessions/:sessionId/actions",
     "routeKey": "POST /browser-sessions/:sessionId/actions",
     "entity": "browser_action_run",
-    "operation": "browser.session.create",
+    "operation": "browser.action.start",
     "mutating": true
   },
   {
@@ -2524,7 +2524,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-sessions/:sessionId/actions/:actionId",
     "routeKey": "GET /browser-sessions/:sessionId/actions/:actionId",
     "entity": "browser_action_run",
-    "operation": "browser.session.observe",
+    "operation": "browser.action.status",
     "mutating": false
   },
   {
@@ -2532,7 +2532,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-sessions/:sessionId/actions/:actionId/attempts",
     "routeKey": "GET /browser-sessions/:sessionId/actions/:actionId/attempts",
     "entity": "browser_action_attempt",
-    "operation": "browser.session.observe",
+    "operation": "browser.action.status",
     "mutating": false
   },
   {
@@ -2588,7 +2588,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-sessions/:sessionId/control/return-to-ai",
     "routeKey": "POST /browser-sessions/:sessionId/control/return-to-ai",
     "entity": "browser_control_lease",
-    "operation": null,
+    "operation": "browser.control.release",
     "mutating": true
   },
   {
@@ -2604,7 +2604,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-sessions/:sessionId/operation-scopes",
     "routeKey": "POST /browser-sessions/:sessionId/operation-scopes",
     "entity": "browser_operation_scope",
-    "operation": "browser.session.create",
+    "operation": "browser.session.state",
     "mutating": true
   },
   {
@@ -2636,7 +2636,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-sessions/:sessionId/credentials",
     "routeKey": "POST /browser-sessions/:sessionId/credentials",
     "entity": "browser_auth_attempt",
-    "operation": "browser.session.create",
+    "operation": "browser.auth.verify",
     "mutating": true
   },
   {
@@ -2716,7 +2716,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-sessions/:sessionId/recover",
     "routeKey": "POST /browser-sessions/:sessionId/recover",
     "entity": "browser_session",
-    "operation": "browser.host.recover",
+    "operation": "browser.session.recover",
     "mutating": true
   },
   {
@@ -2740,7 +2740,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-sessions/:sessionId/uploads",
     "routeKey": "POST /browser-sessions/:sessionId/uploads",
     "entity": "browser_upload_handle",
-    "operation": "browser.session.create",
+    "operation": "browser.upload.create",
     "mutating": true
   },
   {
@@ -2756,7 +2756,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-sessions/:sessionId/preview-tickets",
     "routeKey": "POST /browser-sessions/:sessionId/preview-tickets",
     "entity": "browser_preview_ticket",
-    "operation": "browser.session.create",
+    "operation": null,
     "mutating": true
   },
   {
@@ -2788,7 +2788,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-accounts",
     "routeKey": "POST /browser-accounts",
     "entity": "browser_account_binding",
-    "operation": "browser.session.create",
+    "operation": "browser.account.save",
     "mutating": true
   },
   {
@@ -2804,7 +2804,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-accounts/:accountId",
     "routeKey": "PATCH /browser-accounts/:accountId",
     "entity": "browser_account_binding",
-    "operation": null,
+    "operation": "browser.account.save",
     "mutating": true
   },
   {
@@ -2812,7 +2812,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-accounts/:accountId/verify",
     "routeKey": "POST /browser-accounts/:accountId/verify",
     "entity": "browser_account_binding",
-    "operation": "browser.runtimeBuild.verify",
+    "operation": "browser.account.verify",
     "mutating": true
   },
   {
@@ -2892,7 +2892,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-bridges/enrollments",
     "routeKey": "POST /browser-bridges/enrollments",
     "entity": "browser_local_bridge",
-    "operation": "browser.session.create",
+    "operation": "browser.bridge.enroll",
     "mutating": true
   },
   {
@@ -2900,7 +2900,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-bridges/enrollments/:enrollmentId/complete",
     "routeKey": "POST /browser-bridges/enrollments/:enrollmentId/complete",
     "entity": "browser_local_bridge",
-    "operation": "browser.action.complete",
+    "operation": "browser.bridge.connect",
     "mutating": true
   },
   {
@@ -2964,7 +2964,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-automations",
     "routeKey": "POST /browser-automations",
     "entity": "browser_automation_definition",
-    "operation": "browser.session.create",
+    "operation": "browser.automation.run",
     "mutating": true
   },
   {
@@ -2980,7 +2980,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-automations/:id",
     "routeKey": "PATCH /browser-automations/:id",
     "entity": "browser_automation_definition",
-    "operation": null,
+    "operation": "browser.automation.repair",
     "mutating": true
   },
   {
@@ -2996,7 +2996,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-automations/:id/revisions",
     "routeKey": "POST /browser-automations/:id/revisions",
     "entity": "browser_automation_revision",
-    "operation": "browser.session.create",
+    "operation": "browser.teaching.compile",
     "mutating": true
   },
   {
@@ -3020,7 +3020,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-automations/:id/revisions/:revisionId/verify",
     "routeKey": "POST /browser-automations/:id/revisions/:revisionId/verify",
     "entity": "browser_automation_revision",
-    "operation": "browser.runtimeBuild.verify",
+    "operation": "browser.automation.verify",
     "mutating": true
   },
   {
@@ -3028,7 +3028,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-automations/:id/revisions/:revisionId/activate",
     "routeKey": "POST /browser-automations/:id/revisions/:revisionId/activate",
     "entity": "browser_automation_revision",
-    "operation": "browser.page.activate",
+    "operation": "browser.automation.run",
     "mutating": true
   },
   {
@@ -3036,7 +3036,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-automations/:id/revisions/:revisionId/rollback",
     "routeKey": "POST /browser-automations/:id/revisions/:revisionId/rollback",
     "entity": "browser_automation_revision",
-    "operation": null,
+    "operation": "browser.automation.repair",
     "mutating": true
   },
   {
@@ -3052,7 +3052,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-automations/:id/auth-bindings",
     "routeKey": "POST /browser-automations/:id/auth-bindings",
     "entity": "browser_auth_binding",
-    "operation": "browser.session.create",
+    "operation": "browser.account.save",
     "mutating": true
   },
   {
@@ -3068,7 +3068,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-automations/:id/schedules",
     "routeKey": "POST /browser-automations/:id/schedules",
     "entity": "browser_automation_definition",
-    "operation": "browser.session.create",
+    "operation": "browser.schedule.evaluate",
     "mutating": true
   },
   {
@@ -3076,7 +3076,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-automations/:id/schedules/:scheduleId",
     "routeKey": "PATCH /browser-automations/:id/schedules/:scheduleId",
     "entity": "browser_automation_definition",
-    "operation": null,
+    "operation": "browser.schedule.evaluate",
     "mutating": true
   },
   {
@@ -3084,7 +3084,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-automations/:id/teaching-runs",
     "routeKey": "POST /browser-automations/:id/teaching-runs",
     "entity": "browser_teaching_run",
-    "operation": "browser.session.create",
+    "operation": "browser.teaching.start",
     "mutating": true
   },
   {
@@ -3100,7 +3100,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-teaching-runs/:teachingRunId/stop",
     "routeKey": "POST /browser-teaching-runs/:teachingRunId/stop",
     "entity": "browser_teaching_run",
-    "operation": "browser.session.create",
+    "operation": "browser.teaching.start",
     "mutating": true
   },
   {
@@ -3116,7 +3116,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-automations/:id/runs",
     "routeKey": "POST /browser-automations/:id/runs",
     "entity": "browser_automation_run",
-    "operation": "browser.session.create",
+    "operation": "browser.automation.run",
     "mutating": true
   },
   {
@@ -3172,7 +3172,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-runs/:runId/control/return-to-runtime",
     "routeKey": "POST /browser-runs/:runId/control/return-to-runtime",
     "entity": "browser_automation_run",
-    "operation": null,
+    "operation": "browser.control.release",
     "mutating": true
   },
   {
@@ -3180,7 +3180,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-runs/:runId/cancel",
     "routeKey": "POST /browser-runs/:runId/cancel",
     "entity": "browser_automation_run",
-    "operation": "browser.action.cancel",
+    "operation": "browser.automation.cancel",
     "mutating": true
   },
   {
@@ -3196,7 +3196,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-runs/:runId/reconcile",
     "routeKey": "POST /browser-runs/:runId/reconcile",
     "entity": "browser_automation_run",
-    "operation": "browser.action.reconcile",
+    "operation": "browser.automation.reconcile",
     "mutating": true
   },
   {
@@ -3204,7 +3204,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-runs/:runId/resolve-outcome",
     "routeKey": "POST /browser-runs/:runId/resolve-outcome",
     "entity": "browser_automation_run",
-    "operation": "browser.action.resolveOutcome",
+    "operation": "browser.run.manualReview",
     "mutating": true
   },
   {
@@ -3236,7 +3236,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-automations/:id/enable",
     "routeKey": "POST /browser-automations/:id/enable",
     "entity": "browser_automation_definition",
-    "operation": "browser.session.create",
+    "operation": "browser.automation.run",
     "mutating": true
   },
   {
@@ -3244,7 +3244,7 @@ export const SSOT_ROUTES = [
     "path": "/browser-automations/:id/disable",
     "routeKey": "POST /browser-automations/:id/disable",
     "entity": "browser_automation_definition",
-    "operation": "browser.session.create",
+    "operation": "browser.automation.cancel",
     "mutating": true
   },
   {
@@ -3348,7 +3348,7 @@ export const SSOT_ROUTES = [
     "path": "/secrets/:id/bindings",
     "routeKey": "POST /secrets/:id/bindings",
     "entity": "secret_binding",
-    "operation": null,
+    "operation": "secret.bind",
     "mutating": true
   },
   {
@@ -3356,7 +3356,7 @@ export const SSOT_ROUTES = [
     "path": "/secrets/:id/bindings/:bindingId",
     "routeKey": "DELETE /secrets/:id/bindings/:bindingId",
     "entity": "secret_binding",
-    "operation": null,
+    "operation": "secret.unbind",
     "mutating": true
   },
   {
@@ -3372,7 +3372,7 @@ export const SSOT_ROUTES = [
     "path": "/secrets/:id/test-resolve",
     "routeKey": "POST /secrets/:id/test-resolve",
     "entity": "secret_access_event",
-    "operation": null,
+    "operation": "secret.resolve",
     "mutating": true
   },
   {
@@ -3532,7 +3532,7 @@ export const SSOT_ROUTES = [
     "path": "/bindings/preview",
     "routeKey": "POST /bindings/preview",
     "entity": "binding_set",
-    "operation": null,
+    "operation": "component.revision.publish",
     "mutating": true
   },
   {
@@ -3540,7 +3540,7 @@ export const SSOT_ROUTES = [
     "path": "/bindings/test",
     "routeKey": "POST /bindings/test",
     "entity": "binding_set",
-    "operation": null,
+    "operation": "component.revision.publish",
     "mutating": true
   },
   {
@@ -3556,7 +3556,7 @@ export const SSOT_ROUTES = [
     "path": "/external/targets",
     "routeKey": "POST /external/targets",
     "entity": "external_target",
-    "operation": null,
+    "operation": "component.revision.publish",
     "mutating": true
   },
   {
@@ -3572,7 +3572,7 @@ export const SSOT_ROUTES = [
     "path": "/external/targets/:id",
     "routeKey": "PATCH /external/targets/:id",
     "entity": "external_target",
-    "operation": null,
+    "operation": "component.revision.publish",
     "mutating": true
   },
   {
@@ -3580,7 +3580,7 @@ export const SSOT_ROUTES = [
     "path": "/external/targets/:id/test",
     "routeKey": "POST /external/targets/:id/test",
     "entity": "external_target",
-    "operation": null,
+    "operation": "mcp.tools.call",
     "mutating": true
   },
   {
@@ -3588,7 +3588,7 @@ export const SSOT_ROUTES = [
     "path": "/external/targets/:id/circuit/open",
     "routeKey": "POST /external/targets/:id/circuit/open",
     "entity": "external_target",
-    "operation": null,
+    "operation": "monitor.state.transition",
     "mutating": true
   },
   {
@@ -3596,7 +3596,7 @@ export const SSOT_ROUTES = [
     "path": "/external/targets/:id/circuit/close",
     "routeKey": "POST /external/targets/:id/circuit/close",
     "entity": "external_target",
-    "operation": null,
+    "operation": "monitor.state.transition",
     "mutating": true
   },
   {
@@ -3612,7 +3612,7 @@ export const SSOT_ROUTES = [
     "path": "/external/auth-bindings",
     "routeKey": "POST /external/auth-bindings",
     "entity": "external_auth_binding",
-    "operation": null,
+    "operation": "secret.bind",
     "mutating": true
   },
   {
@@ -3620,7 +3620,7 @@ export const SSOT_ROUTES = [
     "path": "/external/auth-bindings/:id",
     "routeKey": "PATCH /external/auth-bindings/:id",
     "entity": "external_auth_binding",
-    "operation": null,
+    "operation": "secret.bind",
     "mutating": true
   },
   {
@@ -3636,7 +3636,7 @@ export const SSOT_ROUTES = [
     "path": "/external/target-bindings",
     "routeKey": "POST /external/target-bindings",
     "entity": "external_target_binding",
-    "operation": null,
+    "operation": "component.revision.publish",
     "mutating": true
   },
   {
@@ -3644,7 +3644,7 @@ export const SSOT_ROUTES = [
     "path": "/external/target-bindings/:id",
     "routeKey": "DELETE /external/target-bindings/:id",
     "entity": "external_target_binding",
-    "operation": null,
+    "operation": "component.deregister",
     "mutating": true
   },
   {
@@ -3668,7 +3668,7 @@ export const SSOT_ROUTES = [
     "path": "/webhooks/test",
     "routeKey": "POST /webhooks/test",
     "entity": "webhook_endpoint",
-    "operation": null,
+    "operation": "mcp.tools.call",
     "mutating": true
   },
   {
@@ -3708,7 +3708,7 @@ export const SSOT_ROUTES = [
     "path": "/monitoring/profiles/:componentId",
     "routeKey": "PUT /monitoring/profiles/:componentId",
     "entity": "monitoring_profile",
-    "operation": null,
+    "operation": "monitor.state.transition",
     "mutating": true
   },
   {
@@ -3716,7 +3716,7 @@ export const SSOT_ROUTES = [
     "path": "/monitoring/probe/run",
     "routeKey": "POST /monitoring/probe/run",
     "entity": "monitoring_probe",
-    "operation": null,
+    "operation": "monitor.probe.request",
     "mutating": true
   },
   {
@@ -3772,7 +3772,7 @@ export const SSOT_ROUTES = [
     "path": "/alerts/channels/test",
     "routeKey": "POST /alerts/channels/test",
     "entity": "operational_alert",
-    "operation": null,
+    "operation": "monitor.probe.request",
     "mutating": true
   },
   {
@@ -3812,7 +3812,7 @@ export const SSOT_ROUTES = [
     "path": "/audit/integrity/verify",
     "routeKey": "POST /audit/integrity/verify",
     "entity": "audit_event",
-    "operation": "audit.integrity.verify",
+    "operation": null,
     "mutating": true
   },
   {
@@ -3852,7 +3852,7 @@ export const SSOT_ROUTES = [
     "path": "/logs/export",
     "routeKey": "POST /logs/export",
     "entity": "debug_log_event",
-    "operation": null,
+    "operation": "audit.archive.enqueue",
     "mutating": true
   },
   {
@@ -3876,7 +3876,7 @@ export const SSOT_ROUTES = [
     "path": "/config/settings/:key",
     "routeKey": "PUT /config/settings/:key",
     "entity": "operational_setting",
-    "operation": null,
+    "operation": "component.revision.publish",
     "mutating": true
   },
   {
@@ -3884,7 +3884,7 @@ export const SSOT_ROUTES = [
     "path": "/config/settings/:key/reset",
     "routeKey": "POST /config/settings/:key/reset",
     "entity": "operational_setting",
-    "operation": null,
+    "operation": "component.revision.publish",
     "mutating": true
   },
   {
@@ -3892,7 +3892,7 @@ export const SSOT_ROUTES = [
     "path": "/config/validate",
     "routeKey": "POST /config/validate",
     "entity": "operational_setting",
-    "operation": null,
+    "operation": "component.validate",
     "mutating": true
   },
   {
@@ -3900,7 +3900,7 @@ export const SSOT_ROUTES = [
     "path": "/config/apply",
     "routeKey": "POST /config/apply",
     "entity": "configuration_apply_run",
-    "operation": null,
+    "operation": "generation.activation.switch",
     "mutating": true
   },
   {
@@ -3908,7 +3908,7 @@ export const SSOT_ROUTES = [
     "path": "/config/export",
     "routeKey": "POST /config/export",
     "entity": "operational_setting",
-    "operation": null,
+    "operation": "audit.archive.enqueue",
     "mutating": true
   },
   {
@@ -3916,7 +3916,7 @@ export const SSOT_ROUTES = [
     "path": "/config/import",
     "routeKey": "POST /config/import",
     "entity": "operational_setting",
-    "operation": null,
+    "operation": "component.revision.publish",
     "mutating": true
   },
   {
@@ -3940,7 +3940,7 @@ export const SSOT_ROUTES = [
     "path": "/releases/:id/rollback",
     "routeKey": "POST /releases/:id/rollback",
     "entity": "application_release",
-    "operation": null,
+    "operation": "component.rollback",
     "mutating": true
   },
   {
@@ -3964,7 +3964,7 @@ export const SSOT_ROUTES = [
     "path": "/backups",
     "routeKey": "POST /backups",
     "entity": "backup_record",
-    "operation": null,
+    "operation": "audit.archive.enqueue",
     "mutating": true
   },
   {
@@ -3972,7 +3972,7 @@ export const SSOT_ROUTES = [
     "path": "/backups/:id/verify",
     "routeKey": "POST /backups/:id/verify",
     "entity": "backup_record",
-    "operation": null,
+    "operation": "audit.integrity.verify",
     "mutating": true
   },
   {
@@ -3988,7 +3988,7 @@ export const SSOT_ROUTES = [
     "path": "/maintenance/restart-service",
     "routeKey": "POST /maintenance/restart-service",
     "entity": "runtime_instance",
-    "operation": null,
+    "operation": "runtime.instance.restart",
     "mutating": true
   },
   {
@@ -4092,7 +4092,7 @@ export const SSOT_ROUTES = [
     "path": "/self-tests/runs/:id/replay",
     "routeKey": "POST /self-tests/runs/:id/replay",
     "entity": "self_test_run",
-    "operation": null,
+    "operation": "selfTest.registeredElement.run",
     "mutating": true
   },
   {
@@ -4100,7 +4100,7 @@ export const SSOT_ROUTES = [
     "path": "/self-tests/runs/:id/shrink",
     "routeKey": "POST /self-tests/runs/:id/shrink",
     "entity": "self_test_run",
-    "operation": null,
+    "operation": "selfTest.registeredElement.run",
     "mutating": true
   },
   {
@@ -4236,7 +4236,7 @@ export const SSOT_ROUTES = [
     "path": "/agentic-security/self-tests",
     "routeKey": "POST /agentic-security/self-tests",
     "entity": "agentic_security_event",
-    "operation": null,
+    "operation": "agentic.security.event.record",
     "mutating": true
   },
   {

@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { DatabasePool } from '@kcml/database';
-import { CanonicalOperationService, DomainError, SsotSurfaceService } from '@kcml/domain';
+import { CanonicalOperationService, DomainError, operationHandlerFor, SsotSurfaceService } from '@kcml/domain';
 import { SSOT_ROUTES, type SsotRoute } from './ssot-surface.generated.js';
 
 export type AuthenticateRequest = (request: FastifyRequest, requireMfa?: boolean) => Promise<void>;
@@ -121,10 +121,21 @@ function commandInput(route: SsotRoute, request: FastifyRequest): JsonObject {
   };
 }
 
+function assertCanonicalRouteHandler(route: SsotRoute, operations: CanonicalOperationService): void {
+  if (!route.operation || route.operation === '__DYNAMIC_OPERATION__') return;
+  const operation = operations.catalog.get(route.operation);
+  const handler = operationHandlerFor(operation.operationName);
+  if (handler.operation !== operation.operationName) {
+    throw new Error(`COMPILED_ROUTE_HANDLER_OPERATION_MISMATCH:${route.routeKey}:${operation.operationName}`);
+  }
+}
+
 export function registerCompiledSsotRoutes(dependencies: CompiledRouteDependencies): void {
   const { app, operations, surface, authenticate, ownerId, specialRouteKeys } = dependencies;
   for (const route of SSOT_ROUTES) {
     if (route.method === 'WSS' || specialRouteKeys.has(route.routeKey)) continue;
+    assertCanonicalRouteHandler(route, operations);
+    if (route.operation && route.operation !== '__DYNAMIC_OPERATION__' && operations.catalog.get(route.operation).exposureClass === 'INTERNAL_PROTOCOL') continue;
     const method = route.method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
     app.route({
       method,
@@ -147,20 +158,7 @@ export function registerCompiledSsotRoutes(dependencies: CompiledRouteDependenci
           const params = paramsOf(request);
           return surface.read(route.entity, directTargetId(route, params), queryLimit(request), scopeForRoute(route, params));
         }
-        const params = paramsOf(request);
-        const argumentsBody = enrichedArguments(route, request);
-        return surface.mutate({
-          entity: route.entity,
-          routeKey: route.routeKey,
-          method,
-          targetId: directTargetId(route, params),
-          body: argumentsBody,
-          expectedStateVersion: expectedStateVersion(request),
-          idempotencyKey: typeof request.headers['idempotency-key'] === 'string' ? request.headers['idempotency-key'] : '',
-          callerFingerprint: callerFingerprint(request),
-          actorId: ownerId(request),
-          correlationId: request.requestCorrelationId
-        });
+        throw new Error(`COMPILED_MUTATING_ROUTE_OPERATION_MISSING:${route.routeKey}`);
       }
     });
   }

@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "REQUIREMENT_ATOM_TRACE_SOURCE",
+  "ssotDigest": "sha256:2d0a66005bd8c3179d284437dec4c04edca696e97f78650730bafc5c0031913a",
+  "records": 13959,
+  "relationKinds": [
+    "SOURCE",
+    "MIGRATION",
+    "TEST",
+    "EVIDENCE"
+  ],
+  "shards": [
+    {
+      "domain": "AGENT",
+      "repositoryPath": "contracts/traceability/requirement-atom-trace/agent.jsonl",
+      "recordCount": 354,
+      "contentDigest": "sha256:9a3f3332756d1495e9b55f59a1d440cb404fda181fda0f01e1bb1ef27a17cb3c"
+    },
+    {
+      "domain": "BROWSER",
+      "repositoryPath": "contracts/traceability/requirement-atom-trace/browser.jsonl",
+      "recordCount": 962,
+      "contentDigest": "sha256:7a78c3b42c4397aba68d09d18425e083774ef5635d6b9f345d31fa2d001fc720"
+    },
+    {
+      "domain": "CORE",
+      "repositoryPath": "contracts/traceability/requirement-atom-trace/core.jsonl",
+      "recordCount": 7728,
+      "contentDigest": "sha256:895c48912aad6a014d3be64c00096f136f2e0bc9f296ee495426342625f966f3"
+    },
+    {
+      "domain": "DEPLOYMENT",
+      "repositoryPath": "contracts/traceability/requirement-atom-trace/deployment.jsonl",
+      "recordCount": 305,
+      "contentDigest": "sha256:cd46f196d004cd92854985541521d33fe0b7e5d68120c17410b8cb0a4c5c1e8d"
+    },
+    {
+      "domain": "GENERATION",
+      "repositoryPath": "contracts/traceability/requirement-atom-trace/generation.jsonl",
+      "recordCount": 427,
+      "contentDigest": "sha256:b0887b664aecb54a9786e9f46356e4a40cdadeecc44d2923050bc20eabb80ede"
+    },
+    {
+      "domain": "KCIP",
+      "repositoryPath": "contracts/traceability/requirement-atom-trace/kcip.jsonl",
+      "recordCount": 30,
+      "contentDigest": "sha256:f5688de762a89b7fad6cc5f2d458d5091ddd49a5ca7ed620580f07bcbbc302cf"
+    },
+    {
+      "domain": "MCP",
+      "repositoryPath": "contracts/traceability/requirement-atom-trace/mcp.jsonl",
+      "recordCount": 465,
+      "contentDigest": "sha256:42f350d1eb1fd932226fef1b2b28044630ee7434512e25dfdff0f65d40614e1f"
+    },
+    {
+      "domain": "MONITORING",
+      "repositoryPath": "contracts/traceability/requirement-atom-trace/monitoring.jsonl",
+      "recordCount": 545,
+      "contentDigest": "sha256:821d940a66ec50c7befcb4d00fe043261f3a105740be20ebba97b29d5d3c1d75"
+    },
+    {
+      "domain": "OPENAI",
+      "repositoryPath": "contracts/traceability/requirement-atom-trace/openai.jsonl",
+      "recordCount": 276,
+      "contentDigest": "sha256:9058e2454c6219a88e5a59e230afa8837456c9d002b34a881dff9dcd2434293c"
+    },
+    {
+      "domain": "POSTGRES",
+      "repositoryPath": "contracts/traceability/requirement-atom-trace/postgres.jsonl",
+      "recordCount": 868,
+      "contentDigest": "sha256:096110d27faca46f7a461151b724e87524ccad901c874995758d8ab6bd6a45eb"
+    },
+    {
+      "domain": "RUNTIME",
+      "repositoryPath": "contracts/traceability/requirement-atom-trace/runtime.jsonl",
+      "recordCount": 768,
+      "contentDigest": "sha256:3ad8ac3371424f19d70c63a79c9f3fc3546f26d2f11c4fad34e39c9f0374f1e2"
+    },
+    {
+      "domain": "SECURITY",
+      "repositoryPath": "contracts/traceability/requirement-atom-trace/security.jsonl",
+      "recordCount": 722,
+      "contentDigest": "sha256:ab73e7b3335656ef470537c2d4e977674afa93ce2a9cc9a9109cb2cc710a0ba3"
+    },
+    {
+      "domain": "TESTING",
+      "repositoryPath": "contracts/traceability/requirement-atom-trace/testing.jsonl",
+      "recordCount": 401,
+      "contentDigest": "sha256:dba5c7cffecb341d198317a5bb73074f0327126c202eab82b70ca0784a7b0257"
+    },
+    {
+      "domain": "UI",
+      "repositoryPath": "contracts/traceability/requirement-atom-trace/ui.jsonl",
+      "recordCount": 108,
+      "contentDigest": "sha256:4c4ed6c5b6ad91821f75cf65bf7a19faa79de00d8baf820c15bebaec2c742b30"
+    }
+  ]
+}

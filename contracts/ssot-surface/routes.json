@@ -60,7 +60,7 @@
       "routeKey": "POST /auth/api-key-session",
       "contractDigest": "beb6a7cb788a0506c37e4afa471ac75135f76918904aa0748bc11d33b6abfddf",
       "entity": "owner_session",
-      "operation": "ownerApiKey.session.exchange",
+      "operation": null,
       "mutating": true
     },
     {
@@ -170,7 +170,7 @@
       "routeKey": "GET /owner/api-key",
       "contractDigest": "06c31aab68b2768baa07beff4ca78b5b3dc25bb2bb4155d7e72b53ec06015d7b",
       "entity": "owner_api_credential",
-      "operation": "ownerApiKey.read",
+      "operation": null,
       "mutating": false
     },
     {
@@ -180,7 +180,7 @@
       "routeKey": "GET /owner/api-key/value",
       "contractDigest": "ae7cdc1f00cbdd9e1a951d1f5fb7367a994ee97322a3f62008c7883357c48b06",
       "entity": "owner_api_credential",
-      "operation": "ownerApiKey.reveal",
+      "operation": null,
       "mutating": false
     },
     {
@@ -190,7 +190,7 @@
       "routeKey": "POST /owner/api-key/rotate",
       "contractDigest": "8204ffa66cb7495c78f2f275e478ecf2b7e247deebaf7bdf436bea2bd5b1e42c",
       "entity": "owner_api_credential",
-      "operation": "ownerApiKey.rotate",
+      "operation": null,
       "mutating": true
     },
     {
@@ -200,7 +200,7 @@
       "routeKey": "GET /owner/api-key/usage",
       "contractDigest": "3be9197820b604fd0577fd4495c8ea02fd4ecb80d5693caa4dd4adc967f25a1a",
       "entity": "owner_api_credential",
-      "operation": "ownerApiKey.read",
+      "operation": null,
       "mutating": false
     },
     {
@@ -220,7 +220,7 @@
       "routeKey": "PUT /dashboard/layout",
       "contractDigest": "3c561613991e3d4c2ff30a330d2c66c5db3f1408415e5c07f81f8a636d2f18f6",
       "entity": "dashboard_node_position",
-      "operation": null,
+      "operation": "component.revision.publish",
       "mutating": true
     },
     {
@@ -250,7 +250,7 @@
       "routeKey": "POST /dashboard/connections/preview",
       "contractDigest": "2ba5225d752cd9b67a5b49c0b2cd8d69bf33ac0d43ea07b9c00a824691bfea19",
       "entity": "dashboard_connection",
-      "operation": null,
+      "operation": "component.revision.publish",
       "mutating": true
     },
     {
@@ -260,7 +260,7 @@
       "routeKey": "POST /dashboard/connections",
       "contractDigest": "dc3994163f7663c47894514ad4faf472cbc239cdcdbf05208c8ff5670a455b2f",
       "entity": "dashboard_connection",
-      "operation": null,
+      "operation": "component.register",
       "mutating": true
     },
     {
@@ -270,7 +270,7 @@
       "routeKey": "PUT /dashboard/connections/:id/binding",
       "contractDigest": "a98f044a142bcb20193aa400169e5ea80f466dd41470c77904630364b3504a65",
       "entity": "dashboard_connection",
-      "operation": null,
+      "operation": "component.revision.publish",
       "mutating": true
     },
     {
@@ -280,7 +280,7 @@
       "routeKey": "DELETE /dashboard/connections/:id",
       "contractDigest": "652ceda3d26c66925b6c4f283337c04f88536ca3c8b31e7bbd0dd635115d50d5",
       "entity": "dashboard_connection",
-      "operation": null,
+      "operation": "component.deregister",
       "mutating": true
     },
     {
@@ -290,7 +290,7 @@
       "routeKey": "PUT /dashboard/nodes/:id/suspension",
       "contractDigest": "f8e5510126f360cc355325a28dfae52090982ce9c9e62cd0bff78e7f17d3a5d2",
       "entity": "component",
-      "operation": null,
+      "operation": "component.suspend",
       "mutating": true
     },
     {
@@ -310,7 +310,7 @@
       "routeKey": "POST /dashboard/nodes/:id/deregister",
       "contractDigest": "1293c725187475ec6d62f9daecdd2fcd2a0ab5ecf2ea8ed5dc09832f3fcdb709",
       "entity": "component",
-      "operation": null,
+      "operation": "component.deregister",
       "mutating": true
     },
     {
@@ -320,7 +320,7 @@
       "routeKey": "POST /dashboard/secrets/:secretId/bindings",
       "contractDigest": "dd072015cffc9179c43f0c4ddabafeadd793727f5185091692ed6c7ef8c01e63",
       "entity": "secret_binding",
-      "operation": null,
+      "operation": "secret.bind",
       "mutating": true
     },
     {
@@ -330,7 +330,7 @@
       "routeKey": "DELETE /dashboard/secrets/:secretId/bindings/:nodeId",
       "contractDigest": "695c3e5222fce4908ff7125e4356ec5f182e0e6e8cab1398ba1b32f421c7a959",
       "entity": "secret_binding",
-      "operation": null,
+      "operation": "secret.unbind",
       "mutating": true
     },
     {
@@ -350,7 +350,7 @@
       "routeKey": "POST /dashboard/secrets/:secretId/bindings/bulk",
       "contractDigest": "68ebe5bf01f6cf7f58123d0e7aac7159c6532b86b808157293bf900993c7265d",
       "entity": "secret_binding",
-      "operation": null,
+      "operation": "secret.bind",
       "mutating": true
     },
     {
@@ -390,7 +390,7 @@
       "routeKey": "PATCH /components/:id",
       "contractDigest": "b492f73c2ab77031596c881e2a6525d9f0ac4643a57cda078eb4c9cb611c9246",
       "entity": "component",
-      "operation": null,
+      "operation": "component.revision.publish",
       "mutating": true
     },
     {
@@ -410,7 +410,7 @@
       "routeKey": "POST /components/:id/revisions",
       "contractDigest": "afd7c8972962213732acc48a889015a53d7b8ca40fe2ee21e8204ed7a25c53c8",
       "entity": "component_revision",
-      "operation": "component.register",
+      "operation": "component.revision.publish",
       "mutating": true
     },
     {
@@ -520,7 +520,7 @@
       "routeKey": "POST /components/:id/repair",
       "contractDigest": "45caf2eadb687533b45984434f42168af586e71d30bd83e834ef0ddaa1ec1d0b",
       "entity": "component",
-      "operation": "component.register",
+      "operation": "component.restore",
       "mutating": true
     },
     {
@@ -540,7 +540,7 @@
       "routeKey": "POST /components/:id/e2e-runs",
       "contractDigest": "18067127a7e83cdc59fa663d09b61909b63215da2c9ef1fe3546b4388519c6dc",
       "entity": "component_e2e_run",
-      "operation": "component.register",
+      "operation": "component.verify",
       "mutating": true
     },
     {
@@ -550,7 +550,7 @@
       "routeKey": "POST /components/:id/state-queries",
       "contractDigest": "20f9031f273717dca51d23212e7e6b46caeebd19bbb8200cc30065f4ce2c157f",
       "entity": "component_state_history",
-      "operation": "component.register",
+      "operation": "component.verify",
       "mutating": true
     },
     {
@@ -560,7 +560,7 @@
       "routeKey": "POST /components/:id/heartbeat-challenges",
       "contractDigest": "8a8091a719ce1c7b18944077d77af44a02a7cd053f83e88835351f78f0566a0c",
       "entity": "component_pulse_contract",
-      "operation": "component.register",
+      "operation": "component.verify",
       "mutating": true
     },
     {
@@ -630,7 +630,7 @@
       "routeKey": "POST /mcp-servers",
       "contractDigest": "6036c40e92f8a3d3812db71cda7d178ac839f6c4111e747c99390b783680bcd0",
       "entity": "mcp_server_revision_profile",
-      "operation": null,
+      "operation": "mcp.contract.compatibility",
       "mutating": true
     },
     {
@@ -650,7 +650,7 @@
       "routeKey": "PATCH /mcp-servers/:id",
       "contractDigest": "6604f2e934b2026f53fc445ee66fb4e8edce7ee2ef29b257b52fe9e20eaf7326",
       "entity": "mcp_server_revision_profile",
-      "operation": null,
+      "operation": "mcp.contract.compatibility",
       "mutating": true
     },
     {
@@ -670,7 +670,7 @@
       "routeKey": "POST /mcp-servers/:id/revisions",
       "contractDigest": "4b73c6345e60c28022b9a06752b02200d3e13c94bf722197496e9c03c5cc0fdb",
       "entity": "mcp_server_revision_profile",
-      "operation": null,
+      "operation": "mcp.contract.compatibility",
       "mutating": true
     },
     {
@@ -710,7 +710,7 @@
       "routeKey": "POST /mcp-servers/:id/revisions/:revisionId/activate",
       "contractDigest": "41606130c54a74fee4ab587b5c8219b98525ddedc8b43f45c1fecc9448defbcf",
       "entity": "mcp_server_revision_profile",
-      "operation": null,
+      "operation": "mcp.contract.compatibility",
       "mutating": true
     },
     {
@@ -740,7 +740,7 @@
       "routeKey": "POST /mcp-servers/:id/discovery-snapshots",
       "contractDigest": "d9cab5c1c88b8fea2ac54865a530483dab0fa5cd717c872da252abee151a1560",
       "entity": "mcp_discovery_snapshot",
-      "operation": null,
+      "operation": "mcp.discovery.snapshot",
       "mutating": true
     },
     {
@@ -800,7 +800,7 @@
       "routeKey": "POST /mcp-servers/:id/request-metadata-test",
       "contractDigest": "51257c5893e582df5bfec3869b2e78b002e69a9b8456c3dd70b468dd70c1a0ff",
       "entity": "mcp_server_revision_profile",
-      "operation": null,
+      "operation": "mcp.contract.validate",
       "mutating": true
     },
     {
@@ -810,7 +810,7 @@
       "routeKey": "POST /mcp-servers/:id/streamable-http-test",
       "contractDigest": "3380b638419bd35b1c5c698bd6e352f18056eda95457ed0f403909ab26c41e8d",
       "entity": "mcp_server_revision_profile",
-      "operation": null,
+      "operation": "mcp.contract.validate",
       "mutating": true
     },
     {
@@ -820,7 +820,7 @@
       "routeKey": "POST /mcp-servers/:id/cache-pagination-test",
       "contractDigest": "c1f610f7275df99ec3208159f783ff6970c08d836d1f83d1ea23aac9e1626ccc",
       "entity": "mcp_server_revision_profile",
-      "operation": null,
+      "operation": "mcp.cache.invalidate",
       "mutating": true
     },
     {
@@ -830,7 +830,7 @@
       "routeKey": "POST /mcp-servers/:id/mrtr-test",
       "contractDigest": "36e9915e27449c1508c9d7b2be482353856601e8a4a276d0a971f4c0bd131c48",
       "entity": "mcp_server_revision_profile",
-      "operation": null,
+      "operation": "mcp.tools.reconcile",
       "mutating": true
     },
     {
@@ -840,7 +840,7 @@
       "routeKey": "POST /mcp-servers/:id/tasks-test",
       "contractDigest": "029a2a289dffeb9667cd7e3a5df22b694e0eb3d59fb735c839d4128bad6c7bc5",
       "entity": "mcp_server_revision_profile",
-      "operation": null,
+      "operation": "mcp.task.update",
       "mutating": true
     },
     {
@@ -850,7 +850,7 @@
       "routeKey": "POST /mcp-servers/:id/wire-edge-matrix",
       "contractDigest": "bd6406abb2d62ea2ed2b1adaeb4885e48d13b92f60611f167b33ce23c05315d6",
       "entity": "mcp_server_revision_profile",
-      "operation": null,
+      "operation": "mcp.wire.verify",
       "mutating": true
     },
     {
@@ -910,7 +910,7 @@
       "routeKey": "POST /mcp-servers/:id/subscriptions/list-test",
       "contractDigest": "8aca59d58816956ca8eb39bdd7a7d298fad70a4b892bbb4b1effd4e0dd1fb208",
       "entity": "mcp_server_revision_profile",
-      "operation": null,
+      "operation": "mcp.subscription.listen",
       "mutating": true
     },
     {
@@ -1060,7 +1060,7 @@
       "routeKey": "POST /mcp-subscriptions/:subscriptionId/cancel",
       "contractDigest": "f3063e9fdf9006d92e571e00b4b096540f71ea226f3e863bd94249c71e848f37",
       "entity": "mcp_subscription",
-      "operation": "mcp.tools.cancel",
+      "operation": "mcp.subscription.cancel",
       "mutating": true
     },
     {
@@ -1140,7 +1140,7 @@
       "routeKey": "POST /mcp-tasks/:taskId/cancel",
       "contractDigest": "37d1de99a868eacd6eab2f2a5d74d66d1e58a3167601c6724811373991342fed",
       "entity": "mcp_task",
-      "operation": "mcp.tools.cancel",
+      "operation": "mcp.task.cancel",
       "mutating": true
     },
     {
@@ -1170,7 +1170,7 @@
       "routeKey": "POST /mcp-tools",
       "contractDigest": "19de31eab441d025d6723a1744ff2341cb96a3ec9c936b8123707bca004e5548",
       "entity": "component_tool_contract",
-      "operation": null,
+      "operation": "mcp.contract.compatibility",
       "mutating": true
     },
     {
@@ -1230,7 +1230,7 @@
       "routeKey": "GET /mcp-resources/:id",
       "contractDigest": "c3a30bb57c3921c1c85f2bc23c245a4feef057278b0666875503a19d5ea0587e",
       "entity": "component_resource_contract",
-      "operation": "mcp.resources.list",
+      "operation": "mcp.resources.read",
       "mutating": false
     },
     {
@@ -1270,7 +1270,7 @@
       "routeKey": "GET /mcp-prompts/:id",
       "contractDigest": "234ca1472d025c7b65e5dc5671561a9e4b6c748417592dc2437a5ce7cf600d9b",
       "entity": "component_prompt_contract",
-      "operation": "mcp.prompts.list",
+      "operation": "mcp.prompts.get",
       "mutating": false
     },
     {
@@ -1290,7 +1290,7 @@
       "routeKey": "POST /mcp-aliases/preview",
       "contractDigest": "0850c6c6ff89250516118acc11d010058b18c593a3d112a11fd865a4bec8c985",
       "entity": "mcp_tool_alias",
-      "operation": null,
+      "operation": "mcp.contract.compatibility",
       "mutating": true
     },
     {
@@ -1300,7 +1300,7 @@
       "routeKey": "POST /mcp-aliases",
       "contractDigest": "0a6e6f2f254ccaeb696bc72ff4fae0aa49f4c791069b5f65ff5bac3f40f4a18f",
       "entity": "mcp_tool_alias",
-      "operation": null,
+      "operation": "mcp.contract.compatibility",
       "mutating": true
     },
     {
@@ -1310,7 +1310,7 @@
       "routeKey": "DELETE /mcp-aliases/:id",
       "contractDigest": "ef6185c04d6d6492de78f98032e6b50eb54e2c46a3ee84832664083bb220a518",
       "entity": "mcp_tool_alias",
-      "operation": null,
+      "operation": "mcp.discovery.invalidate",
       "mutating": true
     },
     {
@@ -1330,7 +1330,7 @@
       "routeKey": "POST /agents",
       "contractDigest": "2484d5605f56ef57d0dc601999b0d4676e1687a25e7df93cfca4776609053585",
       "entity": "agent_definition",
-      "operation": null,
+      "operation": "agent.eval.start",
       "mutating": true
     },
     {
@@ -1350,7 +1350,7 @@
       "routeKey": "PATCH /agents/:id",
       "contractDigest": "d60b9b765eb9cdb02bd55dd686a1a7f41831d239b643971f2f5c8da60a104770",
       "entity": "agent_definition",
-      "operation": null,
+      "operation": "agent.eval.result",
       "mutating": true
     },
     {
@@ -1370,7 +1370,7 @@
       "routeKey": "POST /agents/:id/revisions",
       "contractDigest": "6947e5a530da80995d6ecf4121effb2c147dffaa9b955a6556b3c7a9f30a8233",
       "entity": "agent_revision",
-      "operation": null,
+      "operation": "agent.eval.start",
       "mutating": true
     },
     {
@@ -1390,7 +1390,7 @@
       "routeKey": "POST /agents/:id/revisions/:revisionId/validate",
       "contractDigest": "89ecc02992519d4be8b2fe1f9472607cc40ea872c17f8013dcd63ef683fbc3b7",
       "entity": "agent_revision",
-      "operation": null,
+      "operation": "agent.eval.result",
       "mutating": true
     },
     {
@@ -1400,7 +1400,7 @@
       "routeKey": "POST /agents/:id/revisions/:revisionId/verify",
       "contractDigest": "9ae70e19bd935411511d9d9e0302ca276614655ae58e14f611813b8f97f1cb5a",
       "entity": "agent_revision",
-      "operation": null,
+      "operation": "agent.eval.result",
       "mutating": true
     },
     {
@@ -1410,7 +1410,7 @@
       "routeKey": "POST /agents/:id/revisions/:revisionId/activate",
       "contractDigest": "e3567961ce27aaf4b893f9497825eec829bbea5659ec529322d1b6287f9ed638",
       "entity": "agent_revision",
-      "operation": null,
+      "operation": "agent.eval.result",
       "mutating": true
     },
     {
@@ -1420,7 +1420,7 @@
       "routeKey": "POST /agents/:id/revisions/:revisionId/compatibility",
       "contractDigest": "87d6ba285a4ff91389ce50c2c5c992be6641b5d1fadcc9b88a947cab8d1332e2",
       "entity": "agent_revision",
-      "operation": null,
+      "operation": "agent.eval.result",
       "mutating": true
     },
     {
@@ -1440,7 +1440,7 @@
       "routeKey": "POST /agents/:id/revisions/:revisionId/tool-bindings/preview",
       "contractDigest": "4ae32d488f54c1b116d39962baca2955f298add7421b6f4e251f01e007f01b5b",
       "entity": "agent_tool_binding",
-      "operation": null,
+      "operation": "agent.tool.request",
       "mutating": true
     },
     {
@@ -1480,7 +1480,7 @@
       "routeKey": "POST /agents/:id/enable",
       "contractDigest": "43a40694e8530571f424e97b4c61b991c8620f4682e67781697b014db60075ec",
       "entity": "agent_definition",
-      "operation": null,
+      "operation": "agent.run.start",
       "mutating": true
     },
     {
@@ -1490,7 +1490,7 @@
       "routeKey": "POST /agents/:id/disable",
       "contractDigest": "d938463582b898bda68672a55597d1ebd112463224e5740e4fdf0ca7ae965b32",
       "entity": "agent_definition",
-      "operation": null,
+      "operation": "agent.run.cancel",
       "mutating": true
     },
     {
@@ -1500,7 +1500,7 @@
       "routeKey": "POST /agents/:id/repair",
       "contractDigest": "8b60fe35a4779610ad792803fef460ad78a472f37092c901e1c8021f9431a944",
       "entity": "agent_definition",
-      "operation": null,
+      "operation": "agent.run.manualReview",
       "mutating": true
     },
     {
@@ -1510,7 +1510,7 @@
       "routeKey": "POST /agents/:id/runs",
       "contractDigest": "3c312e6e2b6a4316159022bfe03827edbcc3a6b8eba35c02eb5fdf8c4eec4ede",
       "entity": "agent_run",
-      "operation": null,
+      "operation": "agent.run.start",
       "mutating": true
     },
     {
@@ -1560,7 +1560,7 @@
       "routeKey": "POST /agent-runs/:runId/messages",
       "contractDigest": "a082ed792de5872355d29ab57bbf3079fcec8da05a4780a7f31589bc7e9d7286",
       "entity": "agent_message",
-      "operation": null,
+      "operation": "agent.message.append",
       "mutating": true
     },
     {
@@ -1690,7 +1690,7 @@
       "routeKey": "POST /agent-sessions/:sessionId/close",
       "contractDigest": "0ad4a0f09dd8eb1f34e4eac305d8979e42978a9bd6af3a592377adea7f0da47e",
       "entity": "agent_session",
-      "operation": null,
+      "operation": "agent.session.compact",
       "mutating": true
     },
     {
@@ -1710,7 +1710,7 @@
       "routeKey": "POST /agents/:id/memory/search",
       "contractDigest": "cb9630d4633f20fd76dcac1c8fe105af4cf7a4374433e315ec37219d4ecbc465",
       "entity": "agent_memory_namespace",
-      "operation": null,
+      "operation": "agent.memory.read",
       "mutating": true
     },
     {
@@ -1720,7 +1720,7 @@
       "routeKey": "POST /agents/:id/memory/items",
       "contractDigest": "88ad4b948ac059717ee9f26967cd85b865f426eca49a675f83277a4cc1822cae",
       "entity": "agent_memory_item",
-      "operation": null,
+      "operation": "agent.memory.write",
       "mutating": true
     },
     {
@@ -1730,7 +1730,7 @@
       "routeKey": "DELETE /agents/:id/memory/items/:itemId",
       "contractDigest": "4ebc936f2395e049549f3bc1267eadbdacf5b4d1161ef94dbf834abc0b4e0082",
       "entity": "agent_memory_item",
-      "operation": null,
+      "operation": "agent.memory.write",
       "mutating": true
     },
     {
@@ -1750,7 +1750,7 @@
       "routeKey": "POST /agents/:id/eval-suites",
       "contractDigest": "36b57ba8370106c4b4a5fed4ab302f7f6d51bd510514c54dc30997123f6516a1",
       "entity": "agent_eval_suite",
-      "operation": null,
+      "operation": "agent.eval.start",
       "mutating": true
     },
     {
@@ -1770,7 +1770,7 @@
       "routeKey": "POST /agent-eval-suites/:suiteId/runs",
       "contractDigest": "c8ab82f29dfc3f9869fb543564d2249a1878dfb7e7464275cf55b12383823ff1",
       "entity": "agent_eval_suite",
-      "operation": null,
+      "operation": "agent.eval.start",
       "mutating": true
     },
     {
@@ -1810,7 +1810,7 @@
       "routeKey": "POST /agents/:id/triggers",
       "contractDigest": "d562b2a9fea34e2001b9385d0f86646f136889d12d985ae52fb7de1ce494ba05",
       "entity": "agent_trigger",
-      "operation": null,
+      "operation": "agent.delegate.request",
       "mutating": true
     },
     {
@@ -1820,7 +1820,7 @@
       "routeKey": "PATCH /agents/:id/triggers/:triggerId",
       "contractDigest": "a802865e04758ad04a42f990281ea04e0f666d34b528bea798a4a373c243c7d0",
       "entity": "agent_trigger",
-      "operation": null,
+      "operation": "agent.delegate.request",
       "mutating": true
     },
     {
@@ -1830,7 +1830,7 @@
       "routeKey": "DELETE /agents/:id/triggers/:triggerId",
       "contractDigest": "8fba22db467be08a096a418fcba559b783c941ccd77ce64e3f17777cde326891",
       "entity": "agent_trigger",
-      "operation": null,
+      "operation": "agent.delegate.request",
       "mutating": true
     },
     {
@@ -1880,7 +1880,7 @@
       "routeKey": "POST /chat/conversations/:id/messages",
       "contractDigest": "e97212fb5f28fddc65abe5c0cf950e3a7fd04df51c2dd40c2d43687f71af7b1d",
       "entity": "system_chat_message",
-      "operation": null,
+      "operation": "chat.message.append",
       "mutating": true
     },
     {
@@ -1900,7 +1900,7 @@
       "routeKey": "POST /chat/conversations/:id/cancel",
       "contractDigest": "70da826985ad77d00e11a4fabadbca59ca87098c2dc71d59ab426287d990737b",
       "entity": "system_chat_conversation",
-      "operation": null,
+      "operation": "chat.command.execute",
       "mutating": true
     },
     {
@@ -1920,7 +1920,7 @@
       "routeKey": "POST /chat/conversations/:id/browser-sessions",
       "contractDigest": "26576e2270ea72230919dfc391fcab7f2294f5cfadab3550eb67fdb4b10953b1",
       "entity": "browser_session_binding",
-      "operation": null,
+      "operation": "chat.browser.session.create",
       "mutating": true
     },
     {
@@ -1940,7 +1940,7 @@
       "routeKey": "POST /chat/ask",
       "contractDigest": "9dba7ce2b0f5163f43a2528272f5336ebfcb76bbcd99aaaafbced2faeebe4ad2",
       "entity": "system_chat_action",
-      "operation": "chat.conversation.create",
+      "operation": null,
       "mutating": true
     },
     {
@@ -2030,7 +2030,7 @@
       "routeKey": "POST /ai/model-calls/:id/retrieve",
       "contractDigest": "8d9632162c2d92ece184759b54b550aa9c21da385f99bef5765c9a481b63e9e0",
       "entity": "ai_model_call",
-      "operation": null,
+      "operation": "agent.model.completed",
       "mutating": true
     },
     {
@@ -2040,7 +2040,7 @@
       "routeKey": "POST /ai/model-calls/:id/resume-stream",
       "contractDigest": "f477e76c6a6b0c7a847a1620afd625a8992277a2a5cd18363be9f02af735cad4",
       "entity": "ai_model_call",
-      "operation": null,
+      "operation": "agent.model.completed",
       "mutating": true
     },
     {
@@ -2050,7 +2050,7 @@
       "routeKey": "POST /ai/model-calls/:id/request-cancel",
       "contractDigest": "e7c7bbbc42abb0c9e40781627aa15459f75bccc52d6d78313170e9e101ab6674",
       "entity": "ai_model_call",
-      "operation": null,
+      "operation": "agent.model.started",
       "mutating": true
     },
     {
@@ -2060,7 +2060,7 @@
       "routeKey": "POST /ai/model-calls/:id/reconcile",
       "contractDigest": "99fedccc3b99646aecf1685867d7307c8327609c47476dbb88af64bb41c9ccb5",
       "entity": "ai_model_call",
-      "operation": null,
+      "operation": "agent.model.completed",
       "mutating": true
     },
     {
@@ -2090,7 +2090,7 @@
       "routeKey": "POST /ai/model-capabilities/refresh",
       "contractDigest": "7424b40f391dcefcfeb09e86ea275d67c4dad5ee6d1b3401ed27d7a23510fe82",
       "entity": "openai_model_capability_snapshot",
-      "operation": null,
+      "operation": "agent.model.started",
       "mutating": true
     },
     {
@@ -2150,7 +2150,7 @@
       "routeKey": "POST /generation/jobs/:id/messages",
       "contractDigest": "43bea5204a9c52c3fbd45915e9f75141d41a26260509b64c6bb570ef7b9e73bc",
       "entity": "generation_message",
-      "operation": null,
+      "operation": "generation.message.append",
       "mutating": true
     },
     {
@@ -2190,7 +2190,7 @@
       "routeKey": "POST /generation/jobs/:id/sources",
       "contractDigest": "0bba2c101d6223f7f0fa85267c2e876089877ce21415f72cdd969e22950d44ce",
       "entity": "generation_source",
-      "operation": null,
+      "operation": "generation.source.add",
       "mutating": true
     },
     {
@@ -2240,7 +2240,7 @@
       "routeKey": "POST /generation/jobs/:id/capability-snapshots/refresh",
       "contractDigest": "6759d4c41098bd9e350e090905557f361437ae0c07453a320de59df9db0d1bdd",
       "entity": "generation_capability_snapshot",
-      "operation": null,
+      "operation": "generation.capability.resolve",
       "mutating": true
     },
     {
@@ -2480,7 +2480,7 @@
       "routeKey": "POST /generation/jobs/:id/validation-runs",
       "contractDigest": "cb89335fe04311bb6b6ee94dea42c2d623ad7ddc2eea7be0167f49d44dfa1010",
       "entity": "generation_validation_run",
-      "operation": null,
+      "operation": "generation.validation.run",
       "mutating": true
     },
     {
@@ -2500,7 +2500,7 @@
       "routeKey": "POST /generation/jobs/:id/blockers/:blockerId/resolve",
       "contractDigest": "f49d26acccd20a7a9f8d340b070055d98e099fbf20d6f8807e84215403f0ce55",
       "entity": "generation_blocker",
-      "operation": "generation.capability.resolve",
+      "operation": "generation.blocker.resolve",
       "mutating": true
     },
     {
@@ -2540,7 +2540,7 @@
       "routeKey": "POST /generation/jobs/:id/follow-up",
       "contractDigest": "d4597b4c845bfe3876ce5e63d591c04b4f93d783c5bc25eecc0358a75fe88fdb",
       "entity": "generation_job",
-      "operation": null,
+      "operation": "generation.message.append",
       "mutating": true
     },
     {
@@ -2600,7 +2600,7 @@
       "routeKey": "POST /generation/jobs/:id/browser/session",
       "contractDigest": "6979cda0bade872a03b253e5a89c27b45e9be0153b8d18a6e6d213b24640d30a",
       "entity": "browser_session",
-      "operation": null,
+      "operation": "browser.session.create",
       "mutating": true
     },
     {
@@ -2630,7 +2630,7 @@
       "routeKey": "POST /generation/jobs/:id/browser/credentials",
       "contractDigest": "c2eb4b669124170335e8adc2c802f7d2aecafb1ed5e3be2be7dce0c924643590",
       "entity": "browser_session",
-      "operation": null,
+      "operation": "browser.auth.verify",
       "mutating": true
     },
     {
@@ -2650,7 +2650,7 @@
       "routeKey": "POST /generation/jobs/:id/browser/operation-scope",
       "contractDigest": "e138701bcd483ae0754527a59b9f2c41fcffffe96e64ea130bc2166c85f3843a",
       "entity": "browser_operation_scope",
-      "operation": null,
+      "operation": "browser.session.state",
       "mutating": true
     },
     {
@@ -2660,7 +2660,7 @@
       "routeKey": "POST /generation/jobs/:id/browser/confirmations",
       "contractDigest": "022c204e9f28086bc3a4e8d5543e0799f728a8e48a353bc26b76dfbdd27c02f2",
       "entity": "browser_irreversible_confirmation",
-      "operation": null,
+      "operation": "browser.challenge.resolve",
       "mutating": true
     },
     {
@@ -2680,7 +2680,7 @@
       "routeKey": "POST /generation/jobs/:id/browser/teaching",
       "contractDigest": "08026a31592f24b8c392d0d0235bf4ce384dd6fdae4b45c49fd3ae55fd9a10a4",
       "entity": "browser_teaching_run",
-      "operation": null,
+      "operation": "browser.teaching.start",
       "mutating": true
     },
     {
@@ -2700,7 +2700,7 @@
       "routeKey": "POST /generation/jobs/:id/browser/teaching/replay",
       "contractDigest": "c1c41a0f10dd769267ebe303fd8da61d4478d67b7cde836b14bbd254cd969153",
       "entity": "browser_teaching_run",
-      "operation": null,
+      "operation": "browser.automation.run",
       "mutating": true
     },
     {
@@ -2710,7 +2710,7 @@
       "routeKey": "POST /generation/jobs/:id/browser/takeover",
       "contractDigest": "1ab854e58412e65312d4a84708e7d054821d2c4578a34fe6c60902a6eadf5598",
       "entity": "browser_session",
-      "operation": null,
+      "operation": "browser.control.transfer",
       "mutating": true
     },
     {
@@ -2720,7 +2720,7 @@
       "routeKey": "POST /generation/jobs/:id/browser/return-to-ai",
       "contractDigest": "2c63775826fb6848c9ebec3c8c02a3d99ff9c92bca995a5897193728f7b66ca0",
       "entity": "browser_session",
-      "operation": null,
+      "operation": "browser.control.release",
       "mutating": true
     },
     {
@@ -2790,7 +2790,7 @@
       "routeKey": "POST /browser-sessions/:sessionId/pages",
       "contractDigest": "1b6d72c140eb4eae782620f2fc228195d55866f399ad658caf2e605d10af7d0f",
       "entity": "browser_page",
-      "operation": "browser.session.create",
+      "operation": "browser.page.open",
       "mutating": true
     },
     {
@@ -2820,7 +2820,7 @@
       "routeKey": "POST /browser-sessions/:sessionId/pages/:pageId/close",
       "contractDigest": "7c6d12a174487fcc468aaa450ce78eda6d35cc8f45f39859f96fe9296da9f251",
       "entity": "browser_page",
-      "operation": "browser.session.close",
+      "operation": "browser.page.close",
       "mutating": true
     },
     {
@@ -2870,7 +2870,7 @@
       "routeKey": "POST /browser-sessions/:sessionId/actions",
       "contractDigest": "709aec654727c916fd6a24a7a10188dc96c4b00123b799e339d2b82519a4b91a",
       "entity": "browser_action_run",
-      "operation": "browser.session.create",
+      "operation": "browser.action.start",
       "mutating": true
     },
     {
@@ -2880,7 +2880,7 @@
       "routeKey": "GET /browser-sessions/:sessionId/actions/:actionId",
       "contractDigest": "243c7c2fc945a1025db42c3a9caa1bc5be1ca0ad7f5329d1b846ce6f4b9a3387",
       "entity": "browser_action_run",
-      "operation": "browser.session.observe",
+      "operation": "browser.action.status",
       "mutating": false
     },
     {
@@ -2890,7 +2890,7 @@
       "routeKey": "GET /browser-sessions/:sessionId/actions/:actionId/attempts",
       "contractDigest": "4f792e177cbb83ae0fbce55cf4ee29af460c8091e1e5d6710f97333bb0e2c954",
       "entity": "browser_action_attempt",
-      "operation": "browser.session.observe",
+      "operation": "browser.action.status",
       "mutating": false
     },
     {
@@ -2960,7 +2960,7 @@
       "routeKey": "POST /browser-sessions/:sessionId/control/return-to-ai",
       "contractDigest": "cf93c6540b5ccc3fdba975e35822f7b03c680a16e1908fa477f1e1a61eedc153",
       "entity": "browser_control_lease",
-      "operation": null,
+      "operation": "browser.control.release",
       "mutating": true
     },
     {
@@ -2980,7 +2980,7 @@
       "routeKey": "POST /browser-sessions/:sessionId/operation-scopes",
       "contractDigest": "b08852d3afa4cbb18dd12d9abbea90baa66c20a4f589890f6984dfe7fdd0e09a",
       "entity": "browser_operation_scope",
-      "operation": "browser.session.create",
+      "operation": "browser.session.state",
       "mutating": true
     },
     {
@@ -3020,7 +3020,7 @@
       "routeKey": "POST /browser-sessions/:sessionId/credentials",
       "contractDigest": "74756d208ceca8abae0751dbc75e2537598b7cf8a8c9d976301c8d66f44c1abb",
       "entity": "browser_auth_attempt",
-      "operation": "browser.session.create",
+      "operation": "browser.auth.verify",
       "mutating": true
     },
     {
@@ -3120,7 +3120,7 @@
       "routeKey": "POST /browser-sessions/:sessionId/recover",
       "contractDigest": "d3dd0a17d8b4f89da08e5a459ec07e251c49b91dd0b8e6c490dac06466ecb6ae",
       "entity": "browser_session",
-      "operation": "browser.host.recover",
+      "operation": "browser.session.recover",
       "mutating": true
     },
     {
@@ -3150,7 +3150,7 @@
       "routeKey": "POST /browser-sessions/:sessionId/uploads",
       "contractDigest": "cab8e4b404eb57706864d220f34085fbd88ea6fa93d452e2ca37df72c080f6e1",
       "entity": "browser_upload_handle",
-      "operation": "browser.session.create",
+      "operation": "browser.upload.create",
       "mutating": true
     },
     {
@@ -3170,7 +3170,7 @@
       "routeKey": "POST /browser-sessions/:sessionId/preview-tickets",
       "contractDigest": "9af7b2fa0db8cb95ae35c180a8c79c5f9373ac4ecc9c01c3b9c72676d25dc286",
       "entity": "browser_preview_ticket",
-      "operation": "browser.session.create",
+      "operation": null,
       "mutating": true
     },
     {
@@ -3210,7 +3210,7 @@
       "routeKey": "POST /browser-accounts",
       "contractDigest": "345569bdb1e1f590f09044e392c19fae3a47871fa0c4ca6abb15690be4db76f6",
       "entity": "browser_account_binding",
-      "operation": "browser.session.create",
+      "operation": "browser.account.save",
       "mutating": true
     },
     {
@@ -3230,7 +3230,7 @@
       "routeKey": "PATCH /browser-accounts/:accountId",
       "contractDigest": "b16de51259c628f1c0923949ce342611c662866dc6c56919c3885cbb38d8913f",
       "entity": "browser_account_binding",
-      "operation": null,
+      "operation": "browser.account.save",
       "mutating": true
     },
     {
@@ -3240,7 +3240,7 @@
       "routeKey": "POST /browser-accounts/:accountId/verify",
       "contractDigest": "cfa253076c7bf2d900248298110b2510af9b777277c797faf4e79ad81d33577e",
       "entity": "browser_account_binding",
-      "operation": "browser.runtimeBuild.verify",
+      "operation": "browser.account.verify",
       "mutating": true
     },
     {
@@ -3340,7 +3340,7 @@
       "routeKey": "POST /browser-bridges/enrollments",
       "contractDigest": "00b3697ca8d9be7a55bfe31f448cf76cd106d248e5e87affad4786a32c714dfb",
       "entity": "browser_local_bridge",
-      "operation": "browser.session.create",
+      "operation": "browser.bridge.enroll",
       "mutating": true
     },
     {
@@ -3350,7 +3350,7 @@
       "routeKey": "POST /browser-bridges/enrollments/:enrollmentId/complete",
       "contractDigest": "4baaebda3e4d39861827f976c85d698bc3ac3f1901dd8a48ec0b08f68aae2fd5",
       "entity": "browser_local_bridge",
-      "operation": "browser.action.complete",
+      "operation": "browser.bridge.connect",
       "mutating": true
     },
     {
@@ -3430,7 +3430,7 @@
       "routeKey": "POST /browser-automations",
       "contractDigest": "3c6ebd177752a2b2a814857defd95ad415501c230eec5a503a9331e144add278",
       "entity": "browser_automation_definition",
-      "operation": "browser.session.create",
+      "operation": "browser.automation.run",
       "mutating": true
     },
     {
@@ -3450,7 +3450,7 @@
       "routeKey": "PATCH /browser-automations/:id",
       "contractDigest": "225a98eeb94796d7c0e6bc9cfabb86973311f8701b8a8637b6b32ef230466db2",
       "entity": "browser_automation_definition",
-      "operation": null,
+      "operation": "browser.automation.repair",
       "mutating": true
     },
     {
@@ -3470,7 +3470,7 @@
       "routeKey": "POST /browser-automations/:id/revisions",
       "contractDigest": "17506e0a9a84e081ba6a69f6d6a1a1acedf7e0d6a2cab41ae42c7db51ac3d1a7",
       "entity": "browser_automation_revision",
-      "operation": "browser.session.create",
+      "operation": "browser.teaching.compile",
       "mutating": true
     },
     {
@@ -3500,7 +3500,7 @@
       "routeKey": "POST /browser-automations/:id/revisions/:revisionId/verify",
       "contractDigest": "1c3c8e82bd6b11e738367757fa0b34c384f15ab2bd085a5afd921b12744c63f7",
       "entity": "browser_automation_revision",
-      "operation": "browser.runtimeBuild.verify",
+      "operation": "browser.automation.verify",
       "mutating": true
     },
     {
@@ -3510,7 +3510,7 @@
       "routeKey": "POST /browser-automations/:id/revisions/:revisionId/activate",
       "contractDigest": "780a038c4093431df3734211d0e726347c0774a3973090559c3625e3a3014bed",
       "entity": "browser_automation_revision",
-      "operation": "browser.page.activate",
+      "operation": "browser.automation.run",
       "mutating": true
     },
     {
@@ -3520,7 +3520,7 @@
       "routeKey": "POST /browser-automations/:id/revisions/:revisionId/rollback",
       "contractDigest": "fa9ada7ca6bd90995cce24499344eba9e1d9d6e5a24097f5441a949cbe0d2775",
       "entity": "browser_automation_revision",
-      "operation": null,
+      "operation": "browser.automation.repair",
       "mutating": true
     },
     {
@@ -3540,7 +3540,7 @@
       "routeKey": "POST /browser-automations/:id/auth-bindings",
       "contractDigest": "f90f921ff5ade1028f0297bcc30e7a987751115771b2f28da3e0b6bb2d8c6297",
       "entity": "browser_auth_binding",
-      "operation": "browser.session.create",
+      "operation": "browser.account.save",
       "mutating": true
     },
     {
@@ -3560,7 +3560,7 @@
       "routeKey": "POST /browser-automations/:id/schedules",
       "contractDigest": "c1a93562e51e16814e16430949c4f9eedcfad4569c43fde866904971845290af",
       "entity": "browser_automation_definition",
-      "operation": "browser.session.create",
+      "operation": "browser.schedule.evaluate",
       "mutating": true
     },
     {
@@ -3570,7 +3570,7 @@
       "routeKey": "PATCH /browser-automations/:id/schedules/:scheduleId",
       "contractDigest": "c3026e1e3cb54524ed4c4057ccc06405eee1a52d81cd8de41ecbcfa699c791d1",
       "entity": "browser_automation_definition",
-      "operation": null,
+      "operation": "browser.schedule.evaluate",
       "mutating": true
     },
     {
@@ -3580,7 +3580,7 @@
       "routeKey": "POST /browser-automations/:id/teaching-runs",
       "contractDigest": "87c1f4b8624e98cba2901ca74591195fd7511c6bcc99d4947194051d3ed50363",
       "entity": "browser_teaching_run",
-      "operation": "browser.session.create",
+      "operation": "browser.teaching.start",
       "mutating": true
     },
     {
@@ -3600,7 +3600,7 @@
       "routeKey": "POST /browser-teaching-runs/:teachingRunId/stop",
       "contractDigest": "05442d129b9a590a2872ca079931fbed5925b1b64959e68714eaa9abb5778828",
       "entity": "browser_teaching_run",
-      "operation": "browser.session.create",
+      "operation": "browser.teaching.start",
       "mutating": true
     },
     {
@@ -3620,7 +3620,7 @@
       "routeKey": "POST /browser-automations/:id/runs",
       "contractDigest": "f81caa6aef7756ad648490e5b956f49b416cd8613698dea5779aa22c4130e29c",
       "entity": "browser_automation_run",
-      "operation": "browser.session.create",
+      "operation": "browser.automation.run",
       "mutating": true
     },
     {
@@ -3690,7 +3690,7 @@
       "routeKey": "POST /browser-runs/:runId/control/return-to-runtime",
       "contractDigest": "5b111ffd56dce2c0cf7ea8e2f9075c3e309aa1a89f84a8a550ce5ea5b630cf14",
       "entity": "browser_automation_run",
-      "operation": null,
+      "operation": "browser.control.release",
       "mutating": true
     },
     {
@@ -3700,7 +3700,7 @@
       "routeKey": "POST /browser-runs/:runId/cancel",
       "contractDigest": "62c4fea83bdcd14116b89f28027d236a2dfc86a3d29bce8e781d56d370d0bfd8",
       "entity": "browser_automation_run",
-      "operation": "browser.action.cancel",
+      "operation": "browser.automation.cancel",
       "mutating": true
     },
     {
@@ -3720,7 +3720,7 @@
       "routeKey": "POST /browser-runs/:runId/reconcile",
       "contractDigest": "0546bd96ea59b4ec4de78d0bb60f255fceef79137126c4d9c9ef9aaf06a493c2",
       "entity": "browser_automation_run",
-      "operation": "browser.action.reconcile",
+      "operation": "browser.automation.reconcile",
       "mutating": true
     },
     {
@@ -3730,7 +3730,7 @@
       "routeKey": "POST /browser-runs/:runId/resolve-outcome",
       "contractDigest": "8c60ec4011929b430a6e2573a51f0793781e63d362845981eb526454fe2a0b48",
       "entity": "browser_automation_run",
-      "operation": "browser.action.resolveOutcome",
+      "operation": "browser.run.manualReview",
       "mutating": true
     },
     {
@@ -3770,7 +3770,7 @@
       "routeKey": "POST /browser-automations/:id/enable",
       "contractDigest": "e59632f98af751a12e45a679f7545f0baa2bebf87686539ee418c9e274eb42d2",
       "entity": "browser_automation_definition",
-      "operation": "browser.session.create",
+      "operation": "browser.automation.run",
       "mutating": true
     },
     {
@@ -3780,7 +3780,7 @@
       "routeKey": "POST /browser-automations/:id/disable",
       "contractDigest": "d372500aacaceb5f289c3f951f8913fed609cbc5678fbc794d920cebe5ef0974",
       "entity": "browser_automation_definition",
-      "operation": "browser.session.create",
+      "operation": "browser.automation.cancel",
       "mutating": true
     },
     {
@@ -3910,7 +3910,7 @@
       "routeKey": "POST /secrets/:id/bindings",
       "contractDigest": "aac541e15d9c97f3c45f69ad43ce5846900bbb5656ffbe81e37a67359c5189a5",
       "entity": "secret_binding",
-      "operation": null,
+      "operation": "secret.bind",
       "mutating": true
     },
     {
@@ -3920,7 +3920,7 @@
       "routeKey": "DELETE /secrets/:id/bindings/:bindingId",
       "contractDigest": "8edd0c1491c6c46979bdc6d50892e6d0f01a67b282bb92105fcc0675fbf25f17",
       "entity": "secret_binding",
-      "operation": null,
+      "operation": "secret.unbind",
       "mutating": true
     },
     {
@@ -3940,7 +3940,7 @@
       "routeKey": "POST /secrets/:id/test-resolve",
       "contractDigest": "e98c5d9e3f45b5f596259f1659e73bbcab3fb35c37a11073cc1f900c701de06d",
       "entity": "secret_access_event",
-      "operation": null,
+      "operation": "secret.resolve",
       "mutating": true
     },
     {
@@ -4140,7 +4140,7 @@
       "routeKey": "POST /bindings/preview",
       "contractDigest": "824c052e1a7fe3e6f92f4e82dfb2ebc4a0484f26332f0e4f4ce8b8b1aa213bd4",
       "entity": "binding_set",
-      "operation": null,
+      "operation": "component.revision.publish",
       "mutating": true
     },
     {
@@ -4150,7 +4150,7 @@
       "routeKey": "POST /bindings/test",
       "contractDigest": "f85c879efd4fa65380eba296cc85fa5df25e941b0bfd45916969c54443c63186",
       "entity": "binding_set",
-      "operation": null,
+      "operation": "component.revision.publish",
       "mutating": true
     },
     {
@@ -4170,7 +4170,7 @@
       "routeKey": "POST /external/targets",
       "contractDigest": "26648a0178f06ab65594e4b0fbb977ff7f1b30fa9367e2b0d3eea298f1d859ac",
       "entity": "external_target",
-      "operation": null,
+      "operation": "component.revision.publish",
       "mutating": true
     },
     {
@@ -4190,7 +4190,7 @@
       "routeKey": "PATCH /external/targets/:id",
       "contractDigest": "6df5773b8dc6131bb474393c9b7d9ed85efe2e912579a5f3034ef44f6b83eb48",
       "entity": "external_target",
-      "operation": null,
+      "operation": "component.revision.publish",
       "mutating": true
     },
     {
@@ -4200,7 +4200,7 @@
       "routeKey": "POST /external/targets/:id/test",
       "contractDigest": "71cfa99cefc8721e961661452ac98a975331edaa9f10cd07058315987e06d0a8",
       "entity": "external_target",
-      "operation": null,
+      "operation": "mcp.tools.call",
       "mutating": true
     },
     {
@@ -4210,7 +4210,7 @@
       "routeKey": "POST /external/targets/:id/circuit/open",
       "contractDigest": "aeca7e03bbbd7c2e6559006b9db8a6d4ae4b0381a15d1ef9556b4bc71215027d",
       "entity": "external_target",
-      "operation": null,
+      "operation": "monitor.state.transition",
       "mutating": true
     },
     {
@@ -4220,7 +4220,7 @@
       "routeKey": "POST /external/targets/:id/circuit/close",
       "contractDigest": "94107083e8f9acf0551ddb221e8bd0b6785c92c8855be84c8f27247a737a913c",
       "entity": "external_target",
-      "operation": null,
+      "operation": "monitor.state.transition",
       "mutating": true
     },
     {
@@ -4240,7 +4240,7 @@
       "routeKey": "POST /external/auth-bindings",
       "contractDigest": "4900656189e68d41a1582f7722fcf39bf2646cb9734ed5d6ed5c8a2d13ab96a0",
       "entity": "external_auth_binding",
-      "operation": null,
+      "operation": "secret.bind",
       "mutating": true
     },
     {
@@ -4250,7 +4250,7 @@
       "routeKey": "PATCH /external/auth-bindings/:id",
       "contractDigest": "b6a879aa89820677a3c5d691337ad659175cf9b189e3c1a025a45a3f6fcc33d0",
       "entity": "external_auth_binding",
-      "operation": null,
+      "operation": "secret.bind",
       "mutating": true
     },
     {
@@ -4270,7 +4270,7 @@
       "routeKey": "POST /external/target-bindings",
       "contractDigest": "3cadf42d26dc2b6c74662f179c0a9e34d6b5a73da4645ad567486ac49191526b",
       "entity": "external_target_binding",
-      "operation": null,
+      "operation": "component.revision.publish",
       "mutating": true
     },
     {
@@ -4280,7 +4280,7 @@
       "routeKey": "DELETE /external/target-bindings/:id",
       "contractDigest": "f7b04a7d66471db26ad4e0cc3dda001ac44a76fb43c051687b6271b21ecb1648",
       "entity": "external_target_binding",
-      "operation": null,
+      "operation": "component.deregister",
       "mutating": true
     },
     {
@@ -4310,7 +4310,7 @@
       "routeKey": "POST /webhooks/test",
       "contractDigest": "17231c538786ad6f39dae4b508b51a6f2c05ee16bc4b1f69b4061c3de895dd97",
       "entity": "webhook_endpoint",
-      "operation": null,
+      "operation": "mcp.tools.call",
       "mutating": true
     },
     {
@@ -4360,7 +4360,7 @@
       "routeKey": "PUT /monitoring/profiles/:componentId",
       "contractDigest": "728a49fc8bef3e99a2bcc3579cc12c63ce54f9f1f7e118600fcd144175e4f1ee",
       "entity": "monitoring_profile",
-      "operation": null,
+      "operation": "monitor.state.transition",
       "mutating": true
     },
     {
@@ -4370,7 +4370,7 @@
       "routeKey": "POST /monitoring/probe/run",
       "contractDigest": "fa78f1368bcb91233076a8ec9328489b6bed14d6235d0e8a372a0c3697388aca",
       "entity": "monitoring_probe",
-      "operation": null,
+      "operation": "monitor.probe.request",
       "mutating": true
     },
     {
@@ -4440,7 +4440,7 @@
       "routeKey": "POST /alerts/channels/test",
       "contractDigest": "b2d2064b6fefe1683603b01e9e78cf3f0e9e2eeab027fe600b67032ed1fcf5ac",
       "entity": "operational_alert",
-      "operation": null,
+      "operation": "monitor.probe.request",
       "mutating": true
     },
     {
@@ -4490,7 +4490,7 @@
       "routeKey": "POST /audit/integrity/verify",
       "contractDigest": "ad996bc30e7a485b97f1d107381aadc96b1e959c705d2338979ce5d21210bec4",
       "entity": "audit_event",
-      "operation": "audit.integrity.verify",
+      "operation": null,
       "mutating": true
     },
     {
@@ -4540,7 +4540,7 @@
       "routeKey": "POST /logs/export",
       "contractDigest": "397860ae3d960c97d7f0fafc08dd79861156813a64604da688b147307da85201",
       "entity": "debug_log_event",
-      "operation": null,
+      "operation": "audit.archive.enqueue",
       "mutating": true
     },
     {
@@ -4570,7 +4570,7 @@
       "routeKey": "PUT /config/settings/:key",
       "contractDigest": "e6171c09074d53d55d1bdcbc48e71df583ed65fa6eed58df9c492ca4513892ed",
       "entity": "operational_setting",
-      "operation": null,
+      "operation": "component.revision.publish",
       "mutating": true
     },
     {
@@ -4580,7 +4580,7 @@
       "routeKey": "POST /config/settings/:key/reset",
       "contractDigest": "e81e3470b7573454d6d3af27ea811f90b259ae47ef29ade499019f1125f4e950",
       "entity": "operational_setting",
-      "operation": null,
+      "operation": "component.revision.publish",
       "mutating": true
     },
     {
@@ -4590,7 +4590,7 @@
       "routeKey": "POST /config/validate",
       "contractDigest": "fe00f9f5f7f8c4b292beb56a471e80f39b0ebc025c3ccd1999690eb7e786715a",
       "entity": "operational_setting",
-      "operation": null,
+      "operation": "component.validate",
       "mutating": true
     },
     {
@@ -4600,7 +4600,7 @@
       "routeKey": "POST /config/apply",
       "contractDigest": "020c058e73e6c2a4a3ee28bb5609262c7a79d98cf530682eef233ad24c4677d1",
       "entity": "configuration_apply_run",
-      "operation": null,
+      "operation": "generation.activation.switch",
       "mutating": true
     },
     {
@@ -4610,7 +4610,7 @@
       "routeKey": "POST /config/export",
       "contractDigest": "e5e76b903cc727fd79003e98574e87dc10bc98ebaf65e2623858eb2dd5dfb6e5",
       "entity": "operational_setting",
-      "operation": null,
+      "operation": "audit.archive.enqueue",
       "mutating": true
     },
     {
@@ -4620,7 +4620,7 @@
       "routeKey": "POST /config/import",
       "contractDigest": "cfe87ac111b9f85c5b79c6f238098138cb73a4b332ea3887d304a981e1631e98",
       "entity": "operational_setting",
-      "operation": null,
+      "operation": "component.revision.publish",
       "mutating": true
     },
     {
@@ -4650,7 +4650,7 @@
       "routeKey": "POST /releases/:id/rollback",
       "contractDigest": "110135594432092bd389893f90b756c8db9c5f346e1d1280406ea05b27e57e60",
       "entity": "application_release",
-      "operation": null,
+      "operation": "component.rollback",
       "mutating": true
     },
     {
@@ -4680,7 +4680,7 @@
       "routeKey": "POST /backups",
       "contractDigest": "4abdac2657914faad1c6b4a7b56de6399076807e4ed23e22973da4839e04999c",
       "entity": "backup_record",
-      "operation": null,
+      "operation": "audit.archive.enqueue",
       "mutating": true
     },
     {
@@ -4690,7 +4690,7 @@
       "routeKey": "POST /backups/:id/verify",
       "contractDigest": "7118ede71895561e6137589f72919736d4e28fbea7d66b9ce79494bbd5520449",
       "entity": "backup_record",
-      "operation": null,
+      "operation": "audit.integrity.verify",
       "mutating": true
     },
     {
@@ -4710,7 +4710,7 @@
       "routeKey": "POST /maintenance/restart-service",
       "contractDigest": "7e043bbb6116f03a6e8df6dca068145d66e6219cd2d122e67132c626cb33eb26",
       "entity": "runtime_instance",
-      "operation": null,
+      "operation": "runtime.instance.restart",
       "mutating": true
     },
     {
@@ -4840,7 +4840,7 @@
       "routeKey": "POST /self-tests/runs/:id/replay",
       "contractDigest": "a79fca0f1b039288aef39f30aa05e2146ef715cb7e5af2b902c484756bad9b49",
       "entity": "self_test_run",
-      "operation": null,
+      "operation": "selfTest.registeredElement.run",
       "mutating": true
     },
     {
@@ -4850,7 +4850,7 @@
       "routeKey": "POST /self-tests/runs/:id/shrink",
       "contractDigest": "aadf5c9d56e3ec3db6be6183df418cc257338b19b8a558c93d0ad708c2fd24dc",
       "entity": "self_test_run",
-      "operation": null,
+      "operation": "selfTest.registeredElement.run",
       "mutating": true
     },
     {
@@ -5020,7 +5020,7 @@
       "routeKey": "POST /agentic-security/self-tests",
       "contractDigest": "31b3ca1c076ef7b2435c0a2e7669fdcea8244847e3261a5ec0b96f47293a2c05",
       "entity": "agentic_security_event",
-      "operation": null,
+      "operation": "agentic.security.event.record",
       "mutating": true
     },
     {

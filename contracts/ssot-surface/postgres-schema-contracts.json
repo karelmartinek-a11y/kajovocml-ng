@@ -15451,6 +15451,20 @@
           "references": null
         },
         {
+          "name": "activation_set_id",
+          "dataType": "uuid",
+          "notNull": false,
+          "hasDefault": false,
+          "references": null
+        },
+        {
+          "name": "active_phase_run_id",
+          "dataType": "uuid",
+          "notNull": false,
+          "hasDefault": false,
+          "references": null
+        },
+        {
           "name": "active_worker_id",
           "dataType": "uuid",
           "notNull": false,
@@ -15465,6 +15479,13 @@
           "references": null
         },
         {
+          "name": "approved_spec_digest",
+          "dataType": "bytea",
+          "notNull": false,
+          "hasDefault": false,
+          "references": null
+        },
+        {
           "name": "approved_spec_revision_id",
           "dataType": "uuid",
           "notNull": false,
@@ -15474,6 +15495,34 @@
         {
           "name": "blocker",
           "dataType": "jsonb",
+          "notNull": false,
+          "hasDefault": false,
+          "references": null
+        },
+        {
+          "name": "cancellation_version",
+          "dataType": "bigint",
+          "notNull": true,
+          "hasDefault": true,
+          "references": null
+        },
+        {
+          "name": "candidate_id",
+          "dataType": "uuid",
+          "notNull": false,
+          "hasDefault": false,
+          "references": null
+        },
+        {
+          "name": "cleanup_operation_id",
+          "dataType": "uuid",
+          "notNull": false,
+          "hasDefault": false,
+          "references": null
+        },
+        {
+          "name": "correlation_id",
+          "dataType": "uuid",
           "notNull": false,
           "hasDefault": false,
           "references": null
@@ -15493,10 +15542,24 @@
           "references": null
         },
         {
+          "name": "execution_authority_id",
+          "dataType": "uuid",
+          "notNull": false,
+          "hasDefault": false,
+          "references": null
+        },
+        {
           "name": "id",
           "dataType": "uuid",
           "notNull": true,
           "hasDefault": true,
+          "references": null
+        },
+        {
+          "name": "latest_checkpoint_id",
+          "dataType": "uuid",
+          "notNull": false,
+          "hasDefault": false,
           "references": null
         },
         {
@@ -15518,6 +15581,13 @@
           "dataType": "text",
           "notNull": true,
           "hasDefault": true,
+          "references": null
+        },
+        {
+          "name": "logical_operation_id",
+          "dataType": "uuid",
+          "notNull": false,
+          "hasDefault": false,
           "references": null
         },
         {
@@ -15549,10 +15619,38 @@
           "references": null
         },
         {
+          "name": "previous_activation_snapshot",
+          "dataType": "jsonb",
+          "notNull": false,
+          "hasDefault": false,
+          "references": null
+        },
+        {
           "name": "progress",
           "dataType": "integer",
           "notNull": true,
           "hasDefault": true,
+          "references": null
+        },
+        {
+          "name": "provisional_identity",
+          "dataType": "jsonb",
+          "notNull": false,
+          "hasDefault": false,
+          "references": null
+        },
+        {
+          "name": "recovery_state",
+          "dataType": "text",
+          "notNull": true,
+          "hasDefault": true,
+          "references": null
+        },
+        {
+          "name": "result_digest",
+          "dataType": "bytea",
+          "notNull": false,
+          "hasDefault": false,
           "references": null
         },
         {
@@ -15584,10 +15682,24 @@
           "references": null
         },
         {
+          "name": "terminal_evidence",
+          "dataType": "jsonb",
+          "notNull": false,
+          "hasDefault": false,
+          "references": null
+        },
+        {
           "name": "updated_at",
           "dataType": "timestamp with time zone",
           "notNull": true,
           "hasDefault": true,
+          "references": null
+        },
+        {
+          "name": "workspace_revision_id",
+          "dataType": "uuid",
+          "notNull": false,
+          "hasDefault": false,
           "references": null
         }
       ],
@@ -15599,7 +15711,7 @@
       ],
       "constraints": [],
       "commentContractDigest": "sha256:c80f35874cba13e216c55bfd09c52c70dde7afdd13bf60e67516ca33ae0494c9",
-      "canonicalDigest": "sha256:5f9b1168b9c2574a38a4c18e5f8ff1376a68e782b629cc2a9a73e2c935f10358"
+      "canonicalDigest": "sha256:128cb588093de9d5460d0057e4d2aef5467cbc9f68b759f27b85c14177f1866e"
     },
     {
       "tableName": "generation_source",
@@ -18349,6 +18461,13 @@
       "immutable": true,
       "columns": [
         {
+          "name": "checkpoint_kind",
+          "dataType": "text",
+          "notNull": true,
+          "hasDefault": true,
+          "references": null
+        },
+        {
           "name": "created_at",
           "dataType": "timestamp with time zone",
           "notNull": true,
@@ -18394,9 +18513,30 @@
           "references": null
         },
         {
+          "name": "phase_run_id",
+          "dataType": "uuid",
+          "notNull": false,
+          "hasDefault": false,
+          "references": null
+        },
+        {
           "name": "sequence",
           "dataType": "bigint",
           "notNull": true,
+          "hasDefault": false,
+          "references": null
+        },
+        {
+          "name": "successor_phase",
+          "dataType": "text",
+          "notNull": false,
+          "hasDefault": false,
+          "references": null
+        },
+        {
+          "name": "terminal_evidence",
+          "dataType": "jsonb",
+          "notNull": false,
           "hasDefault": false,
           "references": null
         },
@@ -18411,7 +18551,7 @@
       "indexes": [],
       "constraints": [],
       "commentContractDigest": "sha256:b366d5e068ae1499ed5a2712c460f08f5797ad02c39ec674006831dedd4c8f71",
-      "canonicalDigest": "sha256:9ac3e96233d3b535e7b389a1e156cafd0c7454699a8eef5a04deb05d3a82099f"
+      "canonicalDigest": "sha256:7b3af65da47ac4e90afd4d639f7407cd38bc88997d4a1ed1d1189de54a205271"
     },
     {
       "tableName": "generation_tool_event",
@@ -21674,6 +21814,13 @@
           "references": null
         },
         {
+          "name": "completion_kind",
+          "dataType": "text",
+          "notNull": false,
+          "hasDefault": false,
+          "references": null
+        },
+        {
           "name": "cost_microunits",
           "dataType": "bigint",
           "notNull": false,
@@ -21685,6 +21832,20 @@
           "dataType": "timestamp with time zone",
           "notNull": true,
           "hasDefault": true,
+          "references": null
+        },
+        {
+          "name": "dispatch_started_at",
+          "dataType": "timestamp with time zone",
+          "notNull": false,
+          "hasDefault": false,
+          "references": null
+        },
+        {
+          "name": "error",
+          "dataType": "jsonb",
+          "notNull": false,
+          "hasDefault": false,
           "references": null
         },
         {
@@ -21716,10 +21877,24 @@
           "references": null
         },
         {
+          "name": "local_state",
+          "dataType": "text",
+          "notNull": true,
+          "hasDefault": true,
+          "references": null
+        },
+        {
           "name": "model",
           "dataType": "text",
           "notNull": true,
           "hasDefault": false,
+          "references": null
+        },
+        {
+          "name": "model_logical_operation_id",
+          "dataType": "uuid",
+          "notNull": true,
+          "hasDefault": true,
           "references": null
         },
         {
@@ -21745,6 +21920,13 @@
         },
         {
           "name": "provider_response_id",
+          "dataType": "text",
+          "notNull": false,
+          "hasDefault": false,
+          "references": null
+        },
+        {
+          "name": "provider_status",
           "dataType": "text",
           "notNull": false,
           "hasDefault": false,
@@ -21807,6 +21989,13 @@
           "references": null
         },
         {
+          "name": "transport_evidence",
+          "dataType": "jsonb",
+          "notNull": true,
+          "hasDefault": true,
+          "references": null
+        },
+        {
           "name": "updated_at",
           "dataType": "timestamp with time zone",
           "notNull": true,
@@ -21829,7 +22018,7 @@
         }
       ],
       "commentContractDigest": "sha256:d4f06f7f2bc44908c7efa7a9ce07dcff75f79878ff1cd7669efdbac6f775e884",
-      "canonicalDigest": "sha256:9c48b3e5cd459d786698ebe245485b027c6298c0a600a618fc76a2bd1227b07d"
+      "canonicalDigest": "sha256:49f968e9b1a141d4e51ac8b3075bdb0e3cb1a8d46ffcdd8e6c7339bc322ff7e3"
     },
     {
       "tableName": "ai_model_event",

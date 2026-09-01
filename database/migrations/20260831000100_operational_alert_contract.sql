@@ -51,6 +51,7 @@ ALTER TABLE kcml.operational_alert ADD CONSTRAINT operational_alert_canonical_di
 ALTER TABLE kcml.operational_alert DROP CONSTRAINT IF EXISTS operational_alert_recovery_epoch_check;
 ALTER TABLE kcml.operational_alert ADD CONSTRAINT operational_alert_recovery_epoch_check CHECK (recovery_epoch>0);
 ALTER TABLE kcml.operational_alert DROP CONSTRAINT IF EXISTS operational_alert_first_seen_at_last_seen_at_check;
+ALTER TABLE kcml.operational_alert DROP CONSTRAINT IF EXISTS operational_alert_seen_interval_check;
 ALTER TABLE kcml.operational_alert ADD CONSTRAINT operational_alert_seen_interval_check CHECK (first_seen_at<=last_seen_at);
 ALTER TABLE kcml.operational_alert DROP CONSTRAINT IF EXISTS operational_alert_check;
 ALTER TABLE kcml.operational_alert ADD CONSTRAINT operational_alert_closed_timestamp_check CHECK ((status='CLOSED')=(closed_at IS NOT NULL));

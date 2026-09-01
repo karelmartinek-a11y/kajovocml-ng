@@ -672,6 +672,26 @@ CREATE TABLE IF NOT EXISTS kcml.generation_activation_set (
   application_deployment_epoch bigint NOT NULL
 );
 
+CREATE OR REPLACE FUNCTION kcml.guard_generation_activation_set() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE allowed boolean := false;
+BEGIN
+  IF NEW.state_version <= OLD.state_version THEN RAISE EXCEPTION 'generation_activation_set state_version must increase' USING ERRCODE = '40001'; END IF;
+  IF OLD.state IN ('ROLLED_BACK','FAILED','MANUAL_REVIEW') THEN RAISE EXCEPTION 'generation_activation_set terminal row is immutable' USING ERRCODE = '55000'; END IF;
+  allowed := OLD.state = NEW.state OR
+    (OLD.state = 'DRAFT' AND NEW.state IN ('READY','FAILED','MANUAL_REVIEW')) OR
+    (OLD.state = 'READY' AND NEW.state IN ('SWITCHING','ROLLING_BACK','FAILED','MANUAL_REVIEW')) OR
+    (OLD.state = 'SWITCHING' AND NEW.state IN ('VERIFYING','ROLLING_BACK','FAILED','MANUAL_REVIEW')) OR
+    (OLD.state = 'VERIFYING' AND NEW.state IN ('ACTIVE','ROLLING_BACK','FAILED','MANUAL_REVIEW')) OR
+    (OLD.state = 'ACTIVE' AND NEW.state IN ('ROLLING_BACK')) OR
+    (OLD.state = 'ROLLING_BACK' AND NEW.state IN ('ROLLBACK_VERIFYING','ROLLED_BACK','FAILED','MANUAL_REVIEW')) OR
+    (OLD.state = 'ROLLBACK_VERIFYING' AND NEW.state IN ('ROLLED_BACK','FAILED','MANUAL_REVIEW'));
+  IF NOT allowed THEN RAISE EXCEPTION 'invalid generation_activation_set state transition % -> %', OLD.state, NEW.state USING ERRCODE = '23514'; END IF;
+  NEW.updated_at := clock_timestamp(); RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS guard_generation_activation_set ON kcml.generation_activation_set;
+CREATE TRIGGER guard_generation_activation_set BEFORE UPDATE ON kcml.generation_activation_set FOR EACH ROW EXECUTE FUNCTION kcml.guard_generation_activation_set();
+
 CREATE TABLE IF NOT EXISTS kcml.runtime_instance (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   runtime_generation bigint NOT NULL CHECK (runtime_generation > 0),
@@ -889,7 +909,14 @@ CREATE TABLE IF NOT EXISTS kcml.ai_model_call (
   tools_digest bytea NOT NULL,
   schema_digest bytea,
   settings_snapshot jsonb NOT NULL,
+  local_state text NOT NULL DEFAULT 'QUEUED' CHECK (local_state IN ('QUEUED','SUBMITTING','IN_PROGRESS','STREAMING','WAITING_FOR_TOOL_OUTPUT','COMPLETED','INCOMPLETE','REFUSED','CANCEL_REQUESTED','CANCELLED','FAILED','EXPIRED')),
   submit_state text NOT NULL DEFAULT 'INTENT_RECORDED' CHECK (submit_state IN ('INTENT_RECORDED','DISPATCH_STARTED','RESPONSE_IDENTIFIED','STREAMING','COMPLETED','FAILED_FINAL','MODEL_SUBMIT_OUTCOME_UNKNOWN')),
+  provider_status text,
+  completion_kind text,
+  dispatch_started_at timestamptz,
+  transport_evidence jsonb NOT NULL DEFAULT '{}'::jsonb,
+  error jsonb,
+  model_logical_operation_id uuid NOT NULL DEFAULT gen_random_uuid(),
   provider_response_id text,
   provider_request_id text,
   output_items jsonb,
@@ -909,8 +936,8 @@ CREATE TABLE IF NOT EXISTS kcml.generation_job (
   target_object_ids uuid[] NOT NULL DEFAULT '{}',
   source_artifact_ids uuid[] NOT NULL DEFAULT '{}',
   model text,
-  lifecycle text NOT NULL DEFAULT 'INTAKE' CHECK (lifecycle IN ('INTAKE','DISCOVERY','SPECIFICATION','APPROVAL_REQUIRED','PLANNING','IMPLEMENTING','VALIDATING','ACTIVATING','SUCCEEDED','FAILED_FINAL','CANCELLED_FINAL','MANUAL_REVIEW')),
-  current_phase text NOT NULL DEFAULT 'INTAKE',
+  lifecycle text NOT NULL DEFAULT 'DISCUSSING' CHECK (lifecycle IN ('DISCUSSING','ANALYZING','IMPLEMENTING','INTEGRATING','VALIDATING','CML_CONFORMANCE','ACTIVATING','COMPLETED','BLOCKED','FAILED','CANCELLED')),
+  current_phase text NOT NULL DEFAULT 'DISCUSSING',
   progress integer NOT NULL DEFAULT 0 CHECK (progress BETWEEN 0 AND 100),
   blocker jsonb,
   active_worker_id uuid,
@@ -923,9 +950,53 @@ CREATE TABLE IF NOT EXISTS kcml.generation_job (
   state_version bigint NOT NULL DEFAULT 1,
   activation_epoch bigint NOT NULL DEFAULT 0,
   platform_incarnation_id uuid NOT NULL,
-  application_deployment_epoch bigint NOT NULL
+  application_deployment_epoch bigint NOT NULL,
+  active_phase_run_id uuid,
+  latest_checkpoint_id uuid,
+  workspace_revision_id uuid,
+  approved_spec_digest bytea,
+  execution_authority_id uuid,
+  candidate_id uuid,
+  activation_set_id uuid,
+  previous_activation_snapshot jsonb,
+  recovery_state text NOT NULL DEFAULT 'READY' CHECK (recovery_state IN ('READY','RECOVERY_REQUIRED','RECONCILING','MANUAL_REVIEW')),
+  cancellation_version bigint NOT NULL DEFAULT 0 CHECK (cancellation_version >= 0),
+  provisional_identity jsonb,
+  result_digest bytea,
+  terminal_evidence jsonb,
+  cleanup_operation_id uuid
+  ,logical_operation_id uuid
+  ,correlation_id uuid
 );
 CREATE INDEX IF NOT EXISTS generation_job_state_idx ON kcml.generation_job(lifecycle, updated_at DESC);
+
+CREATE OR REPLACE FUNCTION kcml.guard_generation_job_lifecycle() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE allowed boolean := false;
+BEGIN
+  IF NEW.state_version <= OLD.state_version THEN
+    RAISE EXCEPTION 'generation_job state_version must increase' USING ERRCODE = '40001';
+  END IF;
+  IF OLD.lifecycle IN ('COMPLETED','FAILED','CANCELLED') THEN
+    RAISE EXCEPTION 'generation_job terminal row is immutable' USING ERRCODE = '55000';
+  END IF;
+  allowed := OLD.lifecycle = NEW.lifecycle OR
+    (OLD.lifecycle = 'DISCUSSING' AND NEW.lifecycle IN ('ANALYZING','BLOCKED','FAILED','CANCELLED')) OR
+    (OLD.lifecycle = 'ANALYZING' AND NEW.lifecycle IN ('IMPLEMENTING','BLOCKED','FAILED','CANCELLED')) OR
+    (OLD.lifecycle = 'IMPLEMENTING' AND NEW.lifecycle IN ('INTEGRATING','BLOCKED','FAILED','CANCELLED')) OR
+    (OLD.lifecycle = 'INTEGRATING' AND NEW.lifecycle IN ('VALIDATING','BLOCKED','FAILED','CANCELLED')) OR
+    (OLD.lifecycle = 'VALIDATING' AND NEW.lifecycle IN ('CML_CONFORMANCE','IMPLEMENTING','BLOCKED','FAILED','CANCELLED')) OR
+    (OLD.lifecycle = 'CML_CONFORMANCE' AND NEW.lifecycle IN ('ACTIVATING','IMPLEMENTING','BLOCKED','FAILED','CANCELLED')) OR
+    (OLD.lifecycle = 'ACTIVATING' AND NEW.lifecycle IN ('COMPLETED','BLOCKED','FAILED','CANCELLED')) OR
+    (OLD.lifecycle = 'BLOCKED' AND NEW.lifecycle IN ('DISCUSSING','ANALYZING','IMPLEMENTING','INTEGRATING','VALIDATING','CML_CONFORMANCE','ACTIVATING','FAILED','CANCELLED'));
+  IF NOT allowed THEN
+    RAISE EXCEPTION 'invalid generation_job lifecycle transition % -> %', OLD.lifecycle, NEW.lifecycle USING ERRCODE = '23514';
+  END IF;
+  NEW.updated_at := clock_timestamp();
+  RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS guard_generation_job_lifecycle ON kcml.generation_job;
+CREATE TRIGGER guard_generation_job_lifecycle BEFORE UPDATE ON kcml.generation_job FOR EACH ROW EXECUTE FUNCTION kcml.guard_generation_job_lifecycle();
 
 CREATE TABLE IF NOT EXISTS kcml.generation_checkpoint (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -935,6 +1006,10 @@ CREATE TABLE IF NOT EXISTS kcml.generation_checkpoint (
   workspace_revision bigint NOT NULL,
   payload jsonb NOT NULL,
   payload_digest bytea NOT NULL,
+  phase_run_id uuid,
+  checkpoint_kind text NOT NULL DEFAULT 'PHASE_PROGRESS' CHECK (checkpoint_kind IN ('SOURCE_INTAKE','TURN','SPECIFICATION','APPROVAL','PLAN_VALIDATED','WORKSPACE_REVISION','INTEGRATION_STEP','VALIDATION_STEP','ACTIVATION_PRE','ACTIVATION_POST','PHASE_TERMINAL','RECOVERY')),
+  terminal_evidence jsonb,
+  successor_phase text,
   created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   UNIQUE(generation_job_id, sequence)
 );
