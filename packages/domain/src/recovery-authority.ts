@@ -1,4 +1,5 @@
 import type { DatabaseClient } from '@kcml/database';
+import { lockAdvisoryShared } from '@kcml/database';
 import { DomainError } from './errors.js';
 
 export interface RecoveryAuthorityHead extends Record<string, unknown> {
@@ -8,7 +9,7 @@ export interface RecoveryAuthorityHead extends Record<string, unknown> {
 }
 
 export async function lockAndVerifyPlatformRecovery(client: DatabaseClient): Promise<RecoveryAuthorityHead> {
-  await client.query(`SELECT pg_advisory_xact_lock_shared(hashtextextended('PLATFORM_RECOVERY_BARRIER',0))`);
+  await lockAdvisoryShared(client, 'PLATFORM_RECOVERY_BARRIER', 'platform');
   const row = (await client.query(`SELECT recovery.database_start_identity,recovery.platform_incarnation_id,
       recovery.application_deployment_epoch,recovery.recovery_epoch,recovery.state,
       platform.platform_incarnation_id AS current_platform_incarnation_id,

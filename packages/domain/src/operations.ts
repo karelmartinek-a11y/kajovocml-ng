@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseClient, DatabasePool } from '@kcml/database';
-import { allocateContiguousSequence, inTransaction, lockAdvisory } from '@kcml/database';
+import { allocateContiguousSequence, inTransactionProfile, lockAdvisory } from '@kcml/database';
 import { loadOperationCatalog, type OperationContract } from '@kcml/contract-pack';
 import { canonicalDigest, canonicalJson, operationCommandSchema, sha256, type CanonicalJsonValue, type OperationResult } from '@kcml/schemas';
 import { DomainError } from './errors.js';
@@ -141,7 +141,7 @@ export class CanonicalOperationService {
     const scopeDigest=createHash('sha256').update(scopeText).digest();
     const keyDigest=createHash('sha256').update(context.idempotencyKey).digest();
 
-    return inTransaction(this.pool,'SERIALIZABLE',async(client)=>{
+    return inTransactionProfile(this.pool,'ONLINE_MUTATION',async(client)=>{
       await lockAdvisory(client,'IDEMPOTENCY_SCOPE',`${scopeDigest.toString('hex')}:${keyDigest.toString('hex')}`);
       const recoveryHead=await lockAndVerifyPlatformRecovery(client);
       const activationResult=await client.query(`SELECT current_epoch AS activation_epoch FROM kcml.activation_head WHERE singleton_key=1 FOR SHARE`);
@@ -248,7 +248,7 @@ export interface WorkerOptions {queueNames:readonly string[];workerId:string;lea
 export class CanonicalCommandWorker {
   public constructor(private readonly pool:DatabasePool,private readonly catalog:OperationCatalogService,private readonly options:WorkerOptions){}
   public async runOnce():Promise<boolean>{
-    const claim=await inTransaction(this.pool,'READ COMMITTED',async(client)=>{
+    const claim=await inTransactionProfile(this.pool,'WORKER_COMMIT',async(client)=>{
       const recoveryHead=await lockAndVerifyPlatformRecovery(client);
       const candidateResult=await client.query(`SELECT q.id,q.command_id FROM kcml.queue_item q JOIN kcml.domain_command c ON c.id=q.command_id
         WHERE q.queue_name=ANY($1) AND q.available_at<=clock_timestamp()
@@ -315,7 +315,7 @@ export class CanonicalCommandWorker {
   }
 
   private async applyInCommandTransaction(row:any,apply:(client:DatabaseClient,head:RecoveryAuthorityHead)=>Promise<unknown>):Promise<unknown>{
-    return inTransaction(this.pool,'SERIALIZABLE',async(client)=>{
+    return inTransactionProfile(this.pool,'WORKER_COMMIT',async(client)=>{
       const head=await lockAndVerifyPlatformRecovery(client);
       if(BigInt(row.recovery_epoch)!==BigInt(head.recovery_epoch))throw new DomainError('STALE_RECOVERY_EPOCH','Worker command recovery epoch is stale',409,'RECONCILE_THEN_RETRY');
       const checkpoint=(await client.query(`SELECT * FROM kcml.domain_command_execution_checkpoint WHERE command_id=$1`,[row.command_id])).rows[0];
@@ -334,7 +334,7 @@ export class CanonicalCommandWorker {
   private async createGeneration(client:DatabaseClient,head:RecoveryAuthorityHead,args:JsonObject,row:any):Promise<unknown>{const result=await client.query(`INSERT INTO kcml.generation_job(mode,objective,target_object_ids,source_artifact_ids,model,platform_incarnation_id,application_deployment_epoch)VALUES($1,$2,$3,$4,$5,$6,$7)RETURNING *`,[args.mode??'CREATE',args.objective??'OWNER generation request',args.targetObjectIds??[],args.sourceArtifactIds??[],args.model??null,head.platform_incarnation_id,head.current_epoch]);return result.rows[0];}
   private async createBrowserSession(client:DatabaseClient,head:RecoveryAuthorityHead,args:JsonObject,row:any):Promise<unknown>{const result=await client.query(`INSERT INTO kcml.browser_session(parent_kind,parent_id,purpose,execution_target,runtime_build_id,account_binding_id,operation_scope,current_url,platform_incarnation_id,application_deployment_epoch)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)RETURNING *`,[args.parentKind??'OWNER_CHAT',dbUuid(args.parentId)??row.logical_operation_id,args.purpose??'OWNER browser session',args.executionTarget??'SERVER_MANAGED',args.runtimeBuildId??process.env.KCML_BROWSER_RUNTIME_BUILD??'playwright-1.58.2',dbUuid(args.accountBindingId),args.operationScope??{},args.targetUrl??null,head.platform_incarnation_id,head.current_epoch]);return result.rows[0];}
   private async createTestRun(client:DatabaseClient,head:RecoveryAuthorityHead,args:JsonObject,_row:any):Promise<unknown>{const env=jsonSafe({releaseId:process.env.KCML_RELEASE_ID??'development',sourceSha:requiredSourceSha()});const result=await client.query(`INSERT INTO kcml.self_test_run(suite_key,run_kind,source_sha,release_id,environment_digest,seed,platform_incarnation_id,application_deployment_epoch)VALUES($1,$2,$3,$4,$5,$6,$7,$8)RETURNING *`,[args.suiteKey??'self-test',args.runKind??'SELF_TEST',requiredSourceSha(),process.env.KCML_RELEASE_ID??'development',digestBytes(canonicalDigest(env)),args.seed??null,head.platform_incarnation_id,head.current_epoch]);return result.rows[0];}
-  private async complete(row:any,output:unknown):Promise<void>{await inTransaction(this.pool,'SERIALIZABLE',async(client)=>{
+  private async complete(row:any,output:unknown):Promise<void>{await inTransactionProfile(this.pool,'WORKER_COMMIT',async(client)=>{
     const recoveryHead=await lockAndVerifyPlatformRecovery(client);if(BigInt(row.recovery_epoch)!==BigInt(recoveryHead.recovery_epoch))throw new DomainError('STALE_RECOVERY_EPOCH','Worker terminal write recovery epoch is stale',409,'RECONCILE_THEN_RETRY');
     const checkpoint=(await client.query(`SELECT * FROM kcml.domain_command_execution_checkpoint WHERE command_id=$1`,[row.command_id])).rows[0];
     if(!checkpoint||!await checkpointRecoveryAuthorized(client,row,checkpoint))throw new DomainError('COMMAND_CHECKPOINT_MISSING','Successful terminalization requires the exact immutable execution checkpoint from the same recovery epoch or an authorized terminal-replay classification',409,'RECONCILE_THEN_RETRY');
@@ -351,7 +351,7 @@ export class CanonicalCommandWorker {
     await terminalizeCommandGuards(client,row.command_id,row.logical_operation_id,row.concurrency_claim_id??null);
     await audit(client,'domain.command.succeeded',this.options.workerId,'DOMAIN_COMMAND',row.command_id,row.correlation_id,null,{commandId:row.command_id,operationName:row.operation_name,resultDigest:canonicalDigest(safeOutput)});
   });}
-  private async fail(row:any,error:unknown):Promise<void>{const message=error instanceof Error?error.message:String(error);await inTransaction(this.pool,'SERIALIZABLE',async(client)=>{
+  private async fail(row:any,error:unknown):Promise<void>{const message=error instanceof Error?error.message:String(error);await inTransactionProfile(this.pool,'WORKER_COMMIT',async(client)=>{
     const recoveryHead=await lockAndVerifyPlatformRecovery(client);if(BigInt(row.recovery_epoch)!==BigInt(recoveryHead.recovery_epoch))throw new DomainError('STALE_RECOVERY_EPOCH','Worker failure write recovery epoch is stale',409,'RECONCILE_THEN_RETRY');
     const checkpointExists=Number((await client.query(`SELECT count(*)::int AS count FROM kcml.domain_command_execution_checkpoint WHERE command_id=$1`,[row.command_id])).rows[0]?.count??0)>0;
     if(checkpointExists)throw new DomainError('APPLIED_COMMAND_CANNOT_FAIL','An applied command with immutable checkpoint must resume terminal replay instead of becoming failed',409,'RECONCILE_THEN_RETRY');
