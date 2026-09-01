@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
+export * from './faults.js';
 
 export const uuidSchema = z.string().uuid();
 export const digestSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/u);
