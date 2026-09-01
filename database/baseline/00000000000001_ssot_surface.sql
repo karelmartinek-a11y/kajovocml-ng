@@ -6314,6 +6314,23 @@ COMMENT ON TABLE kcml."semantic_action_plan" IS 'SSOT_CURRENT.md chapter 25 enti
 COMMENT ON TABLE kcml."value_derivation" IS 'SSOT_CURRENT.md chapter 25 entity value_derivation; contract sha256 bc794cc8d42b3bc45be4a05c4beb380daa9223ffd09e543e6779cdd3d904a493';
 COMMENT ON TABLE kcml."secret_use_context" IS 'SSOT_CURRENT.md chapter 25 entity secret_use_context; contract sha256 9ac19d4a13feb0f1d4b8ad719363733ef536fa1e270b2d605d34c550a62b53ab';
 COMMENT ON TABLE kcml."agentic_security_event" IS 'SSOT_CURRENT.md chapter 25 entity agentic_security_event; contract sha256 f980c06761bf38664bd1a0d2402d1e1525ef9290fcdf8fa0a80eef54bdcdef03';
+CREATE OR REPLACE FUNCTION kcml.guard_generation_phase_run() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE allowed boolean := false;
+BEGIN
+  IF NEW.state_version <= OLD.state_version THEN RAISE EXCEPTION 'generation_phase_run state_version must increase' USING ERRCODE='40001'; END IF;
+  IF OLD.state IN ('SUCCEEDED','FAILED','CANCELLED') THEN RAISE EXCEPTION 'generation_phase_run terminal row is immutable' USING ERRCODE='55000'; END IF;
+  allowed := OLD.state = NEW.state OR
+    (OLD.state = 'QUEUED' AND NEW.state IN ('RUNNING','CANCEL_REQUESTED','CANCELLED')) OR
+    (OLD.state = 'RUNNING' AND NEW.state IN ('WAITING_FOR_DEPENDENCY','WAITING_FOR_OWNER','REPAIRING','SUCCEEDED','FAILED','CANCEL_REQUESTED','CANCELLED')) OR
+    (OLD.state IN ('WAITING_FOR_DEPENDENCY','WAITING_FOR_OWNER') AND NEW.state IN ('RUNNING','REPAIRING','FAILED','CANCEL_REQUESTED','CANCELLED')) OR
+    (OLD.state = 'REPAIRING' AND NEW.state IN ('RUNNING','SUCCEEDED','FAILED','CANCEL_REQUESTED','CANCELLED')) OR
+    (OLD.state = 'CANCEL_REQUESTED' AND NEW.state IN ('FAILED','CANCELLED'));
+  IF NOT allowed THEN RAISE EXCEPTION 'invalid generation_phase_run state transition % -> %', OLD.state, NEW.state USING ERRCODE='23514'; END IF;
+  NEW.updated_at := clock_timestamp(); RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS guard_generation_phase_run ON kcml.generation_phase_run;
+CREATE TRIGGER guard_generation_phase_run BEFORE UPDATE ON kcml.generation_phase_run FOR EACH ROW EXECUTE FUNCTION kcml.guard_generation_phase_run();
+
 
 ALTER TABLE kcml.ai_model_call DROP CONSTRAINT IF EXISTS ai_model_call_request_descriptor_fk;
 ALTER TABLE kcml.ai_model_call ADD CONSTRAINT ai_model_call_request_descriptor_fk FOREIGN KEY (request_descriptor_id) REFERENCES kcml.openai_request_descriptor(id);
