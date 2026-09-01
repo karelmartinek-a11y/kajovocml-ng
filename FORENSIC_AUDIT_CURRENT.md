@@ -5,7 +5,7 @@
 ## Identita auditu
 
 - Autorita: `SSOT_CURRENT.md`
-- SHA-256 SSOT: `sha256:2d0a66005bd8c3179d284437dec4c04edca696e97f78650730bafc5c0031913a`
+- SHA-256 SSOT: `sha256:995937b0a3242a4e022451f96dbd8881562764d1a78e5efbb32502c78217e6d7`
 - Stav: **PASS**
 - Requirement atomy: 13959
 - Operace: 262

@@ -3,8 +3,8 @@
 **Verze SSOT:** `2026.08.30.8`
 **Stav:** `NORMATIVNÍ ČISTOPIS`
 **Produkt:** `KájovoCML NG`
-**Produkční adresa:** `https://kajovocml.hcasc.cz`
-**API root:** `https://kajovocml.hcasc.cz/api/v1`
+**Produkční adresa:** `https://kaja.hcasc.cz`
+**API root:** `https://kaja.hcasc.cz/api/v1`
 
 ## 1. Autorita a účel
 
@@ -455,13 +455,13 @@ KCIP není nový auth systém. Veřejný OWNER request používá jedinou OWNER 
 Každá komponenta má kanonický veřejný HTTPS hostname:
 
 ```text
-https://kcmlNNNN.kajovocml.hcasc.cz
+https://kcmlNNNN.kaja.hcasc.cz
 ```
 
 MCP endpoint:
 
 ```text
-POST https://kcmlNNNN.kajovocml.hcasc.cz/mcp
+POST https://kcmlNNNN.kaja.hcasc.cz/mcp
 ```
 
 Control-plane endpointy:
@@ -914,7 +914,7 @@ OWNER Device Bridge je jediná vzdálená interní komponenta s vlastní strojov
 
 ### 7.8 Self-test
 
-Self-test runtime, CI a production acceptance používají stejný `KCML_OWNER_API_KEY` proti veřejnému API rootu `https://kajovocml.hcasc.cz/api/v1`. Neexistuje zvláštní self-test token, bypass ani testovací oprávnění. Testy procházejí stejnou veřejnou gateway, doménovými službami, component routes, KCIP kontraktem, auditem a logováním jako běžný OWNER API klient.
+Self-test runtime, CI a production acceptance používají stejný `KCML_OWNER_API_KEY` proti veřejnému API rootu `https://kaja.hcasc.cz/api/v1`. Neexistuje zvláštní self-test token, bypass ani testovací oprávnění. Testy procházejí stejnou veřejnou gateway, doménovými službami, component routes, KCIP kontraktem, auditem a logováním jako běžný OWNER API klient.
 
 ## 8. Password Manager a Secret Manager
 
@@ -1170,7 +1170,7 @@ Moderní client a server vyjednávají optional extensions pouze přes `capabili
 Veřejná kanonická hranice moderního serveru je:
 
 ```text
-POST https://kcmlNNNN.kajovocml.hcasc.cz/mcp
+POST https://kcmlNNNN.kaja.hcasc.cz/mcp
 ```
 
 Každá JSON-RPC request nebo transportem přípustná notification používá vlastní HTTP `POST`. Body obsahuje právě jednu JSON-RPC zprávu. Batch array, více konkatenovaných objektů, JSON-RPC response od klienta, request s `id = null` a objekt obsahující současně `result`/`error` s `method` jsou neplatné.
@@ -5691,7 +5691,7 @@ OWNER otevře globální command palette pro navigaci, hledání objektů a vyko
 
 Stránka **Testy a API** zobrazuje jediný OWNER API klíč, operation catalog, OpenAPI/KCIP kontrakty, test catalog, test suites, běžící test runs, live progress, výsledky, evidence, logy, cleanup a export. OWNER může spustit celý repozitář, jednu doménu, jeden objekt, jeden endpoint nebo jeden registrovaný prvek.
 
-API explorer používá `KCML_OWNER_API_KEY` a vykonává skutečné requesty proti `https://kajovocml.hcasc.cz/api/v1`. Chatový panel umožňuje totéž přirozeným jazykem.
+API explorer používá `KCML_OWNER_API_KEY` a vykonává skutečné requesty proti `https://kaja.hcasc.cz/api/v1`. Chatový panel umožňuje totéž přirozeným jazykem.
 
 ## 25. Databázový model
 
@@ -7923,7 +7923,7 @@ Všechny immutable payload tables používají canonical digest, reject-update/d
 
 ### 26.1 Obecná pravidla
 
-API root je `https://kajovocml.hcasc.cz/api/v1`. Response používají JSON, ISO 8601, UUID, stabilní enumy, cursor pagination a deterministic sort.
+API root je `https://kaja.hcasc.cz/api/v1`. Response používají JSON, ISO 8601, UUID, stabilní enumy, cursor pagination a deterministic sort.
 
 Každý OWNER endpoint přijímá OWNER session nebo jediný `KCML_OWNER_API_KEY` a po autentizaci používá konstantní `OWNER_FULL`; neexistuje role/scope autorizace. UI, chat a API key volají stejnou doménovou operaci.
 
@@ -8836,25 +8836,25 @@ Server používá:
 Hlavní web a OWNER API:
 
 ```text
-https://kajovocml.hcasc.cz
+https://kaja.hcasc.cz
 ```
 
 API root:
 
 ```text
-https://kajovocml.hcasc.cz/api/v1
+https://kaja.hcasc.cz/api/v1
 ```
 
 Component zone:
 
 ```text
-*.kajovocml.hcasc.cz
+*.kaja.hcasc.cz
 ```
 
 Component hostname:
 
 ```text
-kcmlNNNN.kajovocml.hcasc.cz
+kcmlNNNN.kaja.hcasc.cz
 ```
 
 DNS records směřují na `89.221.222.92`. Hostnames jsou lowercase v DNS a component code zůstává uppercase v UI a datech.
@@ -8891,8 +8891,8 @@ Workery, AI agenti, MCP servery, generované komponenty a platformní služby na
 Certifikát pokrývá:
 
 ```text
-kajovocml.hcasc.cz
-*.kajovocml.hcasc.cz
+kaja.hcasc.cz
+*.kaja.hcasc.cz
 ```
 
 Certifikát a privátní klíč se ověřují na shodu. Current cert se používá po dobu validity a správného SAN kontraktu. Renewal timer spouští bounded unattended renewal, DNS challenge, exact cleanup, atomic materialization, `nginx -t`, reload, health a audit.
@@ -9748,7 +9748,7 @@ Symbol, textový grep nebo existence souboru doplňuje kontraktační guard a ne
 - disposable privileged systemd harness pro produkčně tvarovaný runtime,
 - real Playwright-managed Chromium,
 - deterministický integrační web portal pro redirect, popup, iframe, auth, challenge, upload/download, drift a side effects,
-- produkční acceptance na `kajovocml.hcasc.cz`.
+- produkční acceptance na `kaja.hcasc.cz`.
 
 ### 33.3 Test data
 
@@ -11843,9 +11843,9 @@ Každá položka má klasifikaci `SYSTEM_MANAGED`, `OWNER_INPUT` nebo `OWNER_PRE
 
 ### 41.1 Network — `SYSTEM_MANAGED`
 
-- `network.publicDomain = kajovocml.hcasc.cz`
+- `network.publicDomain = kaja.hcasc.cz`
 - `network.apiBasePath = /api/v1`
-- `network.componentZone = kajovocml.hcasc.cz`
+- `network.componentZone = kaja.hcasc.cz`
 - `network.publicIpv4 = 89.221.222.92`
 - trusted proxy CIDRs,
 - request body limits,

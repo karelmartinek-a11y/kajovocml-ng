@@ -117,20 +117,20 @@ Workflow vyžaduje úspěšné CI stejného SHA, sestaví a Minisign podepíše 
 
 ## FÁZE 6 — První login
 
-Otevřete `https://kajovocml.hcasc.cz`, username je vždy `KRMAR78`, heslo je přesně hodnota GitHub production secretu `PASS`. Dokončete povinné MFA a bezpečně uložte jednorázové recovery kódy.
+Otevřete `https://kaja.hcasc.cz`, username je vždy `KRMAR78`, heslo je přesně hodnota GitHub production secretu `PASS`. Dokončete povinné MFA a bezpečně uložte jednorázové recovery kódy.
 
 Bez `OPENAI_API_KEY` fungují login, dashboard, konfigurace, secrets, monitoring, audit, API key a self-test; AI workery ukazují `OPENAI_CONFIGURATION_REQUIRED`. V UI otevřete **Secrets a hesla** → **Přidat secret** → stable name `OPENAI_API_KEY`, typ `API_KEY`, vložte hodnotu a uložte. Není třeba nový build.
 
 ## FÁZE 7 — Produkční verification
 
 ```bash
-dig +short kajovocml.hcasc.cz A
-dig +short kcml0001.kajovocml.hcasc.cz A
-openssl s_client -connect kajovocml.hcasc.cz:443 -servername kajovocml.hcasc.cz </dev/null 2>/dev/null | openssl x509 -noout -subject -issuer -dates -ext subjectAltName
-curl -I http://kajovocml.hcasc.cz
-curl --fail https://kajovocml.hcasc.cz/health | jq
-curl --fail https://kajovocml.hcasc.cz/ready | jq
-curl --fail -H "Authorization: Bearer <KCML_OWNER_API_KEY>" https://kajovocml.hcasc.cz/api/v1/system/version | jq
+dig +short kaja.hcasc.cz A
+dig +short kcml0001.kaja.hcasc.cz A
+openssl s_client -connect kaja.hcasc.cz:443 -servername kaja.hcasc.cz </dev/null 2>/dev/null | openssl x509 -noout -subject -issuer -dates -ext subjectAltName
+curl -I http://kaja.hcasc.cz
+curl --fail https://kaja.hcasc.cz/health | jq
+curl --fail https://kaja.hcasc.cz/ready | jq
+curl --fail -H "Authorization: Bearer <KCML_OWNER_API_KEY>" https://kaja.hcasc.cz/api/v1/system/version | jq
 ssh <PROD_ADMIN_USER>@89.221.222.92 'sudo systemctl --failed; sudo systemctl status kcml.target nginx postgresql --no-pager'
 ssh <PROD_ADMIN_USER>@89.221.222.92 'sudo -u postgres psql -d kajovocml_ng -c "SELECT current_epoch,current_release_id,source_sha FROM kcml.application_deployment_head"'
 ssh <PROD_ADMIN_USER>@89.221.222.92 'sudo nginx -t; sudo journalctl -u "kcml-*" --since "30 minutes ago" --no-pager'

@@ -9,5 +9,5 @@ jobs:
       - uses: actions/checkout@v4
       - run: bash tests/production/run.sh
         env:
-          KCML_PRODUCTION_ORIGIN: https://kajovocml.hcasc.cz
+          KCML_PRODUCTION_ORIGIN: https://kaja.hcasc.cz
           KCML_OWNER_API_KEY: '${{ secrets.KCML_OWNER_API_KEY }}'

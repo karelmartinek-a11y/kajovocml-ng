@@ -1198,10 +1198,25 @@ async function main() {
     ['contracts/traceability/artifact-trace-source-test-overrides.json', 'ssot://55.19/55-19-artifact-traceability-a-z-kaz-orphan-implementation/atom-1']
   ];
   const requirementTraceManifestPath = 'contracts/traceability/requirement-atom-trace/manifest.json';
-  const requirementTraceManifest = JSON.parse(await readFile(join(root, requirementTraceManifestPath), 'utf8'));
+  let requirementTraceManifest = JSON.parse(await readFile(join(root, requirementTraceManifestPath), 'utf8'));
   const expectedTraceRelationKinds = ['SOURCE', 'MIGRATION', 'TEST', 'EVIDENCE'];
   if (requirementTraceManifest.schemaVersion !== '1.0' || requirementTraceManifest.kind !== 'REQUIREMENT_ATOM_TRACE_SOURCE' || requirementTraceManifest.ssotDigest !== sha(ssotBytes) || canonical(requirementTraceManifest.relationKinds) !== canonical(expectedTraceRelationKinds) || !Array.isArray(requirementTraceManifest.shards)) {
-    throw new Error('REQUIREMENT_ATOM_TRACE_MANIFEST_INVALID');
+    if (checkOnly) throw new Error('REQUIREMENT_ATOM_TRACE_MANIFEST_INVALID');
+    // A deliberate SSOT revision invalidates the old atom trace by design.
+    // Seed only the canonical requirement source, then regenerate the trace
+    // through its sole generator before consuming it below. This keeps
+    // `pnpm contracts:build` self-contained without hand-editing projections.
+    const requirementsPath = join(root, 'contracts/registries/requirements/requirements.json');
+    await writeFile(requirementsPath, `${canonical({ schemaVersion: '1.0', kind: 'REQUIREMENT_REGISTRY', records: requirements })}\n`, { encoding: 'utf8', mode: 0o644 });
+    const { spawn } = await import('node:child_process');
+    const traceExit = await new Promise((resolve, reject) => {
+      const child = spawn(process.execPath, ['scripts/generate-requirement-trace.mjs'], { cwd: root, stdio: 'inherit' });
+      child.once('error', reject);
+      child.once('exit', (code) => resolve(code));
+    });
+    if (traceExit !== 0) throw new Error(`REQUIREMENT_ATOM_TRACE_REGENERATION_FAILED:${traceExit}`);
+    requirementTraceManifest = JSON.parse(await readFile(join(root, requirementTraceManifestPath), 'utf8'));
+    if (requirementTraceManifest.schemaVersion !== '1.0' || requirementTraceManifest.kind !== 'REQUIREMENT_ATOM_TRACE_SOURCE' || requirementTraceManifest.ssotDigest !== sha(ssotBytes) || canonical(requirementTraceManifest.relationKinds) !== canonical(expectedTraceRelationKinds) || !Array.isArray(requirementTraceManifest.shards)) throw new Error('REQUIREMENT_ATOM_TRACE_MANIFEST_INVALID');
   }
   const traceShardPaths = new Set();
   const traceShardDomains = new Set();

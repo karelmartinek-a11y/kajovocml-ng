@@ -52,7 +52,7 @@ cat >"${runtime_candidate}" <<EOF
 DATABASE_URL=postgresql://kajovocml_app:${db_password}@127.0.0.1:5432/kajovocml_ng
 KCML_MASTER_KEY_FILE=/etc/kajovocml-ng/master.key
 KCML_MASTER_KEY_ID=host-master-v1
-KCML_PUBLIC_ORIGIN=https://kajovocml.hcasc.cz
+KCML_PUBLIC_ORIGIN=https://kaja.hcasc.cz
 KCML_RELEASE_ID=bootstrap
 KCML_SOURCE_SHA=0000000000000000000000000000000000000000
 KCML_BROWSER_ARTIFACT_ROOT=/var/lib/kajovocml-ng/browser/artifacts
@@ -76,7 +76,7 @@ EOF
 visudo -cf "${sudoers_candidate}"; backup_if_changed /etc/sudoers.d/kajovocml-ng-deploy "${sudoers_candidate}"; install -o root -g root -m 0440 "${sudoers_candidate}" /etc/sudoers.d/kajovocml-ng-deploy; rm -f "${sudoers_candidate}"
 nginx_candidate=$(mktemp); cp "${repository_root}/deploy/nginx/kajovocml-ng.conf" "${nginx_candidate}"
 backup_if_changed /etc/nginx/sites-available/kajovocml-ng.conf "${nginx_candidate}"; install -m 0644 "${nginx_candidate}" /etc/nginx/sites-available/kajovocml-ng.conf; rm -f "${nginx_candidate}"; ln -sfn /etc/nginx/sites-available/kajovocml-ng.conf /etc/nginx/sites-enabled/kajovocml-ng.conf
-if [[ ! -s /etc/kajovocml-ng/tls/fullchain.pem || ! -s /etc/kajovocml-ng/tls/privkey.pem ]]; then openssl req -x509 -newkey rsa:3072 -nodes -days 2 -subj '/CN=kajovocml.hcasc.cz' -addext 'subjectAltName=DNS:kajovocml.hcasc.cz,DNS:*.kajovocml.hcasc.cz' -keyout /etc/kajovocml-ng/tls/privkey.pem -out /etc/kajovocml-ng/tls/fullchain.pem; chmod 0600 /etc/kajovocml-ng/tls/privkey.pem; fi
+if [[ ! -s /etc/kajovocml-ng/tls/fullchain.pem || ! -s /etc/kajovocml-ng/tls/privkey.pem ]]; then openssl req -x509 -newkey rsa:3072 -nodes -days 2 -subj '/CN=kaja.hcasc.cz' -addext 'subjectAltName=DNS:kaja.hcasc.cz,DNS:*.kaja.hcasc.cz' -keyout /etc/kajovocml-ng/tls/privkey.pem -out /etc/kajovocml-ng/tls/fullchain.pem; chmod 0600 /etc/kajovocml-ng/tls/privkey.pem; fi
 nginx -t; systemctl enable --now nginx postgresql
 ufw allow OpenSSH >/dev/null; ufw allow 80/tcp >/dev/null; ufw allow 443/tcp >/dev/null; ufw --force enable >/dev/null
 PLAYWRIGHT_BROWSERS_PATH=/var/lib/kajovocml-ng/browser/runtime-builds/1.58.2 pnpm dlx playwright@1.58.2 install --with-deps chromium firefox webkit

@@ -46,7 +46,7 @@ jobs:
     runs-on: ubuntu-24.04
     environment:
       name: production
-      url: https://kajovocml.hcasc.cz
+      url: https://kaja.hcasc.cz
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -80,4 +80,4 @@ jobs:
           printf '%s\n' "$PASS" | ssh "$USER@$HOST" "sudo /usr/local/sbin/kcml-deploy-production --bundle /var/lib/kajovocml-ng/deployments/$RELEASE.tar.gz --signature /var/lib/kajovocml-ng/deployments/$RELEASE.tar.gz.minisig --source-sha $SHA --release-id $RELEASE"
       - name: Public acceptance samples
         run: |
-          for sample in 1 2 3 4 5; do curl --fail --silent --show-error https://kajovocml.hcasc.cz/health | jq -e '.status=="healthy"'; sleep 3; done
+          for sample in 1 2 3 4 5; do curl --fail --silent --show-error https://kaja.hcasc.cz/health | jq -e '.status=="healthy"'; sleep 3; done
