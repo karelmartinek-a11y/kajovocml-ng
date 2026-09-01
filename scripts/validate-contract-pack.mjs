@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -15,6 +15,7 @@ const canonical = (value) => {
   return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}`;
 };
 const sha = (value) => `sha256:${createHash('sha256').update(typeof value === 'string' ? value : canonical(value)).digest('hex')}`;
+const shaBytes = (value) => `sha256:${createHash('sha256').update(value).digest('hex')}`;
 const registryRecordId = (record) => record.recordId ?? record.requirementId ?? record.operationId ?? record.stateMachineId ?? record.postgresContractId ?? record.runtimeBoundaryId ?? record.gateId ?? record.closurePredicateId ?? record.artifactId ?? record.errorCodeId ?? record.authorityObjectKind ?? record.bindingId ?? record.faultPointId ?? record.recoveryOracleId;
 const registryDataByKind = new Map();
 const refSafety = (value) => typeof value === 'string' && value.startsWith('contracts/') && !value.includes('..') && !value.startsWith('/') && !value.includes('\\');
@@ -110,6 +111,41 @@ for (const artifact of artifacts) for (const requirementId of artifact.requireme
   const requirement = requirementById.get(requirementId);
   if (!requirement) failures.push(`ARTIFACT_TRACE_REGISTRY: ${artifact.artifactId} references missing requirement ${requirementId}`);
   else if (!(requirement.artifactIds ?? []).includes(artifact.artifactId)) failures.push(`TRACEABILITY: ${artifact.artifactId} -> ${requirementId} is not bidirectional`);
+}
+for (const artifact of artifacts) {
+  const artifactPath = join(root, artifact.repositoryPath);
+  let bytes;
+  try {
+    const info = await stat(artifactPath);
+    if (!info.isFile()) failures.push(`ARTIFACT_TRACE_REGISTRY: ${artifact.artifactId} repositoryPath is not a regular file`);
+    bytes = await readFile(artifactPath);
+  } catch (error) {
+    failures.push(`ARTIFACT_TRACE_REGISTRY: ${artifact.artifactId} repositoryPath unreadable (${error.message})`);
+    continue;
+  }
+  const expectedContentDigest = shaBytes(bytes);
+  const pathBoundArtifactId = `ART-${sha(`${artifact.repositoryPath}\u0000${artifact.contentDigest}`).slice(7)}`;
+  if (artifact.contentDigest !== expectedContentDigest) failures.push(`ARTIFACT_TRACE_REGISTRY: ${artifact.artifactId} content digest mismatch`);
+  if (artifact.artifactId !== pathBoundArtifactId) failures.push(`ARTIFACT_TRACE_REGISTRY: ${artifact.artifactId} artifact identity mismatch`);
+  if (!Array.isArray(artifact.requirementIds) || artifact.requirementIds.length === 0) failures.push(`ARTIFACT_TRACE_REGISTRY: ${artifact.artifactId} has no requirement relation`);
+  for (const anchor of artifact.traceAnchors ?? []) {
+    const match = typeof anchor.locator === 'string' ? anchor.locator.match(/^(.*):(\d+)$/u) : null;
+    if (!match || match[1] !== artifact.repositoryPath) {
+      failures.push(`ARTIFACT_TRACE_REGISTRY: ${artifact.artifactId} invalid trace anchor locator`);
+      continue;
+    }
+    const line = Number(match[2]);
+    const lines = bytes.toString('utf8').split('\n');
+    if (!Number.isInteger(line) || line < 1 || line > lines.length) failures.push(`ARTIFACT_TRACE_REGISTRY: ${artifact.artifactId} trace anchor line out of range`);
+    else if (anchor.snippetDigest !== sha(lines[line - 1])) failures.push(`ARTIFACT_TRACE_REGISTRY: ${artifact.artifactId} trace anchor digest mismatch`);
+    if (!anchor.symbol || typeof anchor.symbol !== 'string') failures.push(`ARTIFACT_TRACE_REGISTRY: ${artifact.artifactId} trace anchor symbol missing`);
+    if (!artifact.requirementIds.includes(anchor.requirementId)) failures.push(`ARTIFACT_TRACE_REGISTRY: ${artifact.artifactId} trace anchor requirement is not linked`);
+  }
+  const browserImplementation = /(?:^|\/)browser[^/]*\/src\/|^tests\/browser(?:\/|-)/iu.test(artifact.repositoryPath);
+  if (browserImplementation) {
+    if (!artifact.operationIds?.length) failures.push(`TRACEABILITY_BROWSER_OPERATION_MISSING:${artifact.repositoryPath}`);
+    if (!(artifact.registryRecordIds ?? []).includes('ORACLE-SIDE-EFFECT')) failures.push(`TRACEABILITY_BROWSER_ORACLE_MISSING:${artifact.repositoryPath}`);
+  }
 }
 const manifestForDigest = { ...manifest, packDigest: null };
 const expectedPackDigest = sha(canonical(manifestForDigest) + manifest.registries.map((record) => record.digest).join(''));

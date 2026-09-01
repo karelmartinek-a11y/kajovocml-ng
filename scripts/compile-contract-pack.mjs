@@ -646,7 +646,7 @@ async function collectArtifacts(directory = root) {
     if (ignored.has(entry.name) || entry.name.startsWith('._')) continue;
     const path = join(directory, entry.name);
     if (entry.isDirectory()) output.push(...await collectArtifacts(path));
-    else if (entry.isFile() && !path.includes('/contracts/registries/') && !path.includes('/contracts/registry-schemas/')) output.push(path);
+    else if (entry.isFile() && !path.includes('/contracts/registries/') && !path.includes('/contracts/registry-schemas/') && !path.includes('/contracts/traceability/')) output.push(path);
   }
   return output;
 }
@@ -905,9 +905,14 @@ async function main() {
     const artifactId = `ART-${sha(`${repositoryPath}\u0000${contentDigest}`).slice(7)}`;
     const ownerModule = repositoryPath.split('/')[0] === 'packages' ? repositoryPath.split('/').slice(0, 2).join('/') : repositoryPath.split('/')[0];
     artifacts.push({ artifactId, artifactKind: options.artifactKind ?? 'REPOSITORY_FILE', repositoryPath, contentDigest, ownerModule,
-      operationIds: [], stateMachineIds: [], registryRecordIds: [], testIds: [], releaseIds: [], generatedFrom: options.generatedFrom ?? [], generationToolDigest: options.generationToolDigest ?? null,
-      lifecycle: 'ACTIVE', requirementIds: [], evidenceRefs: [`file://${repositoryPath}`], reverseTraceRequired: true, traceAnchors: [],
+      operationIds: options.operationIds ?? [], stateMachineIds: options.stateMachineIds ?? [], registryRecordIds: options.registryRecordIds ?? [], testIds: options.testIds ?? [], releaseIds: options.releaseIds ?? [], generatedFrom: options.generatedFrom ?? [], generationToolDigest: options.generationToolDigest ?? null,
+      lifecycle: 'ACTIVE', requirementIds: options.requirementIds ?? [], evidenceRefs: [`file://${repositoryPath}`], reverseTraceRequired: true, traceAnchors: options.traceAnchors ?? [],
       authoritySourceRefs: options.authoritySourceRefs ?? ['ssot://55/artifact-traceability/file-level'], canonicalDigest: sha(canonical({ repositoryPath, contentDigest })) });
+    for (const requirementId of options.requirementIds ?? []) {
+      const requirement = requirementMap.get(requirementId);
+      if (!requirement) throw new Error(`ARTIFACT_TRACE_REQUIREMENT_UNKNOWN:${repositoryPath}:${requirementId}`);
+      requirement.artifactIds.push(artifactId);
+    }
   };
   for (const artifactPath of await collectArtifacts()) {
     const bytes = await readFile(artifactPath);
@@ -1364,6 +1369,60 @@ async function main() {
   if (!runtimeVerificationOperation || !runtimeSeccompRequirement) throw new Error('RUNTIME_BOUNDARY_OPERATION_TRACE_TARGET_MISSING');
   runtimeVerificationOperation.requirementIds = [...new Set([...runtimeVerificationOperation.requirementIds, runtimeSeccompRequirement.requirementId])].sort();
   runtimeSeccompRequirement.operationIds = [...new Set([...runtimeSeccompRequirement.operationIds, runtimeVerificationOperation.operationId])].sort();
+  const traceSourcePath = 'contracts/traceability/artifact-trace-source.json';
+  const traceSource = JSON.parse(await readFile(join(root, traceSourcePath), 'utf8'));
+  const traceSourceOverrides = JSON.parse(await readFile(join(root, 'contracts/traceability/artifact-trace-source-overrides.json'), 'utf8'));
+  const traceSourceBrowserOverrides = JSON.parse(await readFile(join(root, 'contracts/traceability/artifact-trace-source-browser-overrides.json'), 'utf8'));
+  const traceSourceTestOverrides = JSON.parse(await readFile(join(root, 'contracts/traceability/artifact-trace-source-test-overrides.json'), 'utf8'));
+  if (traceSource.schemaVersion !== '1.0' || traceSource.kind !== 'ARTIFACT_TRACE_SOURCE' || !Array.isArray(traceSource.records) || traceSourceOverrides.schemaVersion !== '1.0' || traceSourceOverrides.kind !== 'ARTIFACT_TRACE_SOURCE' || !Array.isArray(traceSourceOverrides.records) || traceSourceBrowserOverrides.schemaVersion !== '1.0' || traceSourceBrowserOverrides.kind !== 'ARTIFACT_TRACE_SOURCE' || !Array.isArray(traceSourceBrowserOverrides.records) || traceSourceTestOverrides.schemaVersion !== '1.0' || traceSourceTestOverrides.kind !== 'ARTIFACT_TRACE_SOURCE' || !Array.isArray(traceSourceTestOverrides.records)) throw new Error('ARTIFACT_TRACE_SOURCE_INVALID');
+  const traceSourceByPath = new Map();
+  for (const record of traceSource.records) {
+    if (typeof record.repositoryPath !== 'string' || traceSourceByPath.has(record.repositoryPath)) throw new Error(`ARTIFACT_TRACE_SOURCE_DUPLICATE:${record.repositoryPath}`);
+    traceSourceByPath.set(record.repositoryPath, record);
+  }
+  for (const record of [...traceSourceOverrides.records, ...traceSourceBrowserOverrides.records, ...traceSourceTestOverrides.records]) {
+    if (typeof record.repositoryPath !== 'string') throw new Error('ARTIFACT_TRACE_SOURCE_PATH_INVALID');
+    const existing = traceSourceByPath.get(record.repositoryPath);
+    if (!existing) traceSourceByPath.set(record.repositoryPath, record);
+    else traceSourceByPath.set(record.repositoryPath, {
+      ...existing, ...record,
+      requirementIds: [...new Set([...(existing.requirementIds ?? []), ...(record.requirementIds ?? [])])],
+      operationIds: [...new Set([...(existing.operationIds ?? []), ...(record.operationIds ?? [])])],
+      registryRecordIds: [...new Set([...(existing.registryRecordIds ?? []), ...(record.registryRecordIds ?? [])])],
+      testIds: [...new Set([...(existing.testIds ?? []), ...(record.testIds ?? [])])],
+      traceAnchors: [...(existing.traceAnchors ?? []), ...(record.traceAnchors ?? [])]
+    });
+  }
+  for (const repositoryPath of traceSourceByPath.keys()) {
+    if (typeof repositoryPath !== 'string') throw new Error('ARTIFACT_TRACE_SOURCE_PATH_INVALID');
+    // Contract schema outputs are added below with compiler lineage and are
+    // intentionally not part of the repository-file source catalog.
+    if (!artifactByPath.has(repositoryPath) && !repositoryPath.startsWith('contracts/registry-schemas/')) throw new Error(`ARTIFACT_TRACE_SOURCE_STALE:${repositoryPath}`);
+  }
+  for (const artifact of artifacts) {
+    if (artifact.requirementIds.length > 0) continue;
+    const source = traceSourceByPath.get(artifact.repositoryPath);
+    if (!source) throw new Error(`ARTIFACT_TRACE_SOURCE_MISSING:${artifact.repositoryPath}`);
+    if (!Array.isArray(source.requirementIds) || source.requirementIds.length === 0) throw new Error(`ARTIFACT_TRACE_REQUIREMENT_MISSING:${artifact.repositoryPath}`);
+    for (const requirementId of source.requirementIds) if (!requirementMap.has(requirementId)) throw new Error(`ARTIFACT_TRACE_REQUIREMENT_UNKNOWN:${artifact.repositoryPath}:${requirementId}`);
+    const artifactLines = (await readFile(join(root, artifact.repositoryPath), 'utf8')).split('\n');
+    for (const anchor of source.traceAnchors ?? []) {
+      const match = typeof anchor.locator === 'string' ? anchor.locator.match(/^(.*):(\d+)$/u) : null;
+      if (!match || match[1] !== artifact.repositoryPath) throw new Error(`ARTIFACT_TRACE_ANCHOR_INVALID:${artifact.repositoryPath}`);
+      const line = Number(match[2]);
+      if (!Number.isInteger(line) || line < 1 || line > artifactLines.length || anchor.snippetDigest !== sha(artifactLines[line - 1])) throw new Error(`ARTIFACT_TRACE_ANCHOR_STALE:${artifact.repositoryPath}:${anchor.locator}`);
+      if (!anchor.symbol || !source.requirementIds.includes(anchor.requirementId)) throw new Error(`ARTIFACT_TRACE_ANCHOR_RELATION_INVALID:${artifact.repositoryPath}`);
+    }
+    artifact.requirementIds.push(...source.requirementIds);
+    artifact.operationIds.push(...(source.operationIds ?? []));
+    artifact.stateMachineIds.push(...(source.stateMachineIds ?? []));
+    artifact.registryRecordIds.push(...(source.registryRecordIds ?? []));
+    artifact.testIds.push(...(source.testIds ?? []));
+    artifact.traceAnchors.push(...(source.traceAnchors ?? []));
+    artifact.generatedFrom = source.generatedFrom ?? artifact.generatedFrom;
+    artifact.generationToolDigest = source.generationToolDigest ?? artifact.generationToolDigest;
+    touchedTraceArtifacts.add(artifact);
+  }
   for (const artifact of touchedTraceArtifacts) {
     artifact.requirementIds = stableSort([...new Set(artifact.requirementIds)]);
     artifact.operationIds = stableSort([...new Set(artifact.operationIds)]);
@@ -1384,8 +1443,8 @@ async function main() {
 
   const schemaManifest = { schemaVersion: '1.0', schemas: Object.keys(schemas).sort().map((name) => ({ ref: `contracts/registry-schemas/${name}`, digest: sha(canonical(schemas[name])) })) };
   schemaManifest.digest = sha(canonical(schemaManifest));
-  for (const [name, schema] of Object.entries(schemas)) addArtifact(`contracts/registry-schemas/${name}`, `${canonical(schema)}\n`, { artifactKind: 'GENERATED_SCHEMA', generatedFrom: ['SSOT_CURRENT.md'], generationToolDigest: compilerDigest, authoritySourceRefs: ['ssot://55/machine-readable-contract-pack/schema'] });
-  addArtifact('contracts/registry-schemas/bundle-manifest.json', `${canonical(schemaManifest)}\n`, { artifactKind: 'GENERATED_SCHEMA_BUNDLE', generatedFrom: ['SSOT_CURRENT.md'], generationToolDigest: compilerDigest, authoritySourceRefs: ['ssot://55/machine-readable-contract-pack/schema-bundle'] });
+  for (const [name, schema] of Object.entries(schemas)) addArtifact(`contracts/registry-schemas/${name}`, `${canonical(schema)}\n`, { artifactKind: 'GENERATED_SCHEMA', generatedFrom: ['SSOT_CURRENT.md'], generationToolDigest: compilerDigest, requirementIds: ['KCML-REQ-CORE-31c3864691295a899cc1493719c94d8d49887ced538e31cc9a2083d88ba74fe3'], authoritySourceRefs: ['ssot://55/machine-readable-contract-pack/schema'] });
+  addArtifact('contracts/registry-schemas/bundle-manifest.json', `${canonical(schemaManifest)}\n`, { artifactKind: 'GENERATED_SCHEMA_BUNDLE', generatedFrom: ['SSOT_CURRENT.md'], generationToolDigest: compilerDigest, requirementIds: ['KCML-REQ-CORE-339ab6c969bca81f6614e401513efca51a8ac4c7c898cbb5f55a0f7e106a93ec'], authoritySourceRefs: ['ssot://55/machine-readable-contract-pack/schema-bundle'] });
 
   const registries = [
     ['REQUIREMENT_REGISTRY', 'requirements/requirements.json', requirements],

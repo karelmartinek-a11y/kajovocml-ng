@@ -12,6 +12,7 @@ function sha(value) { return `sha256:${createHash('sha256').update(value).digest
 // cannot become valid by merely using a familiar table name.
 const WRITER_BOUNDARIES = [
   ['packages/domain/src/operations.ts', 'CANONICAL_OPERATION_SERVICE'],
+  ['packages/domain/src/canonical-operation-handlers.ts', 'CANONICAL_OPERATION_SERVICE'],
   ['packages/domain/src/auth.ts', 'WRITER-OWNER_IDENTITY'],
   ['packages/domain/src/component-operations.ts', 'WRITER-COMPONENT'],
   ['packages/domain/src/monitor-operations.ts', 'WRITER-MONITOR'],
