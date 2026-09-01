@@ -11,5 +11,9 @@ ln -s "${release_path}" /opt/kajovocml-ng/current.rollback;mv -Tf /opt/kajovocml
 systemctl daemon-reload;systemctl restart kcml-platform-recovery.service;systemctl restart kcml.target;while IFS='|' read -r unit app user families writable dependency enabled;do [[ ${enabled} == yes ]]&&systemctl restart "${unit}.service";done <"${release_path}/deploy/systemd/services.tsv";systemctl restart kcml-browser-host@primary.service;systemctl reload nginx
 for attempt in {1..45};do result=$(curl --silent --unix-socket /run/kajovocml-ng/web-api.sock http://localhost/ready||true);jq -e '.status=="ready"'<<<"${result}">/dev/null&&break;sleep 2;done
 jq -e '.status=="ready"'<<<"${result}">/dev/null
-if [[ -n ${failed_release} ]];then psql "${DATABASE_URL}" -v failed_release="${failed_release}" -c "UPDATE kcml.deployment_run SET status='ROLLED_BACK',current_step='ROLLBACK_VERIFIED',completed_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp() WHERE release_id=:'failed_release' AND status IN('FAILED','ROLLING_BACK')" >/dev/null;fi
+if [[ -n ${failed_release} ]]; then
+  psql "${DATABASE_URL}" -v failed_release="${failed_release}" >/dev/null <<'SQL'
+UPDATE kcml.deployment_run SET status='ROLLED_BACK',current_step='ROLLBACK_VERIFIED',completed_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp() WHERE release_id=:'failed_release' AND status IN('FAILED','ROLLING_BACK');
+SQL
+fi
 echo "ROLLBACK STATUS: PASS current=${release_id} failed=${failed_release:-manual} epoch=${epoch}"

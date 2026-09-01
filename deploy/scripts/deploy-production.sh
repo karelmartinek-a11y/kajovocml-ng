@@ -12,9 +12,25 @@ release_path=/opt/kajovocml-ng/releases/${release_id}; previous_path=$(readlink 
 [[ -n ${previous_path} ]] && previous_release=$(basename "${previous_path}")
 deployment_id=$(cat /proc/sys/kernel/random/uuid); stage_path=/opt/kajovocml-ng/releases/.incoming-${release_id}-${deployment_id}; started_ns=$(date +%s%N); rolling_back=0
 log_step(){ local name=$1 start=$2 result=$3; local elapsed=$((($(date +%s%N)-start)/1000000)); printf '{"step":"%s","elapsedMs":%d,"result":"%s"}\n' "${name}" "${elapsed}" "${result}"; }
-record_step(){ local name=$1 result=$2 elapsed=$3;psql "${DATABASE_URL}" -v ON_ERROR_STOP=1 -v deployment_id="${deployment_id}" -v step="${name}" -v result="${result}" -v elapsed="${elapsed}" -c "UPDATE kcml.deployment_run SET current_step=:'step',evidence=evidence||jsonb_build_object(:'step',jsonb_build_object('result',:'result','elapsedMs',(:'elapsed')::bigint,'at',clock_timestamp())),state_version=state_version+1,updated_at=clock_timestamp() WHERE id=:'deployment_id'::uuid" >/dev/null;}
+record_step(){
+  local name=$1 result=$2 elapsed=$3
+  psql "${DATABASE_URL}" -v ON_ERROR_STOP=1 -v deployment_id="${deployment_id}" -v step="${name}" -v result="${result}" -v elapsed="${elapsed}" >/dev/null <<'SQL'
+UPDATE kcml.deployment_run SET current_step=:'step',evidence=evidence||jsonb_build_object(:'step',jsonb_build_object('result',:'result','elapsedMs',(:'elapsed')::bigint,'at',clock_timestamp())),state_version=state_version+1,updated_at=clock_timestamp() WHERE id=:'deployment_id'::uuid;
+SQL
+}
 run_step(){ local name=$1;shift;local start=$(date +%s%N);"$@";local elapsed=$((($(date +%s%N)-start)/1000000));log_step "${name}" "${start}" PASS;if psql "${DATABASE_URL}" -Atqc "SELECT to_regclass('kcml.deployment_run') IS NOT NULL" 2>/dev/null|grep -qx t;then record_step "${name}" PASS "${elapsed}";fi; }
-fail(){ local status=$?; trap - ERR; unset pass_value;rm -rf -- "${stage_path}" 2>/dev/null||true;psql "${DATABASE_URL}" -v deployment_id="${deployment_id}" -v status="${status}" -c "UPDATE kcml.deployment_run SET status='FAILED',evidence=evidence||jsonb_build_object('failureExit',(:'status')::int),completed_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp() WHERE id=:'deployment_id'::uuid" >/dev/null 2>&1||true; if [[ ${rolling_back} -eq 0 && -n ${previous_path} && -d ${previous_path} ]]; then rolling_back=1; /opt/kajovocml-ng/current/deploy/scripts/rollback-production.sh --release-path "${previous_path}" --failed-release "${release_id}" || true; fi; echo "DEPLOYMENT FAILED exit=${status}" >&2; exit "${status}"; }
+fail(){
+  local status=$?
+  trap - ERR
+  unset pass_value
+  rm -rf -- "${stage_path}" 2>/dev/null || true
+  psql "${DATABASE_URL}" -v deployment_id="${deployment_id}" -v status="${status}" >/dev/null 2>&1 <<'SQL' || true
+UPDATE kcml.deployment_run SET status='FAILED',evidence=evidence||jsonb_build_object('failureExit',(:'status')::int),completed_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp() WHERE id=:'deployment_id'::uuid;
+SQL
+  if [[ ${rolling_back} -eq 0 && -n ${previous_path} && -d ${previous_path} ]]; then rolling_back=1; /opt/kajovocml-ng/current/deploy/scripts/rollback-production.sh --release-path "${previous_path}" --failed-release "${release_id}" || true; fi
+  echo "DEPLOYMENT FAILED exit=${status}" >&2
+  exit "${status}"
+}
 trap fail ERR
 verify_bundle(){ minisign -Vm "${bundle}" -x "${signature}" -p /etc/kajovocml-ng/release-signing.pub >/dev/null;(cd "$(dirname "${bundle}")"&&sha256sum --check "$(basename "${bundle}").sha256"); }
 create_backup(){ local path=/var/lib/kajovocml-ng/backups/pre-${release_id}-$(date -u +%Y%m%dT%H%M%SZ);install -d -o root -g kcml-platform -m 0700 "${path}";pg_dump --format=custom --file="${path}/database.dump" "${DATABASE_URL}";tar -C /etc -czf "${path}/configuration.tar.gz" kajovocml-ng;sha256sum "${path}"/* >"${path}/SHA256SUMS"; }
@@ -32,7 +48,11 @@ reconcile_platform(){
     (SELECT count(*) FROM kcml.owner_api_credential)=1" | grep -qx t
   install -d -o root -g kcml-platform -m 0770 /var/lib/kajovocml-ng/data /var/lib/kajovocml-ng/generation /var/lib/kajovocml-ng/components /var/lib/kajovocml-ng/runtime /var/lib/kajovocml-ng/browser /var/lib/kajovocml-ng/audit
 }
-begin_deployment_record(){ psql "${DATABASE_URL}" -v ON_ERROR_STOP=1 -v deployment_id="${deployment_id}" -v release="${release_id}" -v sha="${expected_sha}" -v previous="${previous_release}" -c "INSERT INTO kcml.deployment_run(id,release_id,source_sha,previous_release_id,deployment_epoch,status,current_step,platform_incarnation_id,application_deployment_epoch) SELECT :'deployment_id'::uuid,:'release',:'sha',nullif(:'previous',''),d.current_epoch+1,'PREFLIGHT','forward_migrations',p.platform_incarnation_id,d.current_epoch FROM kcml.platform_incarnation p CROSS JOIN kcml.application_deployment_head d WHERE p.singleton_key=1 AND d.singleton_key=1" >/dev/null;}
+begin_deployment_record(){
+  psql "${DATABASE_URL}" -v ON_ERROR_STOP=1 -v deployment_id="${deployment_id}" -v release="${release_id}" -v sha="${expected_sha}" -v previous="${previous_release}" >/dev/null <<'SQL'
+INSERT INTO kcml.deployment_run(id,release_id,source_sha,previous_release_id,deployment_epoch,status,current_step,platform_incarnation_id,application_deployment_epoch) SELECT :'deployment_id'::uuid,:'release',:'sha',nullif(:'previous',''),d.current_epoch+1,'PREFLIGHT','forward_migrations',p.platform_incarnation_id,d.current_epoch FROM kcml.platform_incarnation p CROSS JOIN kcml.application_deployment_head d WHERE p.singleton_key=1 AND d.singleton_key=1;
+SQL
+}
 capability_inventory(){
   local openai_status=OPENAI_CONFIGURATION_REQUIRED wedos_status=WEDOS_CONFIGURATION_REQUIRED
   psql "${DATABASE_URL}" -Atqc "SELECT EXISTS(SELECT 1 FROM kcml.secret_record s JOIN kcml.secret_version v ON v.id=s.active_version_id WHERE s.stable_name='OPENAI_API_KEY' AND v.lifecycle='ACTIVE')" | grep -qx t && openai_status=READY || true
@@ -76,6 +96,8 @@ run_step service_heartbeats verify_heartbeats
 run_step self_test node "${release_path}/apps/server/dist/admin-cli.js" self-test
 run_step healthy_samples healthy_samples
 install -o root -g root -m 0755 "${release_path}/deploy/scripts/deploy-production.sh" /usr/local/sbin/kcml-deploy-production
-psql "${DATABASE_URL}" -v deployment_id="${deployment_id}" -c "UPDATE kcml.deployment_run SET status='SUCCEEDED',current_step='COMPLETED',completed_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp() WHERE id=:'deployment_id'::uuid" >/dev/null
+psql "${DATABASE_URL}" -v deployment_id="${deployment_id}" >/dev/null <<'SQL'
+UPDATE kcml.deployment_run SET status='SUCCEEDED',current_step='COMPLETED',completed_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp() WHERE id=:'deployment_id'::uuid;
+SQL
 trap - ERR
 printf 'DEPLOYMENT STATUS: PASS release=%s sha=%s elapsedMs=%d\n' "${release_id}" "${expected_sha}" "$((($(date +%s%N)-started_ns)/1000000))"

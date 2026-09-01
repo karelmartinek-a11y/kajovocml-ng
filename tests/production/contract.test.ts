@@ -17,4 +17,11 @@ describe('production acceptance contract', () => {
     expect(source).toContain("source_sha=:'sha'");
     expect(source).toContain("deployment_epoch=:'epoch'::bigint");
   });
+
+  it('feeds variable-bearing SQL through psql stdin so substitutions are evaluated', async () => {
+    const deploy = await readFile('deploy/scripts/deploy-production.sh', 'utf8');
+    const rollback = await readFile('deploy/scripts/rollback-production.sh', 'utf8');
+    expect(`${deploy}\n${rollback}`).not.toMatch(/psql[^\n]*-v[^\n]*-c\s/u);
+    expect(deploy).toContain("<<'SQL'");
+  });
 });
