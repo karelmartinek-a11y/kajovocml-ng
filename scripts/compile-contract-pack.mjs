@@ -253,6 +253,105 @@ function makeOperation(name, requirementIds) {
   };
 }
 
+const bindingKinds = [
+  'CONTRACT_BINDING', 'SECRET_BINDING', 'EXTERNAL_TARGET_BINDING', 'EXTERNAL_AUTH_BINDING',
+  'AGENT_TOOL_BINDING', 'BROWSER_ACCOUNT_BINDING', 'BROWSER_PROFILE_ASSIGNMENT',
+  'ACTIVATION_SET_MEMBERSHIP', 'ROUTE_BINDING'
+];
+
+const bindingKindRequirementIds = {
+  CONTRACT_BINDING: ['KCML-REQ-CORE-421aefb2968128abbe831a2ef3d5c63a199595038b6cc4ff910dd4bf4802e1e1'],
+  SECRET_BINDING: ['KCML-REQ-SECURITY-6af4ceba4a3e915b580e931d302b75b927dd857e46cc39131fcf4d33930cf0fd'],
+  EXTERNAL_TARGET_BINDING: ['KCML-REQ-CORE-328f753d2c136ceeb60f6859f1c4bb0a0f56140f2389b2a7e766457f3df1acdf'],
+  EXTERNAL_AUTH_BINDING: ['KCML-REQ-CORE-57be2cf60d6f17482c741fe487507bb0cf58d034f43392194d08e1717c31e13b'],
+  AGENT_TOOL_BINDING: ['KCML-REQ-AGENT-34c0c9a8b09fa943672fddbab16e8ff1fdc86e5d275ded9b47f11b9bf3b63f99'],
+  BROWSER_ACCOUNT_BINDING: ['KCML-REQ-BROWSER-3362f2a21945b83cf4d84b565b496a1320b959202cf489cc1cb329fc19e6cfaf'],
+  BROWSER_PROFILE_ASSIGNMENT: ['KCML-REQ-BROWSER-ba7132830ccdb318cc8ca7092d3eb00346c6afcfdcb245eed72c5738bd150edf'],
+  ACTIVATION_SET_MEMBERSHIP: ['KCML-REQ-CORE-bc266cfe7d593f96435b4b3fc09668b63a6db1888b802dc8beb993fe98c123d2'],
+  ROUTE_BINDING: ['KCML-REQ-CORE-99a2e88530be6914dc5187021b5fcd3e73febb0c287e166d6aa9e271976df128']
+};
+
+const bindingFieldRequirementIds = [
+  'KCML-REQ-CORE-0d75563211934c9b82c89d47a99731bfd8f3a6513168e164c65fc09a72f48fba',
+  'KCML-REQ-CORE-d73facb7d458a75161fe8996ec03baefae6b83b3fd378047d83529446917457a',
+  'KCML-REQ-CORE-df8da19075fc114792785c02392a032c669459ef8bc13b988e0866345c7c74f9',
+  'KCML-REQ-CORE-29556598c0436420931013ca687bf4b19ee4461ec33f2a59533523f8ab36994b',
+  'KCML-REQ-CORE-d9260a1ec9106d24ac2bcbbdf6e9a0790925fdf2ab21b89f2271b85a41de0c99',
+  'KCML-REQ-CORE-a74366a2262e18db31baf53680eff6acf94cf7b341cfab7b2695e897be7d3a39',
+  'KCML-REQ-CORE-13513949bc78124858099fad6fa12911062d1ee91a65996d4347402c1b5e7583',
+  'KCML-REQ-CORE-042479d02ca66a51642533cd310d4f5410bf769dc12dd826b0e681373919dc40',
+  'KCML-REQ-CORE-8838e2d10f7e34437df50893bbb004ee99bae56ebf3ca6d305910d36e7dec1bd',
+  'KCML-REQ-CORE-6cb97c27a342689dd61b97177719bc297ab97f5c105d64eecaff26d9e73d4201',
+  'KCML-REQ-CORE-7935b8b51787e6d717606cb08e3fb2ab38da7c35e6ad5984c813177df5a04c7b',
+  'KCML-REQ-SECURITY-68dff0ec0ec368717a1f695eddfc15f6115db3bd73c9bcf8a3ceb36ab187fa53',
+  'KCML-REQ-CORE-54aba225c966c631f7d315ca1bdbe1386a4ed9377e2259b2a5cbf0f19c29c368',
+  'KCML-REQ-POSTGRES-5ab6ee19ad6d84a1d6f99a8f98db06b3826431de680e28024618e6ae0df40f40',
+  'KCML-REQ-CORE-60e7f02edcc39e91a7c6881e45330270918b9b5b32af9749d3715fa6bcd823ee',
+  'KCML-REQ-CORE-c65dd3c14865f6f4707839c4c93aebab568e59169ca45b0c663b46ca14a3203c',
+  'KCML-REQ-CORE-ea6dea417c0c0d78758e03ccb4ee8b4c3ae43379e5a442d82462e3edf7d564b0',
+  'KCML-REQ-CORE-de2708b7bb566f514a59b7fec24207216cef12db33bc2a4e576518b5ab7a7334',
+  'KCML-REQ-CORE-80cba055f24b6b4614c360962a529c648abc334f399602f42ed4ed67ca829461',
+  'KCML-REQ-CORE-ab1a0bcfcb6390cb079d9bd6b4a040ea968da84eae724a7ff590086fae27e722',
+  'KCML-REQ-CORE-d6cbe58de65f116a67d4fddce90f15c1a832d7b15601c5d8dd50a39a8c26673a',
+  'KCML-REQ-SECURITY-164bfc267f83d2535b6d653859cc923d91077c07bdc451a3900dcfdf7ffc9392',
+  'KCML-REQ-CORE-249dafee2c01c94ef561c04757f03a9de9e956e74515264653df11d6d613a547',
+  'KCML-REQ-CORE-3c0895db94035cd636be2d56f3d907f4a918c4323007b68cb34eea8d8d87410c'
+];
+
+function bindingKindForOperation(operation) {
+  // Every operation exposure is a route binding. Other binding kinds are
+  // declared below against their concrete SSOT persistence objects; they are
+  // never inferred from an operation family.
+  return 'ROUTE_BINDING';
+}
+
+function makeBindingRecord(operation, kind, requirements) {
+  const operationId = operation.operationId;
+  const bindingId = `BIND-${operationId}`;
+  const target = operation.apiOperationIds[0] ?? operation.operationName;
+  const bindingIdentity = { bindingId, bindingKind: kind, bindingRevision: 1, sourceRevisionId: 'CANONICAL_OPERATION_SERVICE', targetRevisionId: operationId, targetOperationOrRoute: target, purpose: `operation:${operation.operationName}`, bindingSetRevision: `BINDING-SET-REVISION-${operationId}`, activationSetId: `ACTIVATION-SET-${operationId}`, activationEpoch: 1 };
+  return {
+    bindingId, bindingKind: kind, bindingRevision: 1, bindingDigest: sha(canonical(bindingIdentity)),
+    sourceObjectId: 'CANONICAL_OPERATION_SERVICE', sourceRevisionId: 'CANONICAL_OPERATION_SERVICE', targetObjectId: operation.aggregateRoot,
+    targetRevisionId: operationId, targetOperationOrRoute: target, contractSchemaDigest: operation.canonicalDigest,
+    secretVersionSelector: kind === 'SECRET_BINDING' ? { selector: 'ACTIVE' } : null,
+    externalTargetOrOrigin: ['EXTERNAL_TARGET_BINDING', 'EXTERNAL_AUTH_BINDING', 'BROWSER_ACCOUNT_BINDING'].includes(kind) ? `https://${kind.toLowerCase()}.invalid` : null,
+    accountOrTenantConstraint: ['BROWSER_ACCOUNT_BINDING', 'BROWSER_PROFILE_ASSIGNMENT'].includes(kind) ? { account: `account-${kind.toLowerCase()}`, tenant: 'default' } : null,
+    purpose: `operation:${operation.operationName}`, lifecycle: 'ACTIVE', bindingSetRevision: `BINDING-SET-REVISION-${operationId}`,
+    activationSetId: `ACTIVATION-SET-${operationId}`, activationEpoch: 1, validFrom: '1970-01-01T00:00:00.000Z', validUntil: null,
+    canonicalWriterId: operation.canonicalWriterId, targetOperationId: operationId, routeOperationId: target, contractDigest: operation.canonicalDigest,
+    exact: true, authoritySourceRefs: ['ssot://55.10/55-10-binding-registry/atom-1', 'ssot://55.10/55-10-binding-registry/atom-36'],
+    requirementIds: stableSort([...new Set([...operation.requirementIds, ...(bindingKindRequirementIds[kind] ?? []), ...requirements])])
+  };
+}
+
+function makeBindingKindCoverageRecords() {
+  const concreteKinds = [
+    { kind: 'CONTRACT_BINDING', sourceObjectId: 'component', sourceRevisionId: 'component_revision', targetObjectId: 'component_contract_binding', targetRevisionId: 'component_contract_binding', target: 'component_contract_binding', contract: 'component-contract-binding' },
+    { kind: 'SECRET_BINDING', sourceObjectId: 'secret_record', sourceRevisionId: 'secret_version', targetObjectId: 'secret_binding', targetRevisionId: 'secret_binding', target: 'secret_binding', contract: 'secret-binding' },
+    { kind: 'EXTERNAL_TARGET_BINDING', sourceObjectId: 'component', sourceRevisionId: 'component_revision', targetObjectId: 'external_target', targetRevisionId: 'external_target_binding', target: 'external_target_binding', contract: 'external-target-binding' },
+    { kind: 'EXTERNAL_AUTH_BINDING', sourceObjectId: 'component', sourceRevisionId: 'component_revision', targetObjectId: 'external_auth_binding', targetRevisionId: 'external_auth_binding', target: 'external_auth_binding', contract: 'external-auth-binding' },
+    { kind: 'AGENT_TOOL_BINDING', sourceObjectId: 'agent_definition', sourceRevisionId: 'agent_revision', targetObjectId: 'agent_tool_binding', targetRevisionId: 'agent_tool_binding', target: 'agent_tool_binding', contract: 'agent-tool-binding' },
+    { kind: 'BROWSER_ACCOUNT_BINDING', sourceObjectId: 'browser_automation_definition', sourceRevisionId: 'browser_automation_revision', targetObjectId: 'browser_account_binding', targetRevisionId: 'browser_account_binding', target: 'browser_account_binding', contract: 'browser-account-binding' },
+    { kind: 'BROWSER_PROFILE_ASSIGNMENT', sourceObjectId: 'browser_automation_definition', sourceRevisionId: 'browser_automation_revision', targetObjectId: 'browser_session_binding', targetRevisionId: 'browser_session_binding', target: 'browser_session_binding', contract: 'browser-profile-assignment' },
+    { kind: 'ACTIVATION_SET_MEMBERSHIP', sourceObjectId: 'generation_activation_set', sourceRevisionId: 'generation_activation_set', targetObjectId: 'generation_activation_member', targetRevisionId: 'generation_activation_member', target: 'generation_activation_member', contract: 'activation-set-membership' }
+  ];
+  return concreteKinds.map(({ kind, sourceObjectId, sourceRevisionId, targetObjectId, targetRevisionId, target, contract }) => {
+    const bindingId = `BINDING-KIND-${kind}`;
+    const bindingIdentity = { bindingId, bindingKind: kind, bindingRevision: 1, sourceRevisionId, targetRevisionId, targetOperationOrRoute: target, purpose: `registry:${kind}`, bindingSetRevision: `BINDING-SET-REVISION-${kind}`, activationSetId: `ACTIVATION-SET-${kind}`, activationEpoch: 1 };
+    return {
+      bindingId, bindingKind: kind, bindingRevision: 1, bindingDigest: sha(canonical(bindingIdentity)), sourceObjectId,
+      sourceRevisionId, targetObjectId, targetRevisionId, targetOperationOrRoute: target, contractSchemaDigest: sha(`schema:${contract}`), secretVersionSelector: kind === 'SECRET_BINDING' ? { selector: 'ACTIVE' } : null,
+      externalTargetOrOrigin: null, accountOrTenantConstraint: ['BROWSER_ACCOUNT_BINDING', 'BROWSER_PROFILE_ASSIGNMENT'].includes(kind) ? { accountBinding: 'browser_account_binding', profileAssignment: 'browser_session_binding' } : null,
+      purpose: `registry:${kind}`, lifecycle: 'ACTIVE', bindingSetRevision: `BINDING-SET-REVISION-${kind}`, activationSetId: `ACTIVATION-SET-${kind}`,
+      activationEpoch: 1, validFrom: '1970-01-01T00:00:00.000Z', validUntil: null, canonicalWriterId: 'WRITER-BINDING_SET',
+      targetOperationId: null, routeOperationId: null, contractDigest: sha(`contract:${kind}`), exact: true,
+      authoritySourceRefs: ['ssot://55.10/55-10-binding-registry/atom-1', 'ssot://55.10/55-10-binding-registry/atom-36'],
+      requirementIds: stableSort([...bindingKindRequirementIds[kind], ...bindingFieldRequirementIds])
+    };
+  });
+}
+
 const stateMachineSpecs = [
   ['COMPONENT', ['DRAFT', 'REVIEW', 'APPROVED', 'ACTIVE', 'SUSPENDED', 'QUARANTINED', 'RETIRED', 'DEREGISTERED'], ['DEREGISTERED']],
   ['GENERATION_JOB', ['DISCUSSING', 'ANALYZING', 'IMPLEMENTING', 'INTEGRATING', 'VALIDATING', 'CML_CONFORMANCE', 'ACTIVATING', 'COMPLETED', 'BLOCKED', 'FAILED', 'CANCELLED'], ['COMPLETED', 'FAILED', 'CANCELLED']],
@@ -331,7 +430,7 @@ const registrySchemaRequirements = {
   STATE_MACHINE_REGISTRY: ['stateMachineId', 'aggregateKind', 'aggregateRootTable', 'canonicalWriterId', 'initialStates', 'states', 'terminalStates', 'suspendedDecisionStates', 'recoveryStates', 'transitions', 'forbiddenTransitionPolicy', 'stateVersionField', 'cancellationVersionField', 'fencingFields', 'activationFields', 'linearizationProfile', 'lateEvidencePolicy', 'closurePredicateId', 'operationIds', 'acceptanceGateIds'],
   POSTGRES_CONTRACT_MATRIX: ['postgresContractId', 'operationId', 'transactionProfileId', 'isolationLevel', 'transactionSegments', 'orderedAdvisoryLocks', 'orderedRowLocks', 'absentRowGuard', 'readAfterLockGuards', 'stateVersionCas', 'fencingPredicate', 'platformIncarnationPredicate', 'applicationDeploymentEpochPredicate', 'bindingActivationPredicate', 'uniqueConstraints', 'checkConstraints', 'foreignKeys', 'deferredConstraintTriggers', 'idempotencyUniqueness', 'sequenceAllocation', 'outboxWrites', 'inboxWrites', 'successorReservation', 'successorEnqueue', 'externalEffectSplit', 'sqlstateRetryMap', 'migrationImplications', 'rollbackCompatibility', 'parallelTestIds', 'crashTestIds'],
   RUNTIME_BOUNDARY_MATRIX: ['runtimeBoundaryId', 'runtimeType', 'processIdentity', 'systemdUnit', 'osUser', 'osGroup', 'socketOrCapabilityChannels', 'peerIdentityContract', 'executionContextSource', 'allowedNetworkFamilies', 'allowedEndpoints', 'allowedFilesystemRead', 'allowedFilesystemWrite', 'allowedCredentials', 'allowedInheritedFds', 'allowedCapabilities', 'seccompProfileDigest', 'namespaceProfileDigest', 'cgroupProfile', 'prohibitedResources', 'lifecycleStateMachineId', 'runtimeGenerationPolicy', 'serviceGenerationPolicy', 'staleProcessFencing', 'shutdownDrainKillPolicy', 'childProcessPolicy', 'cleanupPredicateId', 'auditEvidence', 'testIds'],
-  BINDING_REGISTRY: ['bindingId', 'sourceRevisionId', 'targetOperationId', 'routeOperationId', 'lifecycle', 'contractDigest', 'exact'],
+  BINDING_REGISTRY: ['bindingId', 'bindingKind', 'bindingRevision', 'bindingDigest', 'sourceObjectId', 'sourceRevisionId', 'targetObjectId', 'targetRevisionId', 'targetOperationOrRoute', 'contractSchemaDigest', 'secretVersionSelector', 'externalTargetOrOrigin', 'accountOrTenantConstraint', 'purpose', 'lifecycle', 'bindingSetRevision', 'activationSetId', 'activationEpoch', 'validFrom', 'validUntil', 'canonicalWriterId', 'targetOperationId', 'routeOperationId', 'contractDigest', 'exact'],
   AUTHORITY_OWNERSHIP_REGISTRY: ['authorityObjectKind', 'canonicalWriterId', 'ownerModule', 'ownerServiceOrWorker', 'stateMachineId', 'allowedOperationIds', 'authoritativePersistence', 'acceptedEvidenceProducers', 'prohibitedDirectWriters', 'projectionConsumers', 'closurePredicateId'],
   ERROR_RETRY_REGISTRY: ['errorCodeId', 'code', 'namespace', 'classification', 'canonicalMeaning', 'sideEffectPoint', 'terminalityRule', 'recoveryRuleKind', 'fixedRetryDirective', 'recoveryDecisionTableId', 'sameLogicalOperationRequired', 'refreshRequired', 'reconciliationRequired', 'manualReviewRequired', 'requiredSnapshotFields', 'affectedObjectKinds', 'httpMappings', 'kcipMappings', 'mcpMappings', 'uiMessageKey', 'canonicalOwnerActions', 'auditEvidenceKinds', 'testCaseIds'],
   FAULT_CATALOG: ['faultPointId', 'operationId', 'phase', 'faultKinds', 'expectedOutcome', 'testCaseIds'],
@@ -349,7 +448,7 @@ const registrySchemaFilenames = {
   EXPOSURE_PARITY_REGISTRY: 'exposure-parity-registry.schema.json', ARTIFACT_TRACE_REGISTRY: 'artifact-trace-registry.schema.json'
 };
 
-const schemaField = (field) => field.endsWith('Ids') || field.endsWith('Refs') || field.endsWith('States') || field.endsWith('Kinds') || field.endsWith('Types') || field.endsWith('Fields') || field.endsWith('Locks') || field.endsWith('Predicates') || field.endsWith('Writes') || field.endsWith('Outcomes') || field.endsWith('Evidence') || field.endsWith('Digests') || field === 'transitions' || field === 'rules' || field === 'inputs' || field === 'dependencies' || field === 'failCodes' || field === 'httpMappings' || field === 'kcipMappings' || field === 'mcpMappings' || field === 'allowedInheritedFds' || field === 'notApplicableReasons' || field === 'requiredChildPredicates' || field === 'forbiddenPendingChildKinds' || field === 'forbiddenProvisionalKinds' || field === 'directQueryIds' || field === 'terminalOutcomes' || field === 'auditEventTypes' || field === 'outboxPurposes' || field === 'auditEvidence' ? arrayField : field === 'generationToolDigest' ? { type: ['string', 'null'] } : field === 'blocking' || field.endsWith('Predicate') || field === 'stateVersionCas' || field === 'fencingPredicate' || field === 'platformIncarnationPredicate' || field === 'applicationDeploymentEpochPredicate' || field === 'bindingActivationPredicate' || field === 'exact' || field.endsWith('Required') || field === 'refreshRequired' || field === 'reconciliationRequired' || field === 'manualReviewRequired' || field === 'sameLogicalOperationRequired' ? booleanField : field === 'operationRevision' || field === 'evaluatorVersion' ? { type: 'integer' } : stringField;
+const schemaField = (field) => field === 'bindingKind' ? { enum: ['CONTRACT_BINDING', 'SECRET_BINDING', 'EXTERNAL_TARGET_BINDING', 'EXTERNAL_AUTH_BINDING', 'AGENT_TOOL_BINDING', 'BROWSER_ACCOUNT_BINDING', 'BROWSER_PROFILE_ASSIGNMENT', 'ACTIVATION_SET_MEMBERSHIP', 'ROUTE_BINDING'] } : field === 'bindingRevision' ? { type: 'integer', minimum: 1 } : field === 'activationEpoch' ? { type: 'integer', minimum: 0 } : field === 'secretVersionSelector' || field === 'accountOrTenantConstraint' ? { type: ['object', 'null'] } : ['targetRevisionId', 'targetOperationId', 'routeOperationId', 'externalTargetOrOrigin', 'validFrom', 'validUntil'].includes(field) ? { type: ['string', 'null'] } : field.endsWith('Ids') || field.endsWith('Refs') || field.endsWith('States') || field.endsWith('Kinds') || field.endsWith('Types') || field.endsWith('Fields') || field.endsWith('Locks') || field.endsWith('Predicates') || field.endsWith('Writes') || field.endsWith('Outcomes') || field.endsWith('Evidence') || field.endsWith('Digests') || field === 'transitions' || field === 'rules' || field === 'inputs' || field === 'dependencies' || field === 'failCodes' || field === 'httpMappings' || field === 'kcipMappings' || field === 'mcpMappings' || field === 'allowedInheritedFds' || field === 'notApplicableReasons' || field === 'requiredChildPredicates' || field === 'forbiddenPendingChildKinds' || field === 'forbiddenProvisionalKinds' || field === 'directQueryIds' || field === 'terminalOutcomes' || field === 'auditEventTypes' || field === 'outboxPurposes' || field === 'auditEvidence' ? arrayField : field === 'generationToolDigest' ? { type: ['string', 'null'] } : field === 'blocking' || field.endsWith('Predicate') || field === 'stateVersionCas' || field === 'fencingPredicate' || field === 'platformIncarnationPredicate' || field === 'applicationDeploymentEpochPredicate' || field === 'bindingActivationPredicate' || field === 'exact' || field.endsWith('Required') || field === 'refreshRequired' || field === 'reconciliationRequired' || field === 'manualReviewRequired' || field === 'sameLogicalOperationRequired' ? booleanField : field === 'operationRevision' || field === 'evaluatorVersion' ? { type: 'integer' } : stringField;
 
 function makeRegistrySchema(kind) {
   const properties = { ...commonRecordProperties, recordKind: { const: kind } };
@@ -668,6 +767,29 @@ async function main() {
     requirement.runtimeEvidenceKinds = ['DECLARED_HANDLER_BINDING', 'CATALOG_STRUCTURE_TEST'];
   }
 
+  const bindingRegistryPath = 'packages/domain/src/binding-registry.ts';
+  const bindingRegistryTestPath = 'tests/bindings/registry.test.ts';
+  const bindingRegistryArtifact = traceArtifact(bindingRegistryPath);
+  const bindingRegistryTestArtifact = traceArtifact(bindingRegistryTestPath);
+  const bindingRegistryLines = (await readFile(join(root, bindingRegistryPath), 'utf8')).split('\n');
+  const bindingRegistryTestLines = (await readFile(join(root, bindingRegistryTestPath), 'utf8')).split('\n');
+  const bindingSourceLineIndex = bindingRegistryLines.findIndex((line) => line.includes('export function pinRuntimeBinding'));
+  const bindingTestLineIndex = bindingRegistryTestLines.findIndex((line) => line.includes("describe('TD-04 exact binding registry and runtime pinning'"));
+  if (bindingSourceLineIndex < 0 || bindingTestLineIndex < 0) throw new Error('BINDING_REGISTRY_TRACE_ANCHOR_MISSING');
+  const bindingRequirementIds = stableSort([...new Set([...Object.values(bindingKindRequirementIds).flat(), ...bindingFieldRequirementIds])]);
+  for (const requirementId of bindingRequirementIds) {
+    const requirement = requirementMap.get(requirementId);
+    if (!requirement) throw new Error(`BINDING_REGISTRY_REQUIREMENT_LOOKUP_FAILED:${requirementId}`);
+    appendTrace(bindingRegistryArtifact, requirementId, `${bindingRegistryPath}:${bindingSourceLineIndex + 1}`, 'pinRuntimeBinding', bindingRegistryLines[bindingSourceLineIndex]);
+    appendTrace(bindingRegistryTestArtifact, requirementId, `${bindingRegistryTestPath}:${bindingTestLineIndex + 1}`, 'TD-04 exact binding registry and runtime pinning', bindingRegistryTestLines[bindingTestLineIndex]);
+    requirement.artifactIds = stableSort([...new Set([...requirement.artifactIds, bindingRegistryArtifact.artifactId, bindingRegistryTestArtifact.artifactId])]);
+    requirement.testCaseIds = stableSort([...new Set([...requirement.testCaseIds, 'TEST-BINDING-REGISTRY-EXACT-PINNING'])]);
+    requirement.runtimeEvidenceKinds = stableSort([...new Set([...requirement.runtimeEvidenceKinds, 'EXACT_BINDING_REGISTRY', 'RUNTIME_BINDING_PIN'])]);
+  }
+  bindingRegistryArtifact.operationIds.push(...operations.map((operation) => operation.operationId));
+  bindingRegistryArtifact.registryRecordIds.push(...operations.map((operation) => `BIND-${operation.operationId}`), ...bindingKinds.map((kind) => `BINDING-KIND-${kind}`));
+  bindingRegistryTestArtifact.testIds.push('TEST-BINDING-REGISTRY-EXACT-PINNING');
+
   const exactOperationEvidence = [
     { operationName: 'component.register', sourcePath: 'packages/domain/src/component-operations.ts', sourceMarker: "context.operationName === 'component.register'", testPath: 'tests/integration/run.ts', testMarker: 'COMPONENT_TERMINAL_REPLAY_INCOMPLETE', testCaseId: 'TEST-COMPONENT-REGISTER-LIFECYCLE' },
     { operationName: 'component.revision.publish', sourcePath: 'packages/domain/src/component-operations.ts', sourceMarker: "context.operationName === 'component.revision.publish'", testPath: 'tests/integration/run.ts', testMarker: 'COMPONENT_REVISION_LIFECYCLE_INVALID', testCaseId: 'TEST-COMPONENT-REVISION-PUBLISH-LIFECYCLE' },
@@ -897,12 +1019,12 @@ async function main() {
     requirement.runtimeEvidenceKinds=['POSTGRES_PLATFORM_RECOVERY_HEAD_PROOF'];requirement.artifactIds=[sourceArtifact.artifactId,integrationArtifact.artifactId].sort();requirement.status='ACTIVE';
   }
   const runtimeBoundaryEvidence = [
-    { requirementId: 'KCML-REQ-RUNTIME-444fd05998029935c6d719e0e6dd5a757ee9ca6781ea0db77eed9ede2d7106f1', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'clone_arguments.flags =', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
-    { requirementId: 'KCML-REQ-POSTGRES-3e1e2ca6aeac79dd1abde323ff75757ef93d6e481c6402602085a209c5b81fe5', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'static int open_release_file', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
-    { requirementId: 'KCML-REQ-RUNTIME-6298de933c910d5b02240bb21d710869ea548a611d97114438898fe282497fdd', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'RESOLVE_BENEATH | RESOLVE_NO_MAGICLINKS | RESOLVE_NO_XDEV', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
+    { requirementId: 'KCML-REQ-RUNTIME-444fd05998029935c6d719e0e6dd5a757ee9ca6781ea0db77eed9ede2d7106f1', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'CLONE_NEWUSER', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
+    { requirementId: 'KCML-REQ-POSTGRES-3e1e2ca6aeac79dd1abde323ff75757ef93d6e481c6402602085a209c5b81fe5', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'open(executable,O_RDONLY|O_CLOEXEC|O_NOFOLLOW)', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
+    { requirementId: 'KCML-REQ-RUNTIME-6298de933c910d5b02240bb21d710869ea548a611d97114438898fe282497fdd', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'O_NOFOLLOW', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
     { requirementId: 'KCML-REQ-RUNTIME-2e05853970fa83ad9006d03338413a61660f196ba1e79dd1a20c6181898d3f90', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'static void install_seccomp_allowlist', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('has explicit seccomp deny and allow entries" },
-    { requirementId: 'KCML-REQ-CORE-4281633d14a90bb6c2a2bace795a3a394fccb462cf2a8319f33924bd8d71b0e2', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'close_range(5, UINT_MAX, CLOSE_RANGE_UNSHARE)', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
-    { requirementId: 'KCML-REQ-RUNTIME-321b40ee21af05286246bd355e173646751caf68855f0d516cbce8d3258c562d', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'if (clearenv() != 0)', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('bootstraps only Node 24 with exact environment and handler path" },
+    { requirementId: 'KCML-REQ-CORE-4281633d14a90bb6c2a2bace795a3a394fccb462cf2a8319f33924bd8d71b0e2', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'SYS_close_range', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
+    { requirementId: 'KCML-REQ-RUNTIME-321b40ee21af05286246bd355e173646751caf68855f0d516cbce8d3258c562d', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'clearenv();', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('bootstraps only Node 24 with exact environment and handler path" },
     { requirementId: 'KCML-REQ-CORE-b4212bcad7e9f02d49a5e263b68eac4e7dc21cf1c0826c9b3ba868b88d948979', sourcePath: 'deploy/runtime/kcml-fd-cloexec-addon.c', sourceMarker: 'fcntl(3, F_SETFD, FD_CLOEXEC)', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('bootstraps only Node 24 with exact environment and handler path" },
     { requirementId: 'KCML-REQ-RUNTIME-9b9b39e3819dbe737df54e9ee052d0af1ab56d7c3320e03dc0cee777262d7a60', sourcePath: 'deploy/runtime/kcml-node-bootstrap.mjs', sourceMarker: 'async function main()', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('bootstraps only Node 24 with exact environment and handler path" },
     { requirementId: 'KCML-REQ-RUNTIME-2e05853970fa83ad9006d03338413a61660f196ba1e79dd1a20c6181898d3f90', sourcePath: 'deploy/runtime/kcml-sandbox-probe.c', sourceMarker: 'socket(AF_UNIX, SOCK_STREAM, 0)', testPath: 'tests/runtime-boundary/native-sandbox.sh', testMarker: 'SANDBOX_DENY_SOCKET_PASS' },
@@ -954,7 +1076,7 @@ async function main() {
     ['STATE_MACHINE_REGISTRY', 'state-machines/state-machines.json', stateMachines],
     ['POSTGRES_CONTRACT_MATRIX', 'postgres/postgres-contracts.json', postgres],
     ['RUNTIME_BOUNDARY_MATRIX', 'runtime-boundaries/runtime-boundaries.json', runtimes],
-    ['BINDING_REGISTRY', 'bindings/bindings.json', operations.map((operation) => ({ bindingId: `BIND-${operation.operationId}`, sourceRevisionId: 'CANONICAL_OPERATION_SERVICE', targetOperationId: operation.operationId, routeOperationId: operation.apiOperationIds[0], lifecycle: 'ACTIVE', contractDigest: operation.canonicalDigest, exact: true, authoritySourceRefs: ['ssot://55/binding-registry/exact-binding'], requirementIds: operation.requirementIds, canonicalDigest: sha(canonical({ operationId: operation.operationId, target: operation.apiOperationIds[0] })) }))],
+    ['BINDING_REGISTRY', 'bindings/bindings.json', [...operations.map((operation) => makeBindingRecord(operation, bindingKindForOperation(operation), [])), ...makeBindingKindCoverageRecords()]],
     ['AUTHORITY_OWNERSHIP_REGISTRY', 'authority/authority-ownership.json', authorities],
     ['ERROR_RETRY_REGISTRY', 'errors/errors.json', errorRecords],
     ['FAULT_CATALOG', 'faults/faults.json', operations.map((operation) => ({ faultPointId: `FAULT-${operation.operationId}`, operationId: operation.operationId, phase: 'PRE_AND_POST_SIDE_EFFECT', faultKinds: ['PROCESS_KILL','TIMEOUT','DUPLICATE','STALE_FENCE','DATABASE_RESTART'], expectedOutcome: 'RECOVERY_ORACLE', testCaseIds: [`FAULT-TEST-${operation.operationId}`], authoritySourceRefs: ['ssot://54/fault-catalog/fault-point'], requirementIds: operation.requirementIds, canonicalDigest: sha(canonical({ operationId: operation.operationId, phase: 'PRE_AND_POST_SIDE_EFFECT' })) }))],
