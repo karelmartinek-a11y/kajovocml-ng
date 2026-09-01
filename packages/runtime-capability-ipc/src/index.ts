@@ -2,7 +2,7 @@ import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { createConnection, createServer, type Server, type Socket } from 'node:net';
 import { spawn } from 'node:child_process';
 import { chmod, unlink } from 'node:fs/promises';
-import { z } from '@kcml/schemas';
+import { canonicalJson, type CanonicalJsonValue, z } from '@kcml/schemas';
 
 /** The anonymous handler channel is deliberately separate from the legacy
  * broker UDS API below. It carries no bearer key or server identity envelope;
@@ -142,7 +142,7 @@ export type CapabilityResponse = z.infer<typeof capabilityResponseSchema>;
 const MAX_FRAME = 8 * 1024 * 1024;
 
 function authenticatedBytes(value: Omit<CapabilityRequest, 'mac'>): Buffer {
-  return Buffer.from(JSON.stringify(value), 'utf8');
+  return Buffer.from(canonicalJson(JSON.parse(JSON.stringify(value)) as CanonicalJsonValue), 'utf8');
 }
 
 export function signRequest(value: Omit<CapabilityRequest, 'mac' | 'nonce'>, channelKey: Buffer): CapabilityRequest {
