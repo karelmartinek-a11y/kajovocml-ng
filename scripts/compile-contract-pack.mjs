@@ -813,6 +813,40 @@ async function main() {
     requirement.domainModule='packages/database';requirement.persistenceObjectIds=evidence.persistenceObjectIds??['platform_recovery_head'];requirement.testCaseIds=[evidence.testCaseId];requirement.acceptanceGateIds=['GATE-CONTRACT-PACK'];
     requirement.runtimeEvidenceKinds=['POSTGRES_PLATFORM_RECOVERY_HEAD_PROOF'];requirement.artifactIds=[sourceArtifact.artifactId,integrationArtifact.artifactId].sort();requirement.status='ACTIVE';
   }
+  const runtimeBoundaryEvidence = [
+    { requirementId: 'KCML-REQ-RUNTIME-444fd05998029935c6d719e0e6dd5a757ee9ca6781ea0db77eed9ede2d7106f1', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'clone_arguments.flags =', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
+    { requirementId: 'KCML-REQ-POSTGRES-3e1e2ca6aeac79dd1abde323ff75757ef93d6e481c6402602085a209c5b81fe5', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'static int open_release_file', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
+    { requirementId: 'KCML-REQ-RUNTIME-6298de933c910d5b02240bb21d710869ea548a611d97114438898fe282497fdd', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'RESOLVE_BENEATH | RESOLVE_NO_MAGICLINKS | RESOLVE_NO_XDEV', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
+    { requirementId: 'KCML-REQ-RUNTIME-2e05853970fa83ad9006d03338413a61660f196ba1e79dd1a20c6181898d3f90', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'static void install_seccomp_allowlist', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('has explicit seccomp deny and allow entries" },
+    { requirementId: 'KCML-REQ-CORE-4281633d14a90bb6c2a2bace795a3a394fccb462cf2a8319f33924bd8d71b0e2', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'close_range(5, UINT_MAX, CLOSE_RANGE_UNSHARE)', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
+    { requirementId: 'KCML-REQ-RUNTIME-321b40ee21af05286246bd355e173646751caf68855f0d516cbce8d3258c562d', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'if (clearenv() != 0)', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('bootstraps only Node 24 with exact environment and handler path" },
+    { requirementId: 'KCML-REQ-CORE-b4212bcad7e9f02d49a5e263b68eac4e7dc21cf1c0826c9b3ba868b88d948979', sourcePath: 'deploy/runtime/kcml-fd-cloexec-addon.c', sourceMarker: 'fcntl(3, F_SETFD, FD_CLOEXEC)', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('bootstraps only Node 24 with exact environment and handler path" },
+    { requirementId: 'KCML-REQ-RUNTIME-9b9b39e3819dbe737df54e9ee052d0af1ab56d7c3320e03dc0cee777262d7a60', sourcePath: 'deploy/runtime/kcml-node-bootstrap.mjs', sourceMarker: 'async function main()', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('bootstraps only Node 24 with exact environment and handler path" },
+    { requirementId: 'KCML-REQ-RUNTIME-2e05853970fa83ad9006d03338413a61660f196ba1e79dd1a20c6181898d3f90', sourcePath: 'deploy/runtime/kcml-sandbox-probe.c', sourceMarker: 'socket(AF_UNIX, SOCK_STREAM, 0)', testPath: 'tests/runtime-boundary/native-sandbox.sh', testMarker: 'SANDBOX_DENY_SOCKET_PASS' },
+    { requirementId: 'KCML-REQ-RUNTIME-321b40ee21af05286246bd355e173646751caf68855f0d516cbce8d3258c562d', sourcePath: 'packages/runtime-boundary/src/index.ts', sourceMarker: 'nodeBootstrap?:', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: 'nodeBootstrap?:' }
+  ];
+  for (const evidence of runtimeBoundaryEvidence) {
+    const requirement = requirementMap.get(evidence.requirementId);
+    if (!requirement) throw new Error(`RUNTIME_BOUNDARY_EVIDENCE_REQUIREMENT_MISSING:${evidence.requirementId}`);
+    const sourceArtifact = traceArtifact(evidence.sourcePath);
+    const testArtifact = traceArtifact(evidence.testPath);
+    const sourceLines = (await readFile(join(root, evidence.sourcePath), 'utf8')).split('\n');
+    const testLines = (await readFile(join(root, evidence.testPath), 'utf8')).split('\n');
+    const sourceLineIndex = sourceLines.findIndex((line) => line.includes(evidence.sourceMarker));
+    const testLineIndex = testLines.findIndex((line) => line.includes(evidence.testMarker));
+    if (sourceLineIndex < 0 || testLineIndex < 0) throw new Error(`RUNTIME_BOUNDARY_EVIDENCE_ANCHOR_MISSING:${evidence.requirementId}`);
+    appendTrace(sourceArtifact, requirement.requirementId, `${evidence.sourcePath}:${sourceLineIndex + 1}`, evidence.sourceMarker, sourceLines[sourceLineIndex]);
+    appendTrace(testArtifact, requirement.requirementId, `${evidence.testPath}:${testLineIndex + 1}`, `TEST-RUNTIME-BOUNDARY-${evidence.requirementId}`, testLines[testLineIndex]);
+    requirement.artifactIds = [...new Set([...requirement.artifactIds, sourceArtifact.artifactId, testArtifact.artifactId])].sort();
+    requirement.testCaseIds = [...new Set([...requirement.testCaseIds, `TEST-RUNTIME-BOUNDARY-${evidence.requirementId}`])].sort();
+    requirement.runtimeEvidenceKinds = ['NATIVE_SANDBOX_DENY_ALLOW', 'SOURCE_AND_TEST_ANCHOR'];
+    requirement.status = 'ACTIVE';
+  }
+  const runtimeVerificationOperation = operations.find((operation) => operation.operationName === 'runtime.boundary.verify');
+  const runtimeSeccompRequirement = requirementMap.get('KCML-REQ-RUNTIME-2e05853970fa83ad9006d03338413a61660f196ba1e79dd1a20c6181898d3f90');
+  if (!runtimeVerificationOperation || !runtimeSeccompRequirement) throw new Error('RUNTIME_BOUNDARY_OPERATION_TRACE_TARGET_MISSING');
+  runtimeVerificationOperation.requirementIds = [...new Set([...runtimeVerificationOperation.requirementIds, runtimeSeccompRequirement.requirementId])].sort();
+  runtimeSeccompRequirement.operationIds = [...new Set([...runtimeSeccompRequirement.operationIds, runtimeVerificationOperation.operationId])].sort();
   for (const artifact of touchedTraceArtifacts) {
     artifact.requirementIds = stableSort([...new Set(artifact.requirementIds)]);
     artifact.operationIds = stableSort([...new Set(artifact.operationIds)]);
