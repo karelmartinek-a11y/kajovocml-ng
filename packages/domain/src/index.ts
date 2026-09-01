@@ -14,3 +14,4 @@ export * from './secret-operations.js';
 export * from './self-test-operations.js';
 export * from './binding-registry.js';
 export * from './monitor-operations.js';
+export * from './canonical-operation-handlers.js';

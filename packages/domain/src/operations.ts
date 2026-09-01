@@ -11,6 +11,7 @@ import { lockAndVerifyPlatformRecovery, type RecoveryAuthorityHead } from './rec
 import { exactSecretQueryOperations, executeExactSecretQuery } from './secret-operations.js';
 import { exactSelfTestQueryOperations, executeExactSelfTestQuery } from './self-test-operations.js';
 import { exactMonitorMutationOperations, exactMonitorQueryOperations, executeExactMonitorMutation, executeExactMonitorQuery } from './monitor-operations.js';
+import { mutationHandlerFor, queryHandlerFor, validateCanonicalOperationCommand } from './canonical-operation-handlers.js';
 
 function requiredSourceSha(): string {
   const value = process.env.KCML_SOURCE_SHA;
@@ -92,26 +93,6 @@ async function checkpointRecoveryAuthorized(client:DatabaseClient,row:any,checkp
     WHERE head.singleton_key=1 AND head.state='READY' AND head.recovery_epoch=$1 AND item.owner_kind='DOMAIN_COMMAND' AND item.owner_id=$2 AND item.classification='TERMINAL_REPLAY' AND item.blocking=false`,[row.recovery_epoch,String(row.command_id)])).rows[0];
   return Boolean(recoveryItem);
 }
-const implementedMutationOperations = new Set([
-  ...exactComponentMutationOperations,
-  ...exactMonitorMutationOperations,
-  'generation.job.create',
-  'browser.session.create',
-  'selfTest.run.start'
-]);
-const implementedQueryOperations = new Set([
-  ...exactComponentQueryOperations,
-  ...exactRuntimeQueryOperations,
-  ...exactSecretQueryOperations,
-  ...exactSelfTestQueryOperations,
-  ...exactMonitorQueryOperations,
-  'audit.integrity.verify'
-]);
-function assertExactOperationImplemented(operationName:string):void{
-  if(implementedMutationOperations.has(operationName)||implementedQueryOperations.has(operationName))return;
-  throw new DomainError('OPERATION_HANDLER_NOT_IMPLEMENTED',`Operation ${operationName} is catalogued but does not yet have an exact SSOT-conformant handler`,501,'DO_NOT_RETRY',{operationName});
-}
-
 export interface CommandContext { callerFingerprint:string; actorId:string; correlationId:string; causationId?:string|null; idempotencyKey?:string|null; }
 
 export class OperationCatalogService {
@@ -127,8 +108,8 @@ export class CanonicalOperationService {
 
   public async execute(operationName:string,commandInput:unknown,context:CommandContext):Promise<OperationResult>{
     const operation=this.catalog.get(operationName);
-    assertExactOperationImplemented(operationName);
     const command=operationCommandSchema.parse({...((commandInput??{}) as object),operation:operationName});
+    validateCanonicalOperationCommand(operation, command.targetId, command.arguments);
     if(command.deadlineAt&&new Date(command.deadlineAt)<=new Date())throw new DomainError('DEADLINE_EXCEEDED','The absolute command deadline has elapsed',408);
     if(operation.sideEffectClass==='READ_ONLY'||operation.exposureClass==='OWNER_QUERY')return this.executeQuery(operation,command.targetId,command.arguments,context);
     if(!context.idempotencyKey)throw new DomainError('IDEMPOTENCY_KEY_REQUIRED','Idempotency-Key is required for mutating operations',400);
@@ -204,7 +185,7 @@ export class CanonicalOperationService {
     else if(exactSelfTestQueryOperations.has(operation.operationName))result=await executeExactSelfTestQuery(this.pool,operation.operationName,targetId,args);
     else if(exactMonitorQueryOperations.has(operation.operationName))result=await executeExactMonitorQuery(this.pool,operation.operationName,targetId,args);
     else if(operation.operationName==='audit.integrity.verify')result=await verifyAuditChain(this.pool);
-    else throw new DomainError('OPERATION_HANDLER_NOT_IMPLEMENTED',`Operation ${operation.operationName} has no exact consistent-read handler`,501,'DO_NOT_RETRY',{operationName:operation.operationName});
+    else result=await queryHandlerFor(operation)(this.pool,{operation,targetId,arguments:args});
     return this.acceptedResult(randomUUID(),randomUUID(),context.correlationId,0n,0n,await currentActivationEpoch(this.pool),false,result,'SUCCEEDED');
   }
 
@@ -310,7 +291,18 @@ export class CanonicalCommandWorker {
         expectedStateVersion:row.request.expectedStateVersion===null||row.request.expectedStateVersion===undefined?null:BigInt(row.request.expectedStateVersion),
         logicalOperationId:row.logical_operation_id,correlationId:row.correlation_id,platformIncarnationId:head.platform_incarnation_id,applicationDeploymentEpoch:BigInt(head.current_epoch)
       });
-      throw new DomainError('OPERATION_HANDLER_NOT_IMPLEMENTED',`Operation ${operation.operationName} reached a worker without an exact SSOT-conformant mutation handler`,501,'DO_NOT_RETRY',{operationName:operation.operationName});
+      return mutationHandlerFor(operation)(client,{
+        operation,
+        targetId:row.target_id,
+        arguments:args,
+        logicalOperationId:row.logical_operation_id,
+        correlationId:row.correlation_id,
+        expectedStateVersion:row.request.expectedStateVersion===null||row.request.expectedStateVersion===undefined?null:BigInt(row.request.expectedStateVersion),
+        activationEpoch:BigInt(row.activation_epoch),
+        platformIncarnationId:head.platform_incarnation_id,
+        applicationDeploymentEpoch:BigInt(head.current_epoch),
+        recoveryEpoch:BigInt(head.recovery_epoch)
+      });
     });
   }
 
