@@ -168,22 +168,30 @@ async function scenarioSideEffectRace(pool: DatabasePool, prefix: string): Promi
 async function scenarioImmutableRows(pool: DatabasePool, authority: Record<string, unknown>): Promise<void> {
   const commandId = randomUUID(); const logicalOperationId = randomUUID(); const sideEffectId = randomUUID(); const outboxId = randomUUID();
   const digest = Buffer.alloc(32, 31); const requestBytes = Buffer.from('{}');
-  await pool.query(`INSERT INTO kcml.domain_command(id,logical_operation_id,operation_name,caller_fingerprint,request_canonical_bytes,request,request_digest,correlation_id,activation_epoch,platform_incarnation_id,application_deployment_epoch)
-    VALUES($1,$2,'td15.immutable','test',$3,'{}'::jsonb,kcml.canonical_digest($3),$4,0,$5,$6)`, [commandId, logicalOperationId, requestBytes, randomUUID(), authority.platform_incarnation_id, authority.current_epoch]);
-  await pool.query(`INSERT INTO kcml.side_effect_operation(id,command_id,step_key,target_binding,request,request_digest,idempotency_key,side_effect_class,retry_class,reconciliation_contract,platform_incarnation_id,application_deployment_epoch)
-    VALUES($1,$2,'immutable','fixture','{}'::jsonb,$3,$4,'REVERSIBLE','SAFE_RETRY','{}'::jsonb,$5,$6)`, [sideEffectId, commandId, digest, `td15-${sideEffectId}`, authority.platform_incarnation_id, authority.current_epoch]);
-  await pool.query(`INSERT INTO kcml.transactional_outbox(id,stream_key,stream_sequence,purpose,event_type,payload,payload_digest,is_dispatch_authority,side_effect_operation_id,side_effect_attempt_sequence)
-    VALUES($1,$2,1,'SIDE_EFFECT_DISPATCH','td15.immutable','{}'::jsonb,$3,true,$4,1)`, [outboxId, `td15-immutable-${sideEffectId}`, digest, sideEffectId]);
-  await pool.query(`INSERT INTO kcml.side_effect_attempt(operation_id,attempt_sequence,request_evidence,request_digest,dispatch_authority_outbox_id)
-    VALUES($1,1,'{}'::jsonb,$2,$3)`, [sideEffectId, digest, outboxId]);
-  await pool.query(`INSERT INTO kcml.side_effect_attempt_evidence(operation_id,attempt_sequence,evidence_sequence,evidence_type,payload,payload_digest)
-    VALUES($1,1,1,'REQUEST','{}'::jsonb,$2)`, [sideEffectId, digest]);
-  for (const statement of [
-    `UPDATE kcml.side_effect_attempt SET request_evidence='{"changed":true}'::jsonb WHERE operation_id=$1 AND attempt_sequence=1`,
-    `DELETE FROM kcml.side_effect_attempt_evidence WHERE operation_id=$1 AND attempt_sequence=1 AND evidence_sequence=1`
-  ]) {
-    let code = ''; try { await pool.query(statement, [sideEffectId]); } catch (error) { code = sqlState(error); }
-    requireCondition(code === '55000', `PG-IMMUTABLE_ROW_MUTATION_ACCEPTED:${code}`);
+  try {
+    await pool.query(`INSERT INTO kcml.domain_command(id,logical_operation_id,operation_name,caller_fingerprint,request_canonical_bytes,request,request_digest,correlation_id,activation_epoch,platform_incarnation_id,application_deployment_epoch)
+      VALUES($1,$2,'td15.immutable','test',$3,'{}'::jsonb,kcml.canonical_digest($3),$4,0,$5,$6)`, [commandId, logicalOperationId, requestBytes, randomUUID(), authority.platform_incarnation_id, authority.current_epoch]);
+    await pool.query(`INSERT INTO kcml.side_effect_operation(id,command_id,step_key,target_binding,request,request_digest,idempotency_key,side_effect_class,retry_class,reconciliation_contract,platform_incarnation_id,application_deployment_epoch)
+      VALUES($1,$2,'immutable','fixture','{}'::jsonb,$3,$4,'REVERSIBLE','SAFE_RETRY','{}'::jsonb,$5,$6)`, [sideEffectId, commandId, digest, `td15-${sideEffectId}`, authority.platform_incarnation_id, authority.current_epoch]);
+    await pool.query(`INSERT INTO kcml.transactional_outbox(id,stream_key,stream_sequence,purpose,event_type,payload,payload_digest,is_dispatch_authority,side_effect_operation_id,side_effect_attempt_sequence)
+      VALUES($1,$2,1,'SIDE_EFFECT_DISPATCH','td15.immutable','{}'::jsonb,$3,true,$4,1)`, [outboxId, `td15-immutable-${sideEffectId}`, digest, sideEffectId]);
+    await pool.query(`INSERT INTO kcml.side_effect_attempt(operation_id,attempt_sequence,request_evidence,request_digest,dispatch_authority_outbox_id)
+      VALUES($1,1,'{}'::jsonb,$2,$3)`, [sideEffectId, digest, outboxId]);
+    await pool.query(`INSERT INTO kcml.side_effect_attempt_evidence(operation_id,attempt_sequence,evidence_sequence,evidence_type,payload,payload_digest)
+      VALUES($1,1,1,'REQUEST','{}'::jsonb,$2)`, [sideEffectId, digest]);
+    for (const statement of [
+      `UPDATE kcml.side_effect_attempt SET request_evidence='{"changed":true}'::jsonb WHERE operation_id=$1 AND attempt_sequence=1`,
+      `DELETE FROM kcml.side_effect_attempt_evidence WHERE operation_id=$1 AND attempt_sequence=1 AND evidence_sequence=1`
+    ]) {
+      let code = ''; try { await pool.query(statement, [sideEffectId]); } catch (error) { code = sqlState(error); }
+      requireCondition(code === '55000', `PG-IMMUTABLE_ROW_MUTATION_ACCEPTED:${code}`);
+    }
+  } finally {
+    // Keep the immutable evidence rows, but close every authority created by this
+    // scenario so a later recovery profile sees no synthetic in-flight work.
+    await cleanupQuery(pool, `UPDATE kcml.side_effect_operation SET status='CONFIRMED_NOT_APPLIED',updated_at=clock_timestamp(),state_version=state_version+1 WHERE id=$1`, [sideEffectId]);
+    await cleanupQuery(pool, `UPDATE kcml.transactional_outbox SET status='FAILED_FINAL',state_version=state_version+1 WHERE id=$1`, [outboxId]);
+    await cleanupQuery(pool, `UPDATE kcml.domain_command SET status='FAILED_FINAL',error='{"code":"POSTGRES_CONTRACT_FIXTURE_CLOSED"}'::jsonb,completed_at=clock_timestamp(),state_version=state_version+1 WHERE id=$1`, [commandId]);
   }
 }
 
