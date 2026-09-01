@@ -12,6 +12,7 @@ import { exactSecretQueryOperations, executeExactSecretQuery } from './secret-op
 import { exactSelfTestQueryOperations, executeExactSelfTestQuery } from './self-test-operations.js';
 import { exactMonitorMutationOperations, exactMonitorQueryOperations, executeExactMonitorMutation, executeExactMonitorQuery } from './monitor-operations.js';
 import { mutationHandlerFor, queryHandlerFor, validateCanonicalOperationCommand } from './canonical-operation-handlers.js';
+import { createGenerationJob } from './generation-lifecycle.js';
 
 function requiredSourceSha(): string {
   const value = process.env.KCML_SOURCE_SHA;
@@ -281,7 +282,7 @@ export class CanonicalCommandWorker {
     if(row.queue_name!==handler.queue)throw new DomainError('OPERATION_QUEUE_BINDING_MISMATCH',`${operation.operationName} was delivered on ${row.queue_name}, expected ${handler.queue}`,409,'DO_NOT_RETRY');
     if(handler.strategy==='CONSISTENT_QUERY')throw new DomainError('READ_OPERATION_QUEUED',`${operation.operationName} must execute on the consistent-read path`,409,'DO_NOT_RETRY');
     return this.applyInCommandTransaction(row,async(client,head)=>{
-      if(operation.operationName==='generation.job.create')return this.createGeneration(client,head,args,row);
+      if(operation.operationName==='generation.job.create')return createGenerationJob(client,args,{platformIncarnationId:head.platform_incarnation_id,applicationDeploymentEpoch:BigInt(head.current_epoch),logicalOperationId:row.logical_operation_id,correlationId:row.correlation_id});
       if(operation.operationName==='browser.session.create')return this.createBrowserSession(client,head,args,row);
       if(operation.operationName==='selfTest.run.start')return this.createTestRun(client,head,args,row);
       if(exactMonitorMutationOperations.has(operation.operationName))return executeExactMonitorMutation(client,{
@@ -328,7 +329,7 @@ export class CanonicalCommandWorker {
     });
   }
 
-  private async createGeneration(client:DatabaseClient,head:RecoveryAuthorityHead,args:JsonObject,row:any):Promise<unknown>{const result=await client.query(`INSERT INTO kcml.generation_job(mode,objective,target_object_ids,source_artifact_ids,model,platform_incarnation_id,application_deployment_epoch)VALUES($1,$2,$3,$4,$5,$6,$7)RETURNING *`,[args.mode??'CREATE',args.objective??'OWNER generation request',args.targetObjectIds??[],args.sourceArtifactIds??[],args.model??null,head.platform_incarnation_id,head.current_epoch]);return result.rows[0];}
+  private async createGeneration(client:DatabaseClient,head:RecoveryAuthorityHead,args:JsonObject,row:any):Promise<unknown>{return createGenerationJob(client,args,{platformIncarnationId:head.platform_incarnation_id,applicationDeploymentEpoch:BigInt(head.current_epoch),logicalOperationId:row.logical_operation_id,correlationId:row.correlation_id});}
   private async createBrowserSession(client:DatabaseClient,head:RecoveryAuthorityHead,args:JsonObject,row:any):Promise<unknown>{const result=await client.query(`INSERT INTO kcml.browser_session(parent_kind,parent_id,purpose,execution_target,runtime_build_id,account_binding_id,operation_scope,current_url,platform_incarnation_id,application_deployment_epoch)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)RETURNING *`,[args.parentKind??'OWNER_CHAT',dbUuid(args.parentId)??row.logical_operation_id,args.purpose??'OWNER browser session',args.executionTarget??'SERVER_MANAGED',args.runtimeBuildId??process.env.KCML_BROWSER_RUNTIME_BUILD??'playwright-1.58.2',dbUuid(args.accountBindingId),args.operationScope??{},args.targetUrl??null,head.platform_incarnation_id,head.current_epoch]);return result.rows[0];}
   private async createTestRun(client:DatabaseClient,head:RecoveryAuthorityHead,args:JsonObject,_row:any):Promise<unknown>{const env=jsonSafe({releaseId:process.env.KCML_RELEASE_ID??'development',sourceSha:requiredSourceSha()});const result=await client.query(`INSERT INTO kcml.self_test_run(suite_key,run_kind,source_sha,release_id,environment_digest,seed,platform_incarnation_id,application_deployment_epoch)VALUES($1,$2,$3,$4,$5,$6,$7,$8)RETURNING *`,[args.suiteKey??'self-test',args.runKind??'SELF_TEST',requiredSourceSha(),process.env.KCML_RELEASE_ID??'development',digestBytes(canonicalDigest(env)),args.seed??null,head.platform_incarnation_id,head.current_epoch]);return result.rows[0];}
   private async complete(row:any,output:unknown):Promise<void>{await inTransactionProfile(this.pool,'WORKER_COMMIT',async(client)=>{
