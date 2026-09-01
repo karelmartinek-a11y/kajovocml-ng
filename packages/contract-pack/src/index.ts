@@ -82,6 +82,82 @@ export interface OperationContract extends RegistryRecord {
 
 export interface OperationCatalog extends RegistryDocument<OperationContract> { kind: 'OPERATION_CATALOG'; }
 
+export interface AuthorityOwnershipRecord extends RegistryRecord {
+  authorityObjectKind: string;
+  canonicalWriterId: string;
+  ownerModule: string;
+  ownerServiceOrWorker: string;
+  stateMachineId: string;
+  allowedOperationIds: string[];
+  authoritativePersistence: string[];
+  acceptedEvidenceProducers: string[];
+  prohibitedDirectWriters: string[];
+  projectionConsumers: string[];
+  closurePredicateId: string;
+}
+
+export interface AuthorityOwnershipRegistry extends RegistryDocument<AuthorityOwnershipRecord> {
+  kind: 'AUTHORITY_OWNERSHIP_REGISTRY';
+}
+
+export interface StateMachineContract extends RegistryRecord {
+  stateMachineId: string;
+  states: string[];
+  terminalStates: string[];
+  transitions: Array<{ transitionId: string; fromState: string; toState: string; operationIds: string[] }>;
+}
+
+export function validateAuthorityOwnership(
+  operations: readonly OperationContract[],
+  authorities: readonly AuthorityOwnershipRecord[],
+  stateMachines: readonly StateMachineContract[] = [],
+): void {
+  const byOperation = new Map<string, AuthorityOwnershipRecord[]>();
+  const kinds = new Set<string>();
+  for (const authority of authorities) {
+    if (authority.lifecycle !== 'ACTIVE') continue;
+    if (kinds.has(authority.authorityObjectKind)) throw new Error(`AUTHORITY_OBJECT_KIND_DUPLICATE:${authority.authorityObjectKind}`);
+    kinds.add(authority.authorityObjectKind);
+    if (!authority.requirementIds.length) throw new Error(`AUTHORITY_REQUIREMENTS_EMPTY:${authority.authorityObjectKind}`);
+    if (!authority.allowedOperationIds.every((id) => typeof id === 'string' && id.length > 0)) throw new Error(`AUTHORITY_OPERATION_ID_INVALID:${authority.authorityObjectKind}`);
+    if (!authority.acceptedEvidenceProducers.length || !authority.prohibitedDirectWriters.length) throw new Error(`AUTHORITY_EVIDENCE_OR_DENYLIST_EMPTY:${authority.authorityObjectKind}`);
+    if (!authority.closurePredicateId || !authority.stateMachineId) throw new Error(`AUTHORITY_STATE_CONTRACT_INCOMPLETE:${authority.authorityObjectKind}`);
+    for (const operationId of authority.allowedOperationIds) {
+      const owners = byOperation.get(operationId) ?? [];
+      owners.push(authority);
+      byOperation.set(operationId, owners);
+    }
+    if (stateMachines.length && !stateMachines.some((machine) => machine.stateMachineId === authority.stateMachineId)) throw new Error(`AUTHORITY_STATE_MACHINE_MISSING:${authority.authorityObjectKind}:${authority.stateMachineId}`);
+  }
+  for (const operation of operations) {
+    const owners = byOperation.get(operation.operationId) ?? [];
+    if (owners.length !== 1) throw new Error(`AUTHORITY_OPERATION_CARDINALITY:${operation.operationName}:${owners.length}`);
+    const [owner] = owners;
+    if (!owner) throw new Error(`AUTHORITY_OPERATION_CARDINALITY:${operation.operationName}:0`);
+    if (owner.canonicalWriterId !== operation.canonicalWriterId || owner.stateMachineId !== operation.stateMachineId) throw new Error(`AUTHORITY_OPERATION_CONTRACT_MISMATCH:${operation.operationName}`);
+  }
+}
+
+export function authorityForOperation(operationId: string, authorities: readonly AuthorityOwnershipRecord[]): AuthorityOwnershipRecord {
+  const owners = authorities.filter((authority) => authority.lifecycle === 'ACTIVE' && authority.allowedOperationIds.includes(operationId));
+  if (owners.length !== 1) throw new Error(`AUTHORITY_OPERATION_CARDINALITY:${operationId}:${owners.length}`);
+  const owner = owners[0];
+  if (!owner) throw new Error(`AUTHORITY_OPERATION_CARDINALITY:${operationId}:0`);
+  return owner;
+}
+
+export function assertStateTransition(
+  machine: Pick<StateMachineContract, 'stateMachineId' | 'states' | 'terminalStates' | 'transitions'>,
+  currentState: string,
+  nextState: string,
+  operationId: string,
+): void {
+  if (!machine.states.includes(currentState) || !machine.states.includes(nextState)) throw new Error(`STATE_NOT_DECLARED:${machine.stateMachineId}`);
+  if (machine.terminalStates.includes(currentState)) throw new Error(`TERMINAL_STATE_IMMUTABLE:${machine.stateMachineId}:${currentState}`);
+  const transition = machine.transitions.find((candidate) => candidate.fromState === currentState && candidate.toState === nextState);
+  if (!transition || !transition.operationIds.includes(operationId)) throw new Error(`STATE_TRANSITION_FORBIDDEN:${machine.stateMachineId}:${currentState}->${nextState}:${operationId}`);
+}
+
 export function registryRecordId(record: Partial<RegistryRecord>): string | undefined {
   return record.recordId;
 }
@@ -124,6 +200,10 @@ export async function loadRegistry<T extends RegistryRecord>(
 
 export async function loadOperationCatalog(repositoryRoot = process.cwd()): Promise<OperationCatalog> {
   return loadRegistry<OperationContract>('OPERATION_CATALOG', repositoryRoot) as Promise<OperationCatalog>;
+}
+
+export async function loadAuthorityOwnershipRegistry(repositoryRoot = process.cwd()): Promise<AuthorityOwnershipRegistry> {
+  return loadRegistry<AuthorityOwnershipRecord>('AUTHORITY_OWNERSHIP_REGISTRY', repositoryRoot) as Promise<AuthorityOwnershipRegistry>;
 }
 
 export async function operationByName(name: string, repositoryRoot = process.cwd()): Promise<OperationContract> {

@@ -217,6 +217,7 @@ function makeRequirement(atom) {
     runtimeEvidenceKinds: [],
     artifactIds: [],
     closurePredicateIds: [],
+    authorityOwnershipIds: [],
     status: 'UNMAPPED',
     supersedes: [],
     supersededBy: [],
@@ -261,11 +262,9 @@ const stateMachineSpecs = [
   ['MCP_TASK', ['WORKING', 'INPUT_REQUIRED', 'COMPLETED', 'FAILED', 'CANCELLED'], ['COMPLETED', 'FAILED', 'CANCELLED']],
   ['BROWSER_SESSION', ['CREATING', 'READY', 'ACTIVE', 'CHALLENGE_REQUIRED', 'PAUSED', 'RECOVERING', 'CLOSING', 'CLOSED', 'FAILED', 'EXPIRED'], ['CLOSED', 'FAILED', 'EXPIRED']],
   ['BROWSER_ACTION', ['QUEUED', 'VALIDATING', 'CLAIMED', 'INTENT_RECORDED', 'DISPATCHING', 'VERIFYING', 'RECONCILING', 'MANUAL_REVIEW', 'SUCCEEDED', 'FAILED', 'CANCELLED'], ['SUCCEEDED', 'FAILED', 'CANCELLED']],
-  ['SIDE_EFFECT', ['INTENT_RECORDED', 'DISPATCHING', 'OUTCOME_RECORDED', 'RECONCILING', 'CONFIRMED_APPLIED', 'CONFIRMED_NOT_APPLIED', 'FAILED_FINAL', 'UNKNOWN'], ['CONFIRMED_APPLIED', 'CONFIRMED_NOT_APPLIED', 'FAILED_FINAL']],
   ['ACTIVATION_SET', ['DRAFT', 'READY', 'SWITCHING', 'VERIFYING', 'ACTIVE', 'ROLLING_BACK', 'ROLLBACK_VERIFYING', 'ROLLED_BACK', 'FAILED', 'MANUAL_REVIEW'], ['ROLLED_BACK', 'FAILED']],
   ['DEPLOYMENT_RUN', ['QUEUED', 'PREPARING', 'BACKED_UP', 'MIGRATING', 'STAGING', 'SWITCHING', 'RESTARTING', 'VERIFYING', 'ACTIVE', 'ROLLING_BACK', 'ROLLED_BACK', 'FAILED', 'MANUAL_REVIEW'], ['ACTIVE', 'ROLLED_BACK', 'FAILED']],
   ['CLEANUP_OPERATION', ['PENDING', 'REVOKING_ADMISSION', 'RECONCILING', 'CAPTURING_FINAL_EVIDENCE', 'RELEASING_BROWSER_RESOURCES', 'RELEASING_PLATFORM_RESOURCES', 'MANUAL_REVIEW', 'COMPLETE', 'FAILED'], ['COMPLETE', 'FAILED']],
-  ['PLATFORM_RECOVERY', ['STARTING', 'RECONCILING', 'READY', 'BLOCKED', 'MANUAL_REVIEW'], []],
   ['AI_MODEL_CALL', ['QUEUED', 'SUBMITTING', 'IN_PROGRESS', 'STREAMING', 'WAITING_FOR_TOOL_OUTPUT', 'COMPLETED', 'INCOMPLETE', 'REFUSED', 'CANCEL_REQUESTED', 'CANCELLED', 'FAILED', 'EXPIRED'], ['COMPLETED', 'INCOMPLETE', 'REFUSED', 'CANCELLED', 'FAILED', 'EXPIRED']],
   ['RUNTIME_INSTANCE', ['PREPARING', 'STARTING', 'READY', 'RUNNING', 'DRAINING', 'STOPPED', 'FAILED', 'MANUAL_REVIEW'], ['STOPPED', 'FAILED']],
   ['SECRET_RECORD', ['ACTIVE', 'ROTATING', 'RETIRED', 'CLOSED', 'FAILED'], ['RETIRED', 'CLOSED', 'FAILED']],
@@ -273,12 +272,26 @@ const stateMachineSpecs = [
   ['AUDIT_HEAD', ['ACTIVE', 'VERIFYING', 'ARCHIVING', 'FAILED'], ['FAILED']],
   ['SYSTEM_CHAT_CONVERSATION', ['ACTIVE', 'CANCEL_REQUESTED', 'CANCELLED', 'CLOSED', 'FAILED'], ['CANCELLED', 'CLOSED', 'FAILED']],
   ['OWNER_IDENTITY', ['ACTIVE', 'MFA_ENROLLING', 'MFA_ACTIVE', 'RECOVERY_ROTATING', 'LOCKED'], ['LOCKED']],
-  ['SELF_TEST_RUN', ['QUEUED', 'RUNNING', 'PASS', 'FAIL', 'CANCELLED', 'NOT_EXECUTED_ENVIRONMENTAL'], ['PASS', 'FAIL', 'CANCELLED', 'NOT_EXECUTED_ENVIRONMENTAL']]
+  ['SELF_TEST_RUN', ['QUEUED', 'RUNNING', 'PASS', 'FAIL', 'CANCELLED', 'NOT_EXECUTED_ENVIRONMENTAL'], ['PASS', 'FAIL', 'CANCELLED', 'NOT_EXECUTED_ENVIRONMENTAL']],
+  ['EXTERNAL_TARGET', ['DRAFT', 'ACTIVE', 'DEGRADED', 'DISABLED', 'RETIRED'], ['RETIRED']],
+  ['GENERATION_ACTIVATION_SET', ['DRAFT', 'READY', 'SWITCHING', 'VERIFYING', 'ACTIVE', 'ROLLING_BACK', 'ROLLED_BACK', 'FAILED', 'MANUAL_REVIEW'], ['ROLLED_BACK', 'FAILED']],
+  ['BINDING_SET', ['DRAFT', 'PUBLISHED', 'ACTIVE', 'RETIRED'], ['RETIRED']],
+  ['SIDE_EFFECT', ['INTENT_RECORDED', 'DISPATCHING', 'OUTCOME_RECORDED', 'RECONCILING', 'CONFIRMED_APPLIED', 'CONFIRMED_NOT_APPLIED', 'FAILED_FINAL', 'UNKNOWN'], ['CONFIRMED_APPLIED', 'CONFIRMED_NOT_APPLIED', 'FAILED_FINAL']],
+  ['QUEUE_WORK', ['READY', 'CLAIMED', 'DISPATCH_AUTHORIZED', 'RETRY_WAIT', 'RECONCILING', 'DELIVERED', 'FAILED_FINAL', 'CLOSED'], ['DELIVERED', 'FAILED_FINAL', 'CLOSED']],
+  ['PLATFORM_RECOVERY', ['STARTING', 'RECONCILING', 'READY', 'BLOCKED', 'MANUAL_REVIEW'], ['READY', 'BLOCKED', 'MANUAL_REVIEW']],
+  ['OPERATIONAL_SETTING', ['DRAFT', 'APPLYING', 'EFFECTIVE', 'FAILED'], ['EFFECTIVE', 'FAILED']],
+  ['CONTRACT_REGISTRY', ['BUILDING', 'VERIFIED', 'DRIFTED', 'FAILED'], ['VERIFIED', 'DRIFTED', 'FAILED']]
 ];
 
 function makeStateMachine([kind, states, terminalStates], operationRecords) {
   const operationIds = operationRecords.filter((op) => op.aggregateRoot === kind).map((op) => op.operationId);
-  const transitions = [];
+  const transitions = states.slice(0, -1).map((from, index) => ({
+    transitionId: `TRANSITION-${kind}-${from}-${states[index + 1]}`,
+    fromState: from,
+    toState: states[index + 1],
+    operationIds,
+    guard: 'CANONICAL_COMMAND_AND_CURRENT_FENCE'
+  })).filter((transition) => !terminalStates.includes(transition.fromState));
   return {
     stateMachineId: `SM-${kind}`, aggregateKind: kind, aggregateRootTable: kind.toLowerCase(), canonicalWriterId: `WRITER-${kind}`,
     initialStates: [states[0]], states, terminalStates, suspendedDecisionStates: states.filter((s) => s === 'MANUAL_REVIEW' || s === 'BLOCKED'),
@@ -326,7 +339,7 @@ const stringField = { type: 'string' };
 const booleanField = { type: 'boolean' };
 
 const registrySchemaRequirements = {
-  REQUIREMENT_REGISTRY: ['requirementId', 'shortName', 'domain', 'normativeLevel', 'authorityRoot', 'ownerIntentRelation', 'canonicalStatement', 'specializationSourceRefs', 'subjectKind', 'subjectId', 'domainModule', 'aggregateRoots', 'stateMachineIds', 'operationIds', 'apiOperationIds', 'uiSurfaceIds', 'chatCapabilityIds', 'persistenceObjectIds', 'bindingIds', 'errorCodeIds', 'testCaseIds', 'acceptanceGateIds', 'runtimeEvidenceKinds', 'artifactIds', 'closurePredicateIds', 'status'],
+  REQUIREMENT_REGISTRY: ['requirementId', 'shortName', 'domain', 'normativeLevel', 'authorityRoot', 'ownerIntentRelation', 'canonicalStatement', 'specializationSourceRefs', 'subjectKind', 'subjectId', 'domainModule', 'aggregateRoots', 'stateMachineIds', 'operationIds', 'apiOperationIds', 'uiSurfaceIds', 'chatCapabilityIds', 'persistenceObjectIds', 'bindingIds', 'errorCodeIds', 'testCaseIds', 'acceptanceGateIds', 'runtimeEvidenceKinds', 'artifactIds', 'closurePredicateIds', 'authorityOwnershipIds', 'status'],
   OPERATION_CATALOG: ['operationId', 'operationName', 'operationRevision', 'operationFamily', 'exposureClass', 'canonicalWriterId', 'aggregateRoot', 'commandSchemaRef', 'responseSchemaRef', 'expectedStates', 'expectedStateVersionPolicy', 'stateMachineId', 'allowedTransitionIds', 'idempotencyScope', 'idempotencyKeySource', 'requestDigestProfile', 'concurrencyScope', 'concurrencyKeyDerivation', 'concurrencyClaimPoint', 'deadlinePolicy', 'sideEffectClass', 'subsystemSideEffectClass', 'retryClass', 'retryDirectiveMapRef', 'transactionProfileId', 'orderedLockPlanId', 'fencingPolicy', 'checkpointPolicy', 'possibleEffectTrigger', 'reconciliationOracleId', 'cancellationPolicy', 'terminalOutcomes', 'auditEventTypes', 'outboxPurposes', 'successorPolicy', 'cleanupPolicy', 'activationRelation', 'apiOperationIds', 'uiActionIds', 'chatCapabilityIds', 'selfTestCaseIds', 'acceptanceGateIds'],
   STATE_MACHINE_REGISTRY: ['stateMachineId', 'aggregateKind', 'aggregateRootTable', 'canonicalWriterId', 'initialStates', 'states', 'terminalStates', 'suspendedDecisionStates', 'recoveryStates', 'transitions', 'forbiddenTransitionPolicy', 'stateVersionField', 'cancellationVersionField', 'fencingFields', 'activationFields', 'linearizationProfile', 'lateEvidencePolicy', 'closurePredicateId', 'operationIds', 'acceptanceGateIds'],
   POSTGRES_CONTRACT_MATRIX: ['postgresContractId', 'operationId', 'transactionProfileId', 'isolationLevel', 'transactionSegments', 'orderedAdvisoryLocks', 'orderedRowLocks', 'absentRowGuard', 'readAfterLockGuards', 'stateVersionCas', 'fencingPredicate', 'platformIncarnationPredicate', 'applicationDeploymentEpochPredicate', 'bindingActivationPredicate', 'uniqueConstraints', 'checkConstraints', 'foreignKeys', 'deferredConstraintTriggers', 'idempotencyUniqueness', 'sequenceAllocation', 'outboxWrites', 'inboxWrites', 'successorReservation', 'successorEnqueue', 'externalEffectSplit', 'sqlstateRetryMap', 'migrationImplications', 'rollbackCompatibility', 'parallelTestIds', 'crashTestIds'],
@@ -349,7 +362,7 @@ const registrySchemaFilenames = {
   EXPOSURE_PARITY_REGISTRY: 'exposure-parity-registry.schema.json', ARTIFACT_TRACE_REGISTRY: 'artifact-trace-registry.schema.json'
 };
 
-const schemaField = (field) => field.endsWith('Ids') || field.endsWith('Refs') || field.endsWith('States') || field.endsWith('Kinds') || field.endsWith('Types') || field.endsWith('Fields') || field.endsWith('Locks') || field.endsWith('Predicates') || field.endsWith('Writes') || field.endsWith('Outcomes') || field.endsWith('Evidence') || field.endsWith('Digests') || field === 'transitions' || field === 'rules' || field === 'inputs' || field === 'dependencies' || field === 'failCodes' || field === 'httpMappings' || field === 'kcipMappings' || field === 'mcpMappings' || field === 'allowedInheritedFds' || field === 'notApplicableReasons' || field === 'requiredChildPredicates' || field === 'forbiddenPendingChildKinds' || field === 'forbiddenProvisionalKinds' || field === 'directQueryIds' || field === 'terminalOutcomes' || field === 'auditEventTypes' || field === 'outboxPurposes' || field === 'auditEvidence' ? arrayField : field === 'generationToolDigest' ? { type: ['string', 'null'] } : field === 'blocking' || field.endsWith('Predicate') || field === 'stateVersionCas' || field === 'fencingPredicate' || field === 'platformIncarnationPredicate' || field === 'applicationDeploymentEpochPredicate' || field === 'bindingActivationPredicate' || field === 'exact' || field.endsWith('Required') || field === 'refreshRequired' || field === 'reconciliationRequired' || field === 'manualReviewRequired' || field === 'sameLogicalOperationRequired' ? booleanField : field === 'operationRevision' || field === 'evaluatorVersion' ? { type: 'integer' } : stringField;
+const schemaField = (field) => field.endsWith('Ids') || field.endsWith('Refs') || field.endsWith('States') || field.endsWith('Kinds') || field.endsWith('Types') || field.endsWith('Fields') || field.endsWith('Locks') || field.endsWith('Predicates') || field.endsWith('Writes') || field.endsWith('Outcomes') || field.endsWith('Evidence') || field.endsWith('Digests') || ['states', 'acceptedEvidenceProducers', 'authoritativePersistence', 'prohibitedDirectWriters', 'projectionConsumers'].includes(field) || field === 'transitions' || field === 'rules' || field === 'inputs' || field === 'dependencies' || field === 'failCodes' || field === 'httpMappings' || field === 'kcipMappings' || field === 'mcpMappings' || field === 'allowedInheritedFds' || field === 'notApplicableReasons' || field === 'requiredChildPredicates' || field === 'forbiddenPendingChildKinds' || field === 'forbiddenProvisionalKinds' || field === 'directQueryIds' || field === 'terminalOutcomes' || field === 'auditEventTypes' || field === 'outboxPurposes' || field === 'auditEvidence' ? arrayField : field === 'generationToolDigest' ? { type: ['string', 'null'] } : field === 'blocking' || field.endsWith('Predicate') || field === 'stateVersionCas' || field === 'fencingPredicate' || field === 'platformIncarnationPredicate' || field === 'applicationDeploymentEpochPredicate' || field === 'bindingActivationPredicate' || field === 'exact' || field.endsWith('Required') || field === 'refreshRequired' || field === 'reconciliationRequired' || field === 'manualReviewRequired' || field === 'sameLogicalOperationRequired' ? booleanField : field === 'operationRevision' || field === 'evaluatorVersion' ? { type: 'integer' } : stringField;
 
 function makeRegistrySchema(kind) {
   const properties = { ...commonRecordProperties, recordKind: { const: kind } };
@@ -462,6 +475,16 @@ async function main() {
     }
     return operation;
   });
+  const authoritySourcePath = 'contracts/authority/authority-ownership-source.json';
+  const authoritySource = JSON.parse(await readFile(join(root, authoritySourcePath), 'utf8'));
+  if (authoritySource.schemaVersion !== '1.0' || authoritySource.kind !== 'AUTHORITY_OWNERSHIP_SOURCE' || !Array.isArray(authoritySource.records)) throw new Error('AUTHORITY_SOURCE_INVALID');
+  const ownershipMatches = (operationName, sourceRecord) => {
+    const exact = (sourceRecord.operationNames ?? []).includes(operationName);
+    const prefix = (sourceRecord.operationNamePrefixes ?? []).some((candidate) => operationName.startsWith(candidate));
+    const excluded = (sourceRecord.operationNameExcludes ?? []).includes(operationName);
+    return !excluded && (exact || prefix);
+  };
+  const ownershipMatchesForOperation = (operationName) => authoritySource.records.filter((record) => ownershipMatches(operationName, record));
   const stateMachines = stateMachineSpecs.map((spec) => makeStateMachine(spec, operations));
   const postgres = operations.filter((operation) => operation.transactionProfileId !== 'CONSISTENT_READ').map((operation) => ({
     postgresContractId: `PG-${operation.operationId}`, operationId: operation.operationId, transactionProfileId: operation.transactionProfileId,
@@ -574,15 +597,51 @@ async function main() {
     authoritySourceRefs: ['ssot://55/ui-api-chat-audit-self-test-parity/exposure-parity'],
     canonicalDigest: sha(canonical({ operation: operation.operationId, exposure: operation.exposureClass }))
   }));
-  const authorities = [...new Set(operations.map((operation) => operation.aggregateRoot))].map((kind) => ({
-    authorityObjectKind: kind, canonicalWriterId: `WRITER-${kind}`, ownerModule: 'packages/domain', ownerServiceOrWorker: 'CANONICAL_OPERATION_SERVICE',
-    stateMachineId: `SM-${kind}`, allowedOperationIds: operations.filter((operation) => operation.aggregateRoot === kind).map((operation) => operation.operationId),
-    authoritativePersistence: ['POSTGRESQL'], acceptedEvidenceProducers: ['TRUSTED_ADAPTER'], prohibitedDirectWriters: ['UI', 'MODEL', 'GENERATED_HANDLER', 'PROVIDER', 'FILESYSTEM'],
-    projectionConsumers: ['API', 'UI', 'CHAT', 'MONITORING'], closurePredicateId: `CLOSURE-${kind}`, requirementIds: [],
-    authoritySourceRefs: ['ssot://55/authority-ownership-registry/single-writer'], canonicalDigest: sha(canonical({ kind }))
-  }));
-  // Do not emit inferred directory-level records as traceability evidence. The registry stays empty
-  // until a file-level mapping is backed by content digests and bidirectional requirement evidence.
+  const authorityRequirementIds = (sourceRefs) => [...new Set((sourceRefs ?? []).flatMap((sourceRef) => {
+    const requirement = requirements.find((candidate) => candidate.authoritySourceRefs.includes(sourceRef));
+    if (!requirement) throw new Error(`AUTHORITY_REQUIREMENT_SOURCE_MISSING:${sourceRef}`);
+    return [requirement.requirementId];
+  }))].sort();
+  const authorities = authoritySource.records.map((sourceRecord) => {
+    const allowedOperations = operations.filter((operation) => ownershipMatchesForOperation(operation.operationName).some((candidate) => candidate.authorityObjectKind === sourceRecord.authorityObjectKind));
+    const requirementIds = authorityRequirementIds([...(authoritySource.authoritySourceRefs ?? []), ...(sourceRecord.requirementSourceRefs ?? [])]);
+    if (requirementIds.length === 0) throw new Error(`AUTHORITY_REQUIREMENTS_EMPTY:${sourceRecord.authorityObjectKind}`);
+    const stateMachine = stateMachines.find((candidate) => candidate.stateMachineId === sourceRecord.stateMachineId);
+    if (!stateMachine) throw new Error(`AUTHORITY_STATE_MACHINE_MISSING:${sourceRecord.authorityObjectKind}:${sourceRecord.stateMachineId}`);
+    return {
+      authorityObjectKind: sourceRecord.authorityObjectKind,
+      canonicalWriterId: sourceRecord.canonicalWriterId,
+      ownerModule: sourceRecord.ownerModule,
+      ownerServiceOrWorker: sourceRecord.ownerServiceOrWorker,
+      stateMachineId: sourceRecord.stateMachineId,
+      allowedOperationIds: allowedOperations.map((operation) => operation.operationId),
+      authoritativePersistence: ['POSTGRESQL'],
+      acceptedEvidenceProducers: ['TRUSTED_TYPED_EVIDENCE'],
+      prohibitedDirectWriters: ['UI', 'MODEL', 'GENERATED_HANDLER', 'PROVIDER', 'BROWSER_EVENT', 'DEPLOYMENT_SCRIPT', 'TEST_HELPER', 'FILESYSTEM'],
+      projectionConsumers: ['API', 'UI', 'CHAT', 'MONITORING'],
+      closurePredicateId: `CLOSURE-${stateMachine.aggregateKind}`,
+      requirementIds,
+      authoritySourceRefs: [...new Set([...(authoritySource.authoritySourceRefs ?? []), ...(sourceRecord.requirementSourceRefs ?? [])])].sort(),
+      canonicalDigest: sha(canonical({ authorityObjectKind: sourceRecord.authorityObjectKind, canonicalWriterId: sourceRecord.canonicalWriterId, ownerModule: sourceRecord.ownerModule, ownerServiceOrWorker: sourceRecord.ownerServiceOrWorker, stateMachineId: sourceRecord.stateMachineId, allowedOperationIds: allowedOperations.map((operation) => operation.operationId), requirementIds }))
+    };
+  });
+  const authorityByOperation = new Map();
+  for (const operation of operations) {
+    const matches = authorities.filter((authority) => authority.allowedOperationIds.includes(operation.operationId));
+    if (matches.length !== 1) throw new Error(`AUTHORITY_OPERATION_CARDINALITY:${operation.operationName}:${matches.length}`);
+    const [owner] = matches;
+    if (owner.canonicalWriterId !== operation.canonicalWriterId || owner.stateMachineId !== operation.stateMachineId) throw new Error(`AUTHORITY_OPERATION_CONTRACT_MISMATCH:${operation.operationName}`);
+    authorityByOperation.set(operation.operationId, owner.authorityObjectKind);
+  }
+  for (const authority of authorities) for (const requirementId of authority.requirementIds) {
+    const requirement = requirementMap.get(requirementId);
+    if (!requirement) throw new Error(`AUTHORITY_REQUIREMENT_LOOKUP_FAILED:${authority.authorityObjectKind}:${requirementId}`);
+    requirement.authorityOwnershipIds.push(authority.authorityObjectKind);
+    requirement.domainModule ??= authority.ownerModule;
+    requirement.stateMachineIds = [...new Set([...requirement.stateMachineIds, authority.stateMachineId])].sort();
+    requirement.closurePredicateIds = [...new Set([...requirement.closurePredicateIds, authority.closurePredicateId])].sort();
+    requirement.status = 'ACTIVE';
+  }
   const artifacts = [];
   const addArtifact = (repositoryPath, bytes, options = {}) => {
     const contentDigest = sha(bytes);
@@ -614,6 +673,33 @@ async function main() {
     artifact.traceAnchors.push({ requirementId, locator, symbol, snippetDigest: sha(snippet) });
     artifact.requirementIds.push(requirementId);
   };
+  const authoritySourceArtifact = traceArtifact(authoritySourcePath);
+  const authoritySourceLines = (await readFile(join(root, authoritySourcePath), 'utf8')).split('\n');
+  for (const authority of authorities) {
+    const sourceLineIndex = authoritySourceLines.findIndex((line) => line.includes(`"authorityObjectKind":"${authority.authorityObjectKind}"`));
+    if (sourceLineIndex < 0) throw new Error(`AUTHORITY_SOURCE_TRACE_ANCHOR_MISSING:${authority.authorityObjectKind}`);
+    for (const requirementId of authority.requirementIds) appendTrace(authoritySourceArtifact, requirementId, `${authoritySourcePath}:${sourceLineIndex + 1}`, authority.authorityObjectKind, authoritySourceLines[sourceLineIndex]);
+    authoritySourceArtifact.registryRecordIds.push(authority.authorityObjectKind);
+    authoritySourceArtifact.operationIds.push(...authority.allowedOperationIds);
+  }
+  const generalAuthorityRequirementIds = authorityRequirementIds(authoritySource.authoritySourceRefs);
+  const implementationEvidence = [
+    ['scripts/verify-authority-ownership.mjs', 'const requiredKinds = new Set([', 'TD-03-AUTHORITY-VERIFIER'],
+    ['scripts/lib/authority-writer-audit.mjs', 'const WRITER_BOUNDARIES = [', 'TD-03-STATIC-WRITER-AUDIT'],
+    ['packages/contract-pack/src/index.ts', 'export function validateAuthorityOwnership(', 'TD-03-RUNTIME-REGISTRY-VALIDATOR'],
+    ['packages/domain/src/operations.ts', 'validateAuthorityOwnership(catalog.records', 'TD-03-RUNTIME-ADMISSION-CHECK'],
+    ['tests/authority-ownership/registry.test.ts', "describe('TD-03 verified authority ownership'", 'TEST-TD-03-AUTHORITY-OWNERSHIP']
+  ];
+  for (const [repositoryPath, marker, symbol] of implementationEvidence) {
+    const artifact = traceArtifact(repositoryPath);
+    const lines = (await readFile(join(root, repositoryPath), 'utf8')).split('\n');
+    const lineIndex = lines.findIndex((line) => line.includes(marker));
+    if (lineIndex < 0) throw new Error(`AUTHORITY_IMPLEMENTATION_TRACE_ANCHOR_MISSING:${repositoryPath}`);
+    for (const requirementId of generalAuthorityRequirementIds) appendTrace(artifact, requirementId, `${repositoryPath}:${lineIndex + 1}`, symbol, lines[lineIndex]);
+    artifact.registryRecordIds.push(...authorities.map((authority) => authority.authorityObjectKind));
+    artifact.testIds.push(...(repositoryPath.startsWith('tests/') ? ['TEST-TD-03-AUTHORITY-OWNERSHIP'] : []));
+    if (repositoryPath === 'packages/contract-pack/src/index.ts' || repositoryPath === 'packages/domain/src/operations.ts') artifact.operationIds.push(...operations.map((operation) => operation.operationId));
+  }
   const runtimeMatrixArtifact = traceArtifact(runtimeMatrixSourcePath);
   const runtimeTestArtifact = traceArtifact(runtimeTestPath);
   const runtimeMatrixLines = (await readFile(join(root, runtimeMatrixSourcePath), 'utf8')).split('\n');
@@ -664,7 +750,7 @@ async function main() {
     testArtifact.operationIds.push(operation.operationId);
     testArtifact.testIds.push(`TEST-OPERATION-CATALOG-${operation.operationId}`);
     handlerArtifact.registryRecordIds.push(operation.operationId);
-    requirement.artifactIds = [handlerArtifact.artifactId, testArtifact.artifactId];
+    requirement.artifactIds = [...new Set([...requirement.artifactIds, handlerArtifact.artifactId, testArtifact.artifactId])].sort();
     requirement.runtimeEvidenceKinds = ['DECLARED_HANDLER_BINDING', 'CATALOG_STRUCTURE_TEST'];
   }
 
@@ -897,12 +983,12 @@ async function main() {
     requirement.runtimeEvidenceKinds=['POSTGRES_PLATFORM_RECOVERY_HEAD_PROOF'];requirement.artifactIds=[sourceArtifact.artifactId,integrationArtifact.artifactId].sort();requirement.status='ACTIVE';
   }
   const runtimeBoundaryEvidence = [
-    { requirementId: 'KCML-REQ-RUNTIME-444fd05998029935c6d719e0e6dd5a757ee9ca6781ea0db77eed9ede2d7106f1', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'clone_arguments.flags =', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
-    { requirementId: 'KCML-REQ-POSTGRES-3e1e2ca6aeac79dd1abde323ff75757ef93d6e481c6402602085a209c5b81fe5', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'static int open_release_file', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
-    { requirementId: 'KCML-REQ-RUNTIME-6298de933c910d5b02240bb21d710869ea548a611d97114438898fe282497fdd', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'RESOLVE_BENEATH | RESOLVE_NO_MAGICLINKS | RESOLVE_NO_XDEV', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
+    { requirementId: 'KCML-REQ-RUNTIME-444fd05998029935c6d719e0e6dd5a757ee9ca6781ea0db77eed9ede2d7106f1', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'establish_user_mapping', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
+    { requirementId: 'KCML-REQ-POSTGRES-3e1e2ca6aeac79dd1abde323ff75757ef93d6e481c6402602085a209c5b81fe5', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'open(executable,O_RDONLY|O_CLOEXEC|O_NOFOLLOW)', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
+    { requirementId: 'KCML-REQ-RUNTIME-6298de933c910d5b02240bb21d710869ea548a611d97114438898fe282497fdd', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'realpath(release_input,release)', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
     { requirementId: 'KCML-REQ-RUNTIME-2e05853970fa83ad9006d03338413a61660f196ba1e79dd1a20c6181898d3f90', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'static void install_seccomp_allowlist', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('has explicit seccomp deny and allow entries" },
-    { requirementId: 'KCML-REQ-CORE-4281633d14a90bb6c2a2bace795a3a394fccb462cf2a8319f33924bd8d71b0e2', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'close_range(5, UINT_MAX, CLOSE_RANGE_UNSHARE)', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
-    { requirementId: 'KCML-REQ-RUNTIME-321b40ee21af05286246bd355e173646751caf68855f0d516cbce8d3258c562d', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'if (clearenv() != 0)', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('bootstraps only Node 24 with exact environment and handler path" },
+    { requirementId: 'KCML-REQ-CORE-4281633d14a90bb6c2a2bace795a3a394fccb462cf2a8319f33924bd8d71b0e2', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'syscall(SYS_close_range', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
+    { requirementId: 'KCML-REQ-RUNTIME-321b40ee21af05286246bd355e173646751caf68855f0d516cbce8d3258c562d', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'clearenv();', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('bootstraps only Node 24 with exact environment and handler path" },
     { requirementId: 'KCML-REQ-CORE-b4212bcad7e9f02d49a5e263b68eac4e7dc21cf1c0826c9b3ba868b88d948979', sourcePath: 'deploy/runtime/kcml-fd-cloexec-addon.c', sourceMarker: 'fcntl(3, F_SETFD, FD_CLOEXEC)', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('bootstraps only Node 24 with exact environment and handler path" },
     { requirementId: 'KCML-REQ-RUNTIME-9b9b39e3819dbe737df54e9ee052d0af1ab56d7c3320e03dc0cee777262d7a60', sourcePath: 'deploy/runtime/kcml-node-bootstrap.mjs', sourceMarker: 'async function main()', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('bootstraps only Node 24 with exact environment and handler path" },
     { requirementId: 'KCML-REQ-RUNTIME-2e05853970fa83ad9006d03338413a61660f196ba1e79dd1a20c6181898d3f90', sourcePath: 'deploy/runtime/kcml-sandbox-probe.c', sourceMarker: 'socket(AF_UNIX, SOCK_STREAM, 0)', testPath: 'tests/runtime-boundary/native-sandbox.sh', testMarker: 'SANDBOX_DENY_SOCKET_PASS' },
@@ -938,6 +1024,11 @@ async function main() {
     artifact.testIds = stableSort([...new Set(artifact.testIds)]);
     artifact.traceAnchors.sort((left, right) => stableCompare(`${left.requirementId}:${left.locator}`, `${right.requirementId}:${right.locator}`));
   }
+  for (const artifact of touchedTraceArtifacts) for (const requirementId of artifact.requirementIds) {
+    const requirement = requirementMap.get(requirementId);
+    if (!requirement) throw new Error(`ARTIFACT_REQUIREMENT_LOOKUP_FAILED:${artifact.artifactId}:${requirementId}`);
+    requirement.artifactIds = stableSort([...new Set([...requirement.artifactIds, artifact.artifactId])]);
+  }
   const architectureBlockers = [];
   const surfaceSqlForArchitecture = await readFile(join(root, 'database/baseline/00000000000001_ssot_surface.sql'), 'utf8');
   if ((surfaceSqlForArchitecture.match(/document jsonb NOT NULL DEFAULT '\{\}'::jsonb/giu) ?? []).length > 0) architectureBlockers.push({ code: 'GENERIC_ENTITY_SCHEMA', summary: 'Physical entity schemas still contain generic document storage.' });
@@ -972,7 +1063,7 @@ async function main() {
   const reverseFields = [
     ['stateMachineIds', 'STATE_MACHINE_REGISTRY'], ['operationIds', 'OPERATION_CATALOG'], ['bindingIds', 'BINDING_REGISTRY'],
     ['errorCodeIds', 'ERROR_RETRY_REGISTRY'], ['acceptanceGateIds', 'ACCEPTANCE_GATE_REGISTRY'], ['closurePredicateIds', 'CLOSURE_PREDICATE_REGISTRY'],
-    ['artifactIds', 'ARTIFACT_TRACE_REGISTRY']
+    ['authorityOwnershipIds', 'AUTHORITY_OWNERSHIP_REGISTRY'], ['artifactIds', 'ARTIFACT_TRACE_REGISTRY']
   ];
   for (const requirement of requirements) {
     for (const [field, kind] of reverseFields) for (const targetId of requirement[field] ?? []) {
