@@ -939,7 +939,6 @@ async function main() {
     artifact.requirementIds.push(requirementId);
   };
   const errorRuntimePath = 'packages/schemas/src/error-retry-registry.ts';
-  const errorRuntimePath = 'packages/schemas/src/error-retry-registry.ts';
   const errorTestPath = 'tests/contract-pack/error-retry.test.ts';
   const errorRuntimeArtifact = traceArtifact(errorRuntimePath);
   const errorTestArtifact = traceArtifact(errorTestPath);
@@ -966,6 +965,7 @@ async function main() {
       errorTestArtifact.registryRecordIds.push(errorRecord.errorCodeId);
       errorTestArtifact.testIds.push(`ERROR-${errorRecord.code}`);
     }
+  }
   const authoritySourceArtifact = traceArtifact(authoritySourcePath);
   const authoritySourceLines = (await readFile(join(root, authoritySourcePath), 'utf8')).split('\n');
   for (const authority of authorities) {
