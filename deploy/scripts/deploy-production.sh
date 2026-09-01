@@ -55,11 +55,12 @@ verify_heartbeats(){
   [[ ${missing} -eq 0 ]]
 }
 healthy_samples(){ for sample in {1..5};do curl --fail --silent --unix-socket /run/kajovocml-ng/web-api.sock http://localhost/ready|jq -e '.status=="ready"'>/dev/null;sleep 3;done; }
+migrate_candidate(){ (cd "${stage_path}" && env KCML_RELEASE_ID="${release_id}" KCML_SOURCE_SHA="${expected_sha}" node "apps/server/node_modules/@kcml/database/dist/cli.js" migrate); }
 
 run_step verify_source_and_signature verify_bundle
 run_step backup create_backup
 run_step verified_candidate_staging stage_release
-run_step forward_migrations env KCML_RELEASE_ID="${release_id}" KCML_SOURCE_SHA="${expected_sha}" node "${stage_path}/apps/server/node_modules/@kcml/database/dist/cli.js" migrate
+run_step forward_migrations migrate_candidate
 run_step deployment_record begin_deployment_record
 run_step platform_identity_config_reconciliation reconcile_platform
 run_step platform_preflight preflight
