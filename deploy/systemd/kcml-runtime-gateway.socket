@@ -9,6 +9,7 @@ SocketMode=0660
 DirectoryMode=0750
 Accept=no
 RemoveOnStop=yes
+Service=kcml-runtime-gateway.service
 
 [Install]
 WantedBy=sockets.target
