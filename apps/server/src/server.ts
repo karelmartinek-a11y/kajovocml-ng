@@ -7,7 +7,7 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import { createDatabasePool, verifyDatabaseContract, type DatabasePool } from '@kcml/database';
-import { CanonicalOperationService, DomainError, EnvelopeCipher, OperationCatalogService, OwnerAuthenticationService, SecretManager, SsotSurfaceService, SystemChatService, tokenDigest, type SessionPrincipal } from '@kcml/domain';
+import { CanonicalOperationService, canonicalizeDomainError, DomainError, EnvelopeCipher, OperationCatalogService, OwnerAuthenticationService, SecretManager, SsotSurfaceService, SystemChatService, tokenDigest, type SessionPrincipal } from '@kcml/domain';
 import { MetricsRegistry, StructuredLogger, correlationId } from '@kcml/observability';
 import { DatabaseOpenAISecretProvider, ResponsesRuntime } from '@kcml/openai-runtime';
 import { compileAuthorityLineage } from '@kcml/agentic-authority';
@@ -82,7 +82,7 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
   const provider = new DatabaseOpenAISecretProvider(async () => {
     const row = await pool.query(`SELECT id FROM kcml.secret_record WHERE stable_name='OPENAI_API_KEY' AND deleted_at IS NULL`);
     const id = row.rows[0]?.id;
-    if (!id) throw new DomainError('OPENAI_API_KEY_MISSING', 'OpenAI credential is not configured', 409);
+    if (!id) throw new DomainError('OPENAI_CONFIGURATION_REQUIRED', 'OpenAI credential is not configured', 409);
     return (await secrets.reveal(id, 'openai-runtime')).value;
   });
   const responses = new ResponsesRuntime(pool, provider);
@@ -96,8 +96,9 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
   app.addHook('onResponse', async (request, reply) => { reply.header('x-correlation-id', request.requestCorrelationId); metrics.increment('kcml_http_requests_total', { method: request.method, status: String(reply.statusCode) }); });
   app.setErrorHandler((error, request, reply) => {
     const domain = error instanceof DomainError ? error : new DomainError('INTERNAL_ERROR', 'Internal service error', 500);
-    logger.error('request.failed', { correlationId: request.requestCorrelationId, code: domain.code, error: error instanceof Error ? error.message : String(error) });
-    void reply.status(domain.httpStatus).send({ error: { code: domain.code, message: domain.message, retryDirective: domain.retryDirective, details: domain.details, correlationId: request.requestCorrelationId } });
+    const canonical = canonicalizeDomainError(domain);
+    logger.error('request.failed', { correlationId: request.requestCorrelationId, code: canonical.code, error: error instanceof Error ? error.message : String(error), errorRecordDigest: canonical.recordDigest });
+    void reply.status(canonical.record.httpMappings[0] ?? domain.httpStatus).send({ error: { code: canonical.code, message: domain.message, classification: canonical.classification, sideEffectPoint: canonical.sideEffectPoint, retryDirective: canonical.retryDirective, recordDigest: canonical.recordDigest, details: domain.details, correlationId: request.requestCorrelationId } });
   });
 
   const authenticate = async (request: FastifyRequest, requireMfa = true): Promise<void> => {

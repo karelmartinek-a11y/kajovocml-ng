@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { DatabasePool } from '@kcml/database';
 import { inTransaction } from '@kcml/database';
 import type { CanonicalOperationService } from '@kcml/domain';
-import { DomainError } from '@kcml/domain';
+import { canonicalizeDomainError, DomainError } from '@kcml/domain';
 import { canonicalDigest, type CanonicalJsonValue, z } from '@kcml/schemas';
 
 export const jsonRpcRequestSchema=z.object({jsonrpc:z.literal('2.0'),id:z.union([z.string(),z.number().safe(),z.null()]),method:z.string().min(1),params:z.record(z.string(),z.unknown()).optional()}).strict();
@@ -18,7 +18,7 @@ function digestBytes(value: unknown): Buffer {
 export function validateMcpHeaders(rawHeaders:readonly string[],request:unknown):McpHeaders{
   const body=jsonRpcRequestSchema.parse(request);const groups=new Map<string,string[]>();for(let index=0;index<rawHeaders.length;index+=2){const name=rawHeaders[index]?.toLowerCase();const value=rawHeaders[index+1];if(name&&value)(groups.get(name)??(groups.set(name,[]),groups.get(name)!)).push(value);}
   const singleton=(name:string,required=true):string|null=>{const values=groups.get(name)??[];if(values.length>1||values.some(value=>value.includes(',')))throw new DomainError('MCP_HEADER_MISMATCH',`Duplicate singleton header ${name}`,400);if(required&&values.length!==1)throw new DomainError('MCP_HEADER_MISMATCH',`Missing header ${name}`,400);return values[0]??null;};
-  const protocolVersion=singleton('mcp-protocol-version')!;if(!supportedMcpVersions.includes(protocolVersion as typeof supportedMcpVersions[number]))throw new DomainError('MCP_UNSUPPORTED_VERSION','Unsupported MCP protocol version',400);
+  const protocolVersion=singleton('mcp-protocol-version')!;if(!supportedMcpVersions.includes(protocolVersion as typeof supportedMcpVersions[number]))throw new DomainError('MCP_PROTOCOL_VERSION_UNSUPPORTED','Unsupported MCP protocol version',400);
   const method=singleton('mcp-method')!;if(method!==body.method)throw new DomainError('MCP_HEADER_MISMATCH','Mcp-Method differs from JSON-RPC body',400);
   const bodyName=typeof body.params?.name==='string'?body.params.name:null;const name=singleton('mcp-name',bodyName!==null);if(name!==bodyName)throw new DomainError('MCP_HEADER_MISMATCH','Mcp-Name differs from JSON-RPC params',400);
   return{protocolVersion,method,name,origin:singleton('origin',false)};
@@ -49,7 +49,7 @@ export class McpRuntime {
           WHERE e.inflight_source_scope=$1 AND e.request_id_type=$2 AND e.request_id_value=$3 AND e.completed_at IS NULL
           FOR UPDATE OF e,c`,[inflightSourceScope,requestIdType,requestIdValue])).rows[0];
         if(prior){
-          if(!Buffer.from(prior.request_body_digest).equals(requestDigest))throw new DomainError('MCP_DUPLICATE_ID_CONFLICT','Active JSON-RPC ID is reserved for a different request',409,'DO_NOT_RETRY');
+          if(!Buffer.from(prior.request_body_digest).equals(requestDigest))throw new DomainError('MCP_DUPLICATE_IN_FLIGHT_REQUEST_ID','Active JSON-RPC ID is reserved for a different request',409,'DO_NOT_RETRY');
           return prior;
         }
       }
@@ -101,8 +101,9 @@ export class McpRuntime {
       await this.commitTerminal(claimed.id,claimed.request_event_id,'SUCCEEDED',response,digestBytes(response),null);
       return response;
     }catch(error){
-      const domain=error instanceof DomainError?error:new DomainError('MCP_TOOL_EXECUTION_FAILED',error instanceof Error?error.message:String(error),500);
-      const response={jsonrpc:'2.0',id:request.id,error:{code:domain.code==='MCP_METHOD_NOT_FOUND'?-32601:-32000,message:domain.message,data:{stableCode:domain.code,retryDirective:domain.retryDirective,details:domain.details}}};
+      const domain=error instanceof DomainError?error:new DomainError('MCP_INTERNAL_FAILURE',error instanceof Error?error.message:String(error),500);
+      const canonical=canonicalizeDomainError(domain);
+      const response={jsonrpc:'2.0',id:request.id,error:{code:canonical.record.mcpMappings[0] ?? (canonical.record.sideEffectPoint === 'PRE_DISPATCH' ? -32602 : -32603),message:domain.message,data:{stableCode:canonical.code,classification:canonical.classification,retryDirective:canonical.retryDirective,recordDigest:canonical.recordDigest,details:domain.details}}};
       await this.commitTerminal(claimed.id,claimed.request_event_id,'FAILED',response,digestBytes(response),response.error);
       return response;
     }

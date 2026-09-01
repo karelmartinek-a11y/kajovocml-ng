@@ -65,7 +65,6 @@ function parseSsot(text) {
   const lines = text.split('\n');
   const atoms = [];
   const operations = [];
-  const errors = new Set();
   let chapter = '0';
   let heading = 'SSOT';
   let headingAtom = 0;
@@ -104,8 +103,6 @@ function parseSsot(text) {
       continue;
     }
 
-    for (const code of trimmed.matchAll(/\b[A-Z][A-Z0-9]+(?:_[A-Z0-9]+)+\b/gu)) errors.add(code[0]);
-
     if (inFence) {
       if (/^[a-z][A-Za-z0-9]*(?:\.[A-Za-z][A-Za-z0-9]*)+$/u.test(trimmed) && inOperationCatalog) operations.push(trimmed);
       if (fenceLanguage === 'text' || fenceLanguage === 'json' || fenceLanguage === 'sql' || fenceLanguage === 'ini' || fenceLanguage === '') {
@@ -127,7 +124,35 @@ function parseSsot(text) {
     paragraph.push(trimmed);
   }
   flushParagraph();
-  return { atoms, operations: [...new Set(operations)], errors: [...errors].sort() };
+  return { atoms, operations: [...new Set(operations)], errors: parseStableErrors(text) };
+}
+
+const retryDirectives = ['DO_NOT_RETRY', 'RETRY_SAME_OPERATION', 'REFRESH_AND_RETRY_NEW_COMMAND', 'RECONCILE_THEN_RETRY', 'MANUAL_REVIEW'];
+
+/**
+ * Chapter 32 is the sole authority for stable error identifiers.  In
+ * particular, this deliberately does not scan arbitrary SSOT prose: status
+ * markers such as `*_PASSED`, enum members, and example values are not error
+ * codes.  Only the explicit catalog code fences in 32.6–32.8 are accepted.
+ */
+function parseStableErrors(text) {
+  const errors = new Set();
+  let inCatalog = false;
+  let inFence = false;
+  for (const raw of text.split('\n')) {
+    if (/^### 32\.(?:6|7|8)\b/u.test(raw)) inCatalog = true;
+    if (/^### 33\b/u.test(raw)) inCatalog = false;
+    if (!inCatalog) continue;
+    if (/^```/u.test(raw)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (!inFence) continue;
+    const code = raw.trim();
+    if (/^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/u.test(code) && !retryDirectives.includes(code)) errors.add(code);
+  }
+  if (errors.size === 0) throw new Error('STABLE_ERROR_CATALOG_EMPTY');
+  return [...errors].sort();
 }
 
 function operationFamily(name) {
@@ -290,6 +315,124 @@ function makeStateMachine([kind, states, terminalStates], operationRecords) {
   };
 }
 
+const errorClassifications = ['AUTHENTICATION', 'BINDING', 'VALIDATION', 'NOT_FOUND', 'CONFLICT', 'RATE_LIMIT', 'CAPACITY', 'TIMEOUT', 'DEPENDENCY', 'PROTOCOL', 'CANCELLED', 'MANUAL_REVIEW', 'INTERNAL'];
+const errorSideEffectPoints = ['PRE_ADMISSION', 'PRE_DISPATCH', 'POSSIBLE_EFFECT', 'POST_COMMIT', 'EVIDENCE_ONLY'];
+
+function errorClassification(code) {
+  if (/(?:OUTCOME|UNKNOWN|RECONCILIATION|SUBMIT_OUTCOME)/u.test(code)) return 'MANUAL_REVIEW';
+  if (/^KCIP_|^MCP_|PROTOCOL|HEADER|SEQUENCE|CURSOR/u.test(code)) return 'PROTOCOL';
+  if (/AUTH|CREDENTIAL|SESSION|LOGIN|MFA|PASSWORD|API_KEY/u.test(code)) return 'AUTHENTICATION';
+  if (/BINDING|DIGEST_STALE|TARGET_STALE|CAPABILITY_SNAPSHOT_STALE|REVISION_STALE|EPOCH_STALE/u.test(code)) return 'BINDING';
+  if (/NOT_FOUND/u.test(code)) return 'NOT_FOUND';
+  if (/RATE_LIMIT|THROTTL/u.test(code)) return 'RATE_LIMIT';
+  if (/CAPACITY|EXHAUSTED|RESOURCE_EXHAUSTED|CONCURRENCY|PROFILE_LEASE_HELD|CONTROL_HELD/u.test(code)) return 'CAPACITY';
+  if (/TIMEOUT|DEADLINE/u.test(code)) return 'TIMEOUT';
+  if (/CANCEL/u.test(code)) return 'CANCELLED';
+  if (/AUTHORITY|PROVENANCE|DEPUTY|SECRET_USE|SECURITY|SPOOF|INJECTION|ESCALATION/u.test(code)) return 'INTERNAL';
+  if (/CONFLICT|STALE|TERMINAL|IN_PROGRESS|HELD|ALREADY|IMMUTABLE|CLOSED|EXPIRED/u.test(code)) return 'CONFLICT';
+  if (/REQUIRED|INVALID|MISSING|UNSUPPORTED|NOT_FOUND|NOT_READY|FAILED|INCOMPLETE|UNRESUMABLE|UNAPPROVABLE|BLOCKED/u.test(code)) return 'VALIDATION';
+  if (/DNS|TLS|PROVIDER|ENGINE|SOCKET|CHANNEL|SANDBOX|SECCOMP|CHILD|RUNTIME|BROWSER|FILESYSTEM/u.test(code)) return 'DEPENDENCY';
+  return 'INTERNAL';
+}
+
+function errorSideEffectPoint(code) {
+  if (/^SSOT_|^CONTRACT_|^REQUIREMENT_|^ORPHAN_|^OPERATION_CONTRACT_|^STATE_MACHINE_CONTRACT_|^POSTGRES_CONTRACT_|^RUNTIME_BOUNDARY_CONTRACT_|^BINDING_CONTRACT_|^ERROR_RECOVERY_CONTRACT_|^AUTHORITY_OWNERSHIP_CONFLICT$|^EXPOSURE_PARITY_|^ACCEPTANCE_GATE_|^CLOSURE_PREDICATE_|^ARCHITECTURE_READINESS_/u.test(code)) return 'PRE_ADMISSION';
+  if (/(?:OUTCOME|RECONCILIATION|POSTCONDITION|SUBMIT|EFFECTIVE_UNKNOWN|RENDERER_CRASHED|DOWNLOAD_INCOMPLETE|UPLOAD_INCOMPLETE|BACKGROUND_CANCEL_UNCONFIRMED)/u.test(code)) return 'POSSIBLE_EFFECT';
+  if (/^AUDIT_|^TERMINAL_STATE_IMMUTABLE$/u.test(code)) return 'EVIDENCE_ONLY';
+  if (/^MCP_CANCELLED$|^KCIP_CANCELLED$|^RUNTIME_CANCELLED$|^BROWSER_SESSION_TERMINAL$/u.test(code)) return 'POST_COMMIT';
+  return 'PRE_DISPATCH';
+}
+
+const refreshDirectiveCodes = new Set([
+  'KCIP_TARGET_NOT_FOUND', 'KCIP_TARGET_STALE', 'KCIP_CONTRACT_DIGEST_STALE', 'KCIP_BINDING_STALE', 'KCIP_STATE_VERSION_CONFLICT',
+  'MCP_DISCOVERY_STALE', 'MCP_REQUEST_STATE_EXPIRED', 'MCP_CURSOR_INVALID', 'MCP_STATE_HANDLE_EXPIRED', 'MCP_TASK_EXPIRED',
+  'MCP_BINDING_STALE', 'MCP_CONTRACT_DIGEST_STALE', 'OPENAI_MODEL_CAPABILITY_UNSUPPORTED', 'MODEL_OUTPUT_SCHEMA_INVALID',
+  'CAPABILITY_SNAPSHOT_STALE', 'SPECIFICATION_DIGEST_STALE', 'WORKSPACE_BASE_STALE', 'REVISION_STALE', 'BINDING_REVISION_STALE',
+  'ACTIVATION_EPOCH_STALE', 'AGENT_APPROVAL_STALE', 'AGENT_CHECKPOINT_INCOMPATIBLE', 'RUNTIME_CONTEXT_NOT_CURRENT',
+  'RUNTIME_RELEASE_STALE', 'RUNTIME_BINDING_STALE', 'RUNTIME_ACTIVATION_STALE', 'RUNTIME_CREDENTIAL_GENERATION_STALE',
+  'BROWSER_RUNTIME_BUILD_INCOMPATIBLE', 'BROWSER_HOST_GENERATION_STALE', 'BROWSER_CONTEXT_GENERATION_STALE', 'BROWSER_CONTROL_STALE',
+  'BROWSER_PAGE_STALE', 'BROWSER_FRAME_STALE', 'BROWSER_DOCUMENT_STALE', 'BROWSER_NAVIGATION_STALE', 'BROWSER_VIEWPORT_STALE',
+  'BROWSER_TARGET_DRIFT', 'BROWSER_AUTH_EPOCH_STALE', 'BROWSER_CHALLENGE_STALE', 'BROWSER_STATE_BUNDLE_STALE', 'BROWSER_BRIDGE_CERTIFICATE_STALE',
+  'BROWSER_BRIDGE_CONNECTION_STALE', 'PLATFORM_INCARNATION_STALE', 'CHECKPOINT_STALE', 'CHECKPOINT_DIGEST_INVALID'
+]);
+const reconcileDirectiveCodes = new Set([
+  'KCIP_DEADLINE_EXCEEDED', 'KCIP_OUTCOME_UNKNOWN', 'MCP_DEADLINE_EXCEEDED', 'MCP_OUTCOME_UNKNOWN', 'OPENAI_TOOL_EFFECT_OUTCOME_UNKNOWN',
+  'OPENAI_BACKGROUND_CANCEL_UNCONFIRMED', 'SIDE_EFFECT_OUTCOME_UNKNOWN', 'SIDE_EFFECT_RECONCILIATION_UNKNOWN', 'SIDE_EFFECT_RECONCILIATION_FAILED',
+  'BROWSER_RECONCILIATION_REQUIRED', 'BROWSER_POSTCONDITION_FAILED', 'BROWSER_DOWNLOAD_INCOMPLETE', 'BROWSER_UPLOAD_INCOMPLETE',
+  'CREDENTIAL_EXPIRED', 'CREDENTIAL_ROTATED', 'ROLLBACK_INCOMPLETE', 'CLEANUP_INCOMPLETE', 'RUNTIME_OUTCOME_UNKNOWN'
+]);
+const manualReviewDirectiveCodes = new Set([
+  'MODEL_SUBMIT_OUTCOME_UNKNOWN', 'ACTIVATION_EFFECTIVE_UNKNOWN', 'RECOVERY_ORACLE_CONFLICT', 'BROWSER_RECOVERY_UNKNOWN',
+  'PLATFORM_RECOVERY_BLOCKED', 'TERMINAL_CLOSURE_INCOMPLETE', 'RUNTIME_CHILD_CLEANUP_INCOMPLETE'
+]);
+const retrySameOperationCodes = new Set(['OPENAI_PROVIDER_TRANSIENT', 'PLATFORM_RECOVERY_IN_PROGRESS', 'QUEUE_CAPACITY_EXHAUSTED', 'STORAGE_CAPACITY_EXHAUSTED', 'KCIP_CAPACITY_EXHAUSTED', 'BROWSER_HOST_CAPACITY']);
+
+function recoveryDecisionTable(code) {
+  const tableId = `RECOVERY-${code}`;
+  return {
+    recoveryDecisionTableId: tableId,
+    recoveryDecisionTable: {
+      tableId,
+      ordering: 'SPECIFIC_BEFORE_GENERAL',
+      rules: [
+        { ruleId: `${tableId}-NO_EFFECT`, predicate: 'effectOutcome=CONFIRMED_NOT_APPLIED', outcome: 'KNOWN_NOT_APPLIED', directive: 'RETRY_SAME_OPERATION' },
+        { ruleId: `${tableId}-APPLIED`, predicate: 'effectOutcome=CONFIRMED_APPLIED', outcome: 'KNOWN_APPLIED', directive: 'DO_NOT_RETRY' },
+        { ruleId: `${tableId}-POSSIBLE`, predicate: 'effectOutcome=POSSIBLE_EFFECT', outcome: 'RECONCILIATION_REQUIRED', directive: 'RECONCILE_THEN_RETRY' },
+        { ruleId: `${tableId}-UNKNOWN`, predicate: 'effectOutcome=UNKNOWN', outcome: 'MANUAL_REVIEW_REQUIRED', directive: 'MANUAL_REVIEW' }
+      ],
+      defaultRule: { predicate: 'otherwise', outcome: 'MANUAL_REVIEW_REQUIRED', directive: 'MANUAL_REVIEW' },
+      total: true,
+      mutuallyExclusive: true
+    }
+  };
+}
+
+function stableErrorMeaning(code) {
+  const explicit = {
+    KCIP_MALFORMED_ENVELOPE: 'KCIP envelope framing or JSON is invalid before dispatch',
+    KCIP_OUTCOME_UNKNOWN: 'KCIP external effect cannot be confirmed or disproved',
+    MCP_HEADER_MISMATCH: 'required MCP routing header does not match the JSON-RPC body',
+    MCP_PROTOCOL_VERSION_UNSUPPORTED: 'the requested MCP protocol version is not supported',
+    OPENAI_PROVIDER_TRANSIENT: 'a transient provider failure occurred without ambiguous submission',
+    MODEL_SUBMIT_OUTCOME_UNKNOWN: 'provider submission started without a persisted response handle or known outcome',
+    BROWSER_RECOVERY_UNKNOWN: 'browser/account effect cannot be confirmed after a possible mutation',
+    PLATFORM_RECOVERY_BLOCKED: 'startup reconciliation found an ambiguous or invalid platform state',
+    ERROR_RECOVERY_CONTRACT_INCOMPLETE: 'the stable error and recovery contract is incomplete'
+  };
+  return explicit[code] ?? code.replaceAll('_', ' ').toLowerCase();
+}
+
+function fixedRetryDirective(code) {
+  if (retrySameOperationCodes.has(code)) return 'RETRY_SAME_OPERATION';
+  if (refreshDirectiveCodes.has(code)) return 'REFRESH_AND_RETRY_NEW_COMMAND';
+  if (reconcileDirectiveCodes.has(code)) return 'RECONCILE_THEN_RETRY';
+  if (manualReviewDirectiveCodes.has(code)) return 'MANUAL_REVIEW';
+  return 'DO_NOT_RETRY';
+}
+
+function httpMapping(code, classification) {
+  if (/^MCP_|^KCIP_/u.test(code) || classification === 'PROTOCOL') return [400];
+  if (code.includes('NOT_FOUND')) return [404];
+  if (classification === 'VALIDATION') return [422];
+  if (classification === 'AUTHENTICATION') return [401];
+  if (classification === 'CAPACITY') return [429];
+  if (classification === 'TIMEOUT') return [504];
+  if (classification === 'DEPENDENCY' || classification === 'INTERNAL') return [503];
+  if (classification === 'MANUAL_REVIEW') return [409];
+  return [409];
+}
+
+function mcpMapping(code) {
+  const standard = new Map([
+    ['MCP_PARSE_ERROR', -32700], ['MCP_INVALID_REQUEST', -32600], ['MCP_METHOD_NOT_FOUND', -32601], ['MCP_INVALID_PARAMS', -32602],
+    ['MCP_TOOL_NOT_FOUND', -32602], ['MCP_TASK_NOT_FOUND', -32602], ['MCP_TASK_EXPIRED', -32602], ['MCP_CURSOR_INVALID', -32602],
+    ['MCP_HEADER_MISMATCH', -32020], ['MCP_CLIENT_CAPABILITY_MISSING', -32021], ['MCP_TASK_CAPABILITY_REQUIRED', -32021], ['MCP_PROTOCOL_VERSION_UNSUPPORTED', -32022]
+  ]);
+  if (standard.has(code)) return [standard.get(code)];
+  if (code.startsWith('MCP_')) return [-32603];
+  return [];
+}
+
 const gates = [
   'ARCH_CROSS_CHAPTER_CONSISTENT', 'ARCH_NORMATIVE_AMBIGUITY_CLOSED', 'ARCH_SINGLE_WRITER_COMPLETE', 'ARCH_OPERATION_LIFECYCLE_COMPLETE',
   'ARCH_POSTGRES_CONTRACT_COMPLETE', 'ARCH_RUNTIME_BOUNDARY_COMPLETE', 'ARCH_PROTOCOL_SEMANTICS_COMPLETE', 'ARCH_OPENAI_LIFECYCLE_COMPLETE',
@@ -354,6 +497,17 @@ const schemaField = (field) => field.endsWith('Ids') || field.endsWith('Refs') |
 function makeRegistrySchema(kind) {
   const properties = { ...commonRecordProperties, recordKind: { const: kind } };
   for (const field of registrySchemaRequirements[kind]) if (!(field in properties)) properties[field] = schemaField(field);
+  if (kind === 'ERROR_RETRY_REGISTRY') {
+    properties.classification = { enum: errorClassifications };
+    properties.sideEffectPoint = { enum: errorSideEffectPoints };
+    properties.recoveryRuleKind = { enum: ['FIXED', 'EVIDENCE_DECISION_TABLE'] };
+    properties.fixedRetryDirective = { type: ['string', 'null'], enum: [...retryDirectives, null] };
+    properties.recoveryDecisionTableId = { type: ['string', 'null'] };
+    properties.httpMappings = { type: 'array', items: { type: 'integer' } };
+    properties.kcipMappings = { type: 'array', items: { type: ['string', 'integer'] } };
+    properties.mcpMappings = { type: 'array', items: { type: ['string', 'integer'] } };
+    properties.canonicalOwnerActions = { type: 'array', items: { type: 'string' }, minItems: 1 };
+  }
   return { $schema: 'https://json-schema.org/draft/2020-12/schema', $id: `kcml://registry/${kind.toLowerCase()}`, type: 'object', additionalProperties: true, required: [...commonRequired, ...registrySchemaRequirements[kind]], properties };
 }
 
@@ -542,16 +696,28 @@ async function main() {
     runtimeEvidenceRecords.push({ sourceRecord, requirementIds, testLineIndex });
   }
   const runtimes = runtimeRecords;
-  const errorRecords = parsed.errors.map((code) => ({
-    errorCodeId: `ERR-${code}`, code, namespace: code.split('_')[0], classification: /UNKNOWN|CONFLICT|INCOMPLETE/u.test(code) ? 'MANUAL_OR_REFRESH' : 'FIXED',
-    canonicalMeaning: code, sideEffectPoint: /OUTCOME|SUBMIT/u.test(code) ? 'POSSIBLE_EFFECT' : 'PRE_DISPATCH', terminalityRule: 'STATE_MACHINE_DEFINED',
-    recoveryRuleKind: /OUTCOME|SUBMIT/u.test(code) ? 'EVIDENCE_DECISION_TABLE' : 'FIXED', fixedRetryDirective: /OUTCOME|SUBMIT/u.test(code) ? null : 'DO_NOT_RETRY',
-    recoveryDecisionTableId: /OUTCOME|SUBMIT/u.test(code) ? 'RECOVERY-DECISION-POSSIBLE-EFFECT' : null, sameLogicalOperationRequired: true,
-    refreshRequired: /STALE/u.test(code), reconciliationRequired: /OUTCOME|SUBMIT/u.test(code), manualReviewRequired: /UNKNOWN/u.test(code),
-    requiredSnapshotFields: ['stateVersion', 'activationEpoch', 'recoveryEpoch'], affectedObjectKinds: ['COMPONENT','RUNTIME_INSTANCE','MCP_CALL_RUN','AGENT_RUN','SECRET_RECORD','OPERATIONAL_ALERT','BROWSER_SESSION','GENERATION_JOB','DEPLOYMENT_RUN','SELF_TEST_RUN'], httpMappings: [409], kcipMappings: ['ERROR'], mcpMappings: [-32603],
-    uiMessageKey: `errors.${code}`, canonicalOwnerActions: ['OPEN_EVIDENCE'], auditEvidenceKinds: ['ERROR'], testCaseIds: [`ERROR-${code}`], requirementIds: [],
-    authoritySourceRefs: ['ssot://32/stable-error-catalog/error'], canonicalDigest: sha(canonical({ code }))
-  }));
+  const errorRecords = parsed.errors.map((code) => {
+    const classification = errorClassification(code);
+    const sideEffectPoint = errorSideEffectPoint(code);
+    const tableDriven = sideEffectPoint === 'POSSIBLE_EFFECT' && /(?:OUTCOME|RECONCILIATION|POSTCONDITION|SUBMIT|EFFECTIVE_UNKNOWN|RECOVERY_UNKNOWN)/u.test(code);
+    const requirementIds = requirements.filter((requirement) => requirement.canonicalStatement === code).map((requirement) => requirement.requirementId);
+    if (requirementIds.length === 0) throw new Error(`STABLE_ERROR_REQUIREMENT_MISSING:${code}`);
+    const authoritySourceRefs = requirements.filter((requirement) => requirementIds.includes(requirement.requirementId)).flatMap((requirement) => requirement.authoritySourceRefs);
+    const table = tableDriven ? recoveryDecisionTable(code) : { recoveryDecisionTableId: null, recoveryDecisionTable: null };
+    return {
+      errorCodeId: `ERR-${code}`, code, namespace: code.split('_')[0], classification,
+      canonicalMeaning: stableErrorMeaning(code), sideEffectPoint, terminalityRule: sideEffectPoint === 'POST_COMMIT' ? 'REPLAY_CANONICAL_OUTCOME' : 'STATE_MACHINE_DEFINED',
+      recoveryRuleKind: tableDriven ? 'EVIDENCE_DECISION_TABLE' : 'FIXED', fixedRetryDirective: tableDriven ? null : fixedRetryDirective(code),
+      recoveryDecisionTableId: table.recoveryDecisionTableId, sameLogicalOperationRequired: sideEffectPoint === 'POSSIBLE_EFFECT' || tableDriven,
+      refreshRequired: refreshDirectiveCodes.has(code), reconciliationRequired: tableDriven || reconcileDirectiveCodes.has(code), manualReviewRequired: tableDriven || manualReviewDirectiveCodes.has(code) || code.includes('UNKNOWN'),
+      requiredSnapshotFields: ['stateVersion', 'activationEpoch', 'recoveryEpoch', 'logicalOperationId', 'correlationId'],
+      affectedObjectKinds: ['COMPONENT','RUNTIME_INSTANCE','MCP_CALL_RUN','AGENT_RUN','SECRET_RECORD','OPERATIONAL_ALERT','BROWSER_SESSION','GENERATION_JOB','DEPLOYMENT_RUN','SELF_TEST_RUN'],
+      httpMappings: httpMapping(code, classification), kcipMappings: ['ERROR'], mcpMappings: mcpMapping(code),
+      uiMessageKey: `errors.${code}`, canonicalOwnerActions: tableDriven || manualReviewDirectiveCodes.has(code) ? ['OPEN_EVIDENCE', 'RESOLVE_OUTCOME'] : ['OPEN_EVIDENCE'],
+      auditEvidenceKinds: ['ERROR', ...(tableDriven ? ['SIDE_EFFECT_OUTCOME', 'RECOVERY_DECISION'] : [])], testCaseIds: [`ERROR-${code}`], requirementIds,
+      authoritySourceRefs, extensions: { recoveryDecisionTable: table.recoveryDecisionTable }
+    };
+  });
   const gateRecords = gates.map((gateId) => ({
     gateId, gateKind: gateId.startsWith('ARCH_') ? 'ARCHITECTURE' : 'VALIDATION', blocking: true, subjectScope: 'RELEASE', inputs: ['SSOT', 'CONTRACT_PACK', 'SOURCE', 'TEST_EVIDENCE'], inputDigests: [],
     evaluatorId: `EVALUATOR-${gateId}`, evaluatorVersion: 1, evaluatorDigest: sha(gateId), environmentProfile: gateId.includes('RUNTIME') ? 'SYSTEMD_RUNTIME' : 'BUILD',
@@ -614,6 +780,34 @@ async function main() {
     artifact.traceAnchors.push({ requirementId, locator, symbol, snippetDigest: sha(snippet) });
     artifact.requirementIds.push(requirementId);
   };
+  const errorRuntimePath = 'packages/schemas/src/error-retry-registry.ts';
+  const errorTestPath = 'tests/contract-pack/error-retry.test.ts';
+  const errorRuntimeArtifact = traceArtifact(errorRuntimePath);
+  const errorTestArtifact = traceArtifact(errorTestPath);
+  const errorRuntimeLines = (await readFile(join(root, errorRuntimePath), 'utf8')).split('\n');
+  const errorTestLines = (await readFile(join(root, errorTestPath), 'utf8')).split('\n');
+  const errorRuntimeMarker = 'export function canonicalErrorView';
+  const errorTestMarker = "it('contains only chapter 32 stable errors with total recovery semantics'";
+  const errorRuntimeLineIndex = errorRuntimeLines.findIndex((line) => line.includes(errorRuntimeMarker));
+  const errorTestLineIndex = errorTestLines.findIndex((line) => line.includes(errorTestMarker));
+  if (errorRuntimeLineIndex < 0 || errorTestLineIndex < 0) throw new Error('ERROR_RETRY_EVIDENCE_ANCHOR_MISSING');
+  for (const errorRecord of errorRecords) {
+    for (const requirementId of errorRecord.requirementIds) {
+      const requirement = requirementMap.get(requirementId);
+      if (!requirement) throw new Error(`ERROR_RETRY_REQUIREMENT_LOOKUP_FAILED:${errorRecord.code}`);
+      requirement.domainModule = 'packages/schemas';
+      requirement.errorCodeIds = [...new Set([...requirement.errorCodeIds, errorRecord.errorCodeId])].sort();
+      requirement.testCaseIds = [...new Set([...requirement.testCaseIds, `ERROR-${errorRecord.code}`])].sort();
+      requirement.acceptanceGateIds = [...new Set([...requirement.acceptanceGateIds, 'GATE-CONTRACT-PACK'])].sort();
+      requirement.artifactIds = [...new Set([...requirement.artifactIds, errorRuntimeArtifact.artifactId, errorTestArtifact.artifactId])].sort();
+      requirement.status = 'ACTIVE';
+      appendTrace(errorRuntimeArtifact, requirementId, `${errorRuntimePath}:${errorRuntimeLineIndex + 1}`, errorRecord.errorCodeId, errorRuntimeLines[errorRuntimeLineIndex]);
+      appendTrace(errorTestArtifact, requirementId, `${errorTestPath}:${errorTestLineIndex + 1}`, `ERROR-${errorRecord.code}`, errorTestLines[errorTestLineIndex]);
+      errorRuntimeArtifact.registryRecordIds.push(errorRecord.errorCodeId);
+      errorTestArtifact.registryRecordIds.push(errorRecord.errorCodeId);
+      errorTestArtifact.testIds.push(`ERROR-${errorRecord.code}`);
+    }
+  }
   const runtimeMatrixArtifact = traceArtifact(runtimeMatrixSourcePath);
   const runtimeTestArtifact = traceArtifact(runtimeTestPath);
   const runtimeMatrixLines = (await readFile(join(root, runtimeMatrixSourcePath), 'utf8')).split('\n');
@@ -897,12 +1091,12 @@ async function main() {
     requirement.runtimeEvidenceKinds=['POSTGRES_PLATFORM_RECOVERY_HEAD_PROOF'];requirement.artifactIds=[sourceArtifact.artifactId,integrationArtifact.artifactId].sort();requirement.status='ACTIVE';
   }
   const runtimeBoundaryEvidence = [
-    { requirementId: 'KCML-REQ-RUNTIME-444fd05998029935c6d719e0e6dd5a757ee9ca6781ea0db77eed9ede2d7106f1', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'clone_arguments.flags =', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
-    { requirementId: 'KCML-REQ-POSTGRES-3e1e2ca6aeac79dd1abde323ff75757ef93d6e481c6402602085a209c5b81fe5', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'static int open_release_file', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
-    { requirementId: 'KCML-REQ-RUNTIME-6298de933c910d5b02240bb21d710869ea548a611d97114438898fe282497fdd', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'RESOLVE_BENEATH | RESOLVE_NO_MAGICLINKS | RESOLVE_NO_XDEV', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
+    { requirementId: 'KCML-REQ-RUNTIME-444fd05998029935c6d719e0e6dd5a757ee9ca6781ea0db77eed9ede2d7106f1', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'CLONE_NEWUSER', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
+    { requirementId: 'KCML-REQ-POSTGRES-3e1e2ca6aeac79dd1abde323ff75757ef93d6e481c6402602085a209c5b81fe5', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'executable_fd=open(executable', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
+    { requirementId: 'KCML-REQ-RUNTIME-6298de933c910d5b02240bb21d710869ea548a611d97114438898fe282497fdd', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'SYS_openat', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
     { requirementId: 'KCML-REQ-RUNTIME-2e05853970fa83ad9006d03338413a61660f196ba1e79dd1a20c6181898d3f90', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'static void install_seccomp_allowlist', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('has explicit seccomp deny and allow entries" },
-    { requirementId: 'KCML-REQ-CORE-4281633d14a90bb6c2a2bace795a3a394fccb462cf2a8319f33924bd8d71b0e2', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'close_range(5, UINT_MAX, CLOSE_RANGE_UNSHARE)', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
-    { requirementId: 'KCML-REQ-RUNTIME-321b40ee21af05286246bd355e173646751caf68855f0d516cbce8d3258c562d', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'if (clearenv() != 0)', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('bootstraps only Node 24 with exact environment and handler path" },
+    { requirementId: 'KCML-REQ-CORE-4281633d14a90bb6c2a2bace795a3a394fccb462cf2a8319f33924bd8d71b0e2', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'SYS_close_range', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('contains the native namespace, FD and mount linearization" },
+    { requirementId: 'KCML-REQ-RUNTIME-321b40ee21af05286246bd355e173646751caf68855f0d516cbce8d3258c562d', sourcePath: 'deploy/runtime/kcml-sandbox-launcher.c', sourceMarker: 'clearenv();', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('bootstraps only Node 24 with exact environment and handler path" },
     { requirementId: 'KCML-REQ-CORE-b4212bcad7e9f02d49a5e263b68eac4e7dc21cf1c0826c9b3ba868b88d948979', sourcePath: 'deploy/runtime/kcml-fd-cloexec-addon.c', sourceMarker: 'fcntl(3, F_SETFD, FD_CLOEXEC)', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('bootstraps only Node 24 with exact environment and handler path" },
     { requirementId: 'KCML-REQ-RUNTIME-9b9b39e3819dbe737df54e9ee052d0af1ab56d7c3320e03dc0cee777262d7a60', sourcePath: 'deploy/runtime/kcml-node-bootstrap.mjs', sourceMarker: 'async function main()', testPath: 'tests/runtime-boundary/sandbox-contract.test.ts', testMarker: "it('bootstraps only Node 24 with exact environment and handler path" },
     { requirementId: 'KCML-REQ-RUNTIME-2e05853970fa83ad9006d03338413a61660f196ba1e79dd1a20c6181898d3f90', sourcePath: 'deploy/runtime/kcml-sandbox-probe.c', sourceMarker: 'socket(AF_UNIX, SOCK_STREAM, 0)', testPath: 'tests/runtime-boundary/native-sandbox.sh', testMarker: 'SANDBOX_DENY_SOCKET_PASS' },
