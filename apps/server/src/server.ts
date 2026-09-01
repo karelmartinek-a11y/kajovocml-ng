@@ -7,7 +7,7 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import { createDatabasePool, verifyDatabaseContract, type DatabasePool } from '@kcml/database';
-import { CanonicalOperationService, DomainError, EnvelopeCipher, OperationCatalogService, OwnerAuthenticationService, SecretManager, SsotSurfaceService, SystemChatService, tokenDigest, type SessionPrincipal } from '@kcml/domain';
+import { CanonicalOperationService, DomainError, EnvelopeCipher, OperationCatalogService, OwnerAuthenticationService, SecretManager, SsotSurfaceService, SystemChatService, closureReportForRoot, loadClosureRecords, tokenDigest, type SessionPrincipal } from '@kcml/domain';
 import { MetricsRegistry, StructuredLogger, correlationId } from '@kcml/observability';
 import { DatabaseOpenAISecretProvider, ResponsesRuntime } from '@kcml/openai-runtime';
 import { compileAuthorityLineage } from '@kcml/agentic-authority';
@@ -158,7 +158,7 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
     'POST /auth/login','POST /auth/login/mfa','POST /auth/logout','POST /auth/api-key-session','GET /session','POST /session/reauthenticate',
     'GET /owner/security','POST /owner/mfa/enroll','POST /owner/mfa/verify','POST /owner/recovery-codes/rotate','GET /owner/sessions','DELETE /owner/sessions/:id','POST /owner/sessions/revoke-others','POST /owner/sessions/revoke-all',
     'GET /owner/api-key','GET /owner/api-key/value','POST /owner/api-key/rotate','GET /owner/api-key/usage',
-    'GET /system/health','GET /system/readiness','GET /system/version','GET /system/capabilities',
+    'GET /system/health','GET /system/readiness','GET /system/version','GET /system/capabilities','GET /system/closure',
     'GET /secrets','POST /secrets','GET /secrets/:id','PATCH /secrets/:id','DELETE /secrets/:id','GET /secrets/:id/value','POST /secrets/:id/versions','GET /secrets/:id/versions','POST /secrets/generate-password','POST /secrets/import','POST /secrets/export',
     'GET /audit/integrity','POST /audit/integrity/verify',
     'POST /chat/ask','POST /browser-sessions/:sessionId/preview-tickets'
@@ -226,6 +226,13 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
   });
   app.get('/api/v1/system/version', async (request) => { await authenticate(request); return { product: 'KájovoCML NG', version: '2026.8.30-8', releaseId: process.env.KCML_RELEASE_ID ?? 'development', sourceSha: process.env.KCML_SOURCE_SHA ?? null, deploymentEpoch: await deploymentEpoch(pool), ssotSurfaceFingerprint: SSOT_SURFACE_FINGERPRINT }; });
   app.get('/api/v1/system/capabilities', async (request) => { await authenticate(request); const configured = await pool.query(`SELECT stable_name,kind,active_version_id IS NOT NULL AS configured FROM kcml.secret_record WHERE deleted_at IS NULL ORDER BY stable_name`); return { apiRoutes: SSOT_ROUTES.length, databaseEntities: SSOT_ENTITY_NAMES.length, operationCatalog: catalog.operations.length, credentials: apiSafe(configured.rows) }; });
+  app.get('/api/v1/system/closure', async (request) => {
+    await authenticate(request);
+    const query = z.object({ rootKind: z.string().min(1).optional(), rootId: z.string().uuid().nullable().optional() }).strict().parse(request.query ?? {});
+    const records = await loadClosureRecords(repositoryRoot);
+    if (!query.rootKind) return { closureVersion: 1, rootKinds: records.filter((record) => record.lifecycle === 'ACTIVE').map((record) => ({ rootKind: record.rootKind, closurePredicateId: record.closurePredicateId, directQueryIds: record.directQueryIds, passExpression: record.passExpression, terminalStates: record.terminalStates })) };
+    return apiSafe(await closureReportForRoot(pool, query.rootKind, query.rootId ?? null, repositoryRoot));
+  });
 
   app.get('/api/v1/secrets', async (request) => { await authenticate(request); return secrets.list(); });
   app.post('/api/v1/secrets', async (request) => { await authenticate(request); return secrets.create(request.body, ownerId(request), randomUUID(), request.requestCorrelationId); });

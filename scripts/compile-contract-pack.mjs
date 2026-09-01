@@ -375,6 +375,51 @@ const stateMachineSpecs = [
   ['SELF_TEST_RUN', ['QUEUED', 'RUNNING', 'PASS', 'FAIL', 'CANCELLED', 'NOT_EXECUTED_ENVIRONMENTAL'], ['PASS', 'FAIL', 'CANCELLED', 'NOT_EXECUTED_ENVIRONMENTAL']]
 ];
 
+const closurePredicateNames = [
+  'terminal_state', 'children_closed', 'lease_and_fence', 'side_effects_known',
+  'pointer_and_epoch', 'bindings_exact', 'queue_outbox_inbox_closed',
+  'runtime_process_closed', 'artifacts_filesystem_closed', 'cleanup_complete',
+  'audit_evidence_valid', 'manual_review_empty'
+];
+const closureRootSpecificChildren = {
+  COMPONENT: ['NO_ACTIVE_CONTRACT_BINDING', 'NO_AUTHORITY_RUNTIME_OR_LIVE_PROCESS'],
+  BROWSER_SESSION: ['NO_ACTIVE_CONTROL_LEASE', 'NO_OPEN_BROWSER_CONTEXT_OR_PAGE', 'NO_PENDING_UPLOAD_OR_DOWNLOAD'],
+  RUNTIME_INSTANCE: ['NO_AUTHORITY_PROCESS', 'NO_OPEN_CAPABILITY_SOCKET', 'NO_ACTIVE_EXECUTION_CONTEXT'],
+  SIDE_EFFECT: ['KNOWN_TERMINAL_OUTCOME', 'NO_UNKNOWN_EXTERNAL_EFFECT', 'NO_COMPENSATION_PENDING'],
+  CLEANUP_OPERATION: ['ALL_RESOURCES_VERIFIED_ABSENT', 'NO_PENDING_CLEANUP_SIDE_EFFECT'],
+  PLATFORM_RECOVERY: ['READY_INVENTORY_STABLE', 'NO_UNCLASSIFIED_RECOVERY_ITEM'],
+  GENERATION_JOB: ['NO_PROVISIONAL_ARTIFACT', 'NO_PENDING_PHASE_OR_SUCCESSOR'],
+  AGENT_RUN: ['NO_PENDING_TOOL_OR_HANDOFF', 'NO_UNRESOLVED_CONTEXT'],
+  MCP_CALL_RUN: ['NO_PENDING_INPUT_OR_TASK', 'NO_SUBSCRIPTION_DELIVERY_GAP'],
+  MCP_TASK: ['NO_PENDING_INPUT_REQUEST'],
+  AI_MODEL_CALL: ['NO_PENDING_PROVIDER_ATTEMPT', 'NO_UNRECONCILED_OUTPUT'],
+  DEPLOYMENT_RUN: ['NO_PARTIAL_DEPLOYMENT_POINTER', 'NO_PENDING_DEPLOYMENT_STEP'],
+  ACTIVATION_SET: ['NO_PARTIAL_ACTIVATION_MEMBER', 'NO_PENDING_SWITCH'],
+  SECRET_RECORD: ['NO_ACTIVE_SECRET_BINDING', 'NO_PENDING_INVALIDATION'],
+  OPERATIONAL_ALERT: ['NO_PENDING_ALERT_DELIVERY'],
+  SELF_TEST_RUN: ['NO_PENDING_CASE_RESULT'],
+  SYSTEM_CHAT_CONVERSATION: ['NO_PENDING_CHAT_ACTION'],
+  OWNER_IDENTITY: ['NO_ACTIVE_OWNER_CHILD_OPERATION'],
+  AUDIT_HEAD: ['AUDIT_HEAD_CHAIN_COMPLETE']
+};
+
+function closureRecordFor(machine, requirementIds) {
+  const root = machine.aggregateKind;
+  const queryPrefix = `QUERY-CLOSURE-${root}`;
+  const ast = JSON.stringify({ op: 'AND', args: closurePredicateNames.map((predicate) => ({ predicate })) });
+  return {
+    closurePredicateId: `CLOSURE-${root}`, rootKind: root, terminalStates: machine.terminalStates,
+    requiredChildPredicates: closureRootSpecificChildren[root] ?? ['NO_AUTHORITY_BEARING_PENDING_CHILD'],
+    forbiddenPendingChildKinds: ['LEASE', 'SIDE_EFFECT', 'QUEUE', 'OUTBOX', 'INBOX', 'CLEANUP', 'APPROVAL', 'TASK'],
+    forbiddenProvisionalKinds: ['RUNTIME', 'IDENTITY', 'BINDING', 'POINTER', 'ARTIFACT', 'EXECUTION_CONTEXT'],
+    leaseAndFencePredicate: 'lease_and_fence', sideEffectPredicate: 'side_effects_known', pointerAndEpochPredicate: 'pointer_and_epoch',
+    runtimeProcessPredicate: 'runtime_process_closed', bindingPredicate: 'bindings_exact', queueOutboxInboxPredicate: 'queue_outbox_inbox_closed',
+    artifactFilesystemPredicate: 'artifacts_filesystem_closed', cleanupPredicate: 'cleanup_complete', auditEvidencePredicate: 'audit_evidence_valid',
+    manualReviewPredicate: 'manual_review_empty', directQueryIds: [`${queryPrefix}-DB-V1`, `${queryPrefix}-RUNTIME-V1`, `${queryPrefix}-FILESYSTEM-V1`, `${queryPrefix}-EXTERNAL-V1`],
+    passExpression: ast, failureCode: 'TERMINAL_CLOSURE_INCOMPLETE', requirementIds, authoritySourceRefs: ['ssot://55.13/55-13-closure-predicate-registry/predicate', 'ssot://54.26/54-26-direct-state-oracle-a-orphan-inventory/oracle']
+  };
+}
+
 function makeStateMachine([kind, states, terminalStates], operationRecords) {
   const operationIds = operationRecords.filter((op) => op.aggregateRoot === kind).map((op) => op.operationId);
   const transitions = [];
@@ -423,6 +468,12 @@ const commonRequired = ['recordId', 'recordKind', 'schemaVersion', 'authoritySou
 const arrayField = { type: 'array' };
 const stringField = { type: 'string' };
 const booleanField = { type: 'boolean' };
+const closurePredicateFields = new Set([
+  'leaseAndFencePredicate', 'sideEffectPredicate', 'pointerAndEpochPredicate',
+  'runtimeProcessPredicate', 'bindingPredicate', 'queueOutboxInboxPredicate',
+  'artifactFilesystemPredicate', 'cleanupPredicate', 'auditEvidencePredicate',
+  'manualReviewPredicate'
+]);
 
 const registrySchemaRequirements = {
   REQUIREMENT_REGISTRY: ['requirementId', 'shortName', 'domain', 'normativeLevel', 'authorityRoot', 'ownerIntentRelation', 'canonicalStatement', 'specializationSourceRefs', 'subjectKind', 'subjectId', 'domainModule', 'aggregateRoots', 'stateMachineIds', 'operationIds', 'apiOperationIds', 'uiSurfaceIds', 'chatCapabilityIds', 'persistenceObjectIds', 'bindingIds', 'errorCodeIds', 'testCaseIds', 'acceptanceGateIds', 'runtimeEvidenceKinds', 'artifactIds', 'closurePredicateIds', 'status'],
@@ -448,7 +499,7 @@ const registrySchemaFilenames = {
   EXPOSURE_PARITY_REGISTRY: 'exposure-parity-registry.schema.json', ARTIFACT_TRACE_REGISTRY: 'artifact-trace-registry.schema.json'
 };
 
-const schemaField = (field) => field === 'bindingKind' ? { enum: ['CONTRACT_BINDING', 'SECRET_BINDING', 'EXTERNAL_TARGET_BINDING', 'EXTERNAL_AUTH_BINDING', 'AGENT_TOOL_BINDING', 'BROWSER_ACCOUNT_BINDING', 'BROWSER_PROFILE_ASSIGNMENT', 'ACTIVATION_SET_MEMBERSHIP', 'ROUTE_BINDING'] } : field === 'bindingRevision' ? { type: 'integer', minimum: 1 } : field === 'activationEpoch' ? { type: 'integer', minimum: 0 } : field === 'secretVersionSelector' || field === 'accountOrTenantConstraint' ? { type: ['object', 'null'] } : ['targetRevisionId', 'targetOperationId', 'routeOperationId', 'externalTargetOrOrigin', 'validFrom', 'validUntil'].includes(field) ? { type: ['string', 'null'] } : field.endsWith('Ids') || field.endsWith('Refs') || field.endsWith('States') || field.endsWith('Kinds') || field.endsWith('Types') || field.endsWith('Fields') || field.endsWith('Locks') || field.endsWith('Predicates') || field.endsWith('Writes') || field.endsWith('Outcomes') || field.endsWith('Evidence') || field.endsWith('Digests') || field === 'transitions' || field === 'rules' || field === 'inputs' || field === 'dependencies' || field === 'failCodes' || field === 'httpMappings' || field === 'kcipMappings' || field === 'mcpMappings' || field === 'allowedInheritedFds' || field === 'notApplicableReasons' || field === 'requiredChildPredicates' || field === 'forbiddenPendingChildKinds' || field === 'forbiddenProvisionalKinds' || field === 'directQueryIds' || field === 'terminalOutcomes' || field === 'auditEventTypes' || field === 'outboxPurposes' || field === 'auditEvidence' ? arrayField : field === 'generationToolDigest' ? { type: ['string', 'null'] } : field === 'blocking' || field.endsWith('Predicate') || field === 'stateVersionCas' || field === 'fencingPredicate' || field === 'platformIncarnationPredicate' || field === 'applicationDeploymentEpochPredicate' || field === 'bindingActivationPredicate' || field === 'exact' || field.endsWith('Required') || field === 'refreshRequired' || field === 'reconciliationRequired' || field === 'manualReviewRequired' || field === 'sameLogicalOperationRequired' ? booleanField : field === 'operationRevision' || field === 'evaluatorVersion' ? { type: 'integer' } : stringField;
+const schemaField = (field) => field === 'bindingKind' ? { enum: ['CONTRACT_BINDING', 'SECRET_BINDING', 'EXTERNAL_TARGET_BINDING', 'EXTERNAL_AUTH_BINDING', 'AGENT_TOOL_BINDING', 'BROWSER_ACCOUNT_BINDING', 'BROWSER_PROFILE_ASSIGNMENT', 'ACTIVATION_SET_MEMBERSHIP', 'ROUTE_BINDING'] } : field === 'bindingRevision' ? { type: 'integer', minimum: 1 } : field === 'activationEpoch' ? { type: 'integer', minimum: 0 } : field === 'secretVersionSelector' || field === 'accountOrTenantConstraint' ? { type: ['object', 'null'] } : ['targetRevisionId', 'targetOperationId', 'routeOperationId', 'externalTargetOrOrigin', 'validFrom', 'validUntil'].includes(field) ? { type: ['string', 'null'] } : closurePredicateFields.has(field) ? stringField : field.endsWith('Ids') || field.endsWith('Refs') || field.endsWith('States') || field.endsWith('Kinds') || field.endsWith('Types') || field.endsWith('Fields') || field.endsWith('Locks') || field.endsWith('Predicates') || field.endsWith('Writes') || field.endsWith('Outcomes') || field.endsWith('Evidence') || field.endsWith('Digests') || field === 'transitions' || field === 'rules' || field === 'inputs' || field === 'dependencies' || field === 'failCodes' || field === 'httpMappings' || field === 'kcipMappings' || field === 'mcpMappings' || field === 'allowedInheritedFds' || field === 'notApplicableReasons' || field === 'requiredChildPredicates' || field === 'forbiddenPendingChildKinds' || field === 'forbiddenProvisionalKinds' || field === 'directQueryIds' || field === 'terminalOutcomes' || field === 'auditEventTypes' || field === 'outboxPurposes' || field === 'auditEvidence' ? arrayField : field === 'generationToolDigest' ? { type: ['string', 'null'] } : field === 'blocking' || field.endsWith('Predicate') || field === 'stateVersionCas' || field === 'fencingPredicate' || field === 'platformIncarnationPredicate' || field === 'applicationDeploymentEpochPredicate' || field === 'bindingActivationPredicate' || field === 'exact' || field.endsWith('Required') || field === 'refreshRequired' || field === 'reconciliationRequired' || field === 'manualReviewRequired' || field === 'sameLogicalOperationRequired' ? booleanField : field === 'operationRevision' || field === 'evaluatorVersion' ? { type: 'integer' } : stringField;
 
 function makeRegistrySchema(kind) {
   const properties = { ...commonRecordProperties, recordKind: { const: kind } };
@@ -657,14 +708,8 @@ async function main() {
     requiredEvidence: ['MACHINE_RESULT'], dependencies: [], passPredicate: 'ALL_OBLIGATIONS_PASS', failCodes: ['GATE_FAILED'], notApplicablePredicate: 'FALSE',
     resultSchemaRef: 'contracts/registry-schemas/common-record.schema.json', requirementIds: [], authoritySourceRefs: ['ssot://55/architecture-readiness-gate-registry/gate'], canonicalDigest: sha(canonical({ gateId }))
   }));
-  const closure = stateMachines.map((machine) => ({
-    closurePredicateId: `CLOSURE-${machine.aggregateKind}`, rootKind: machine.aggregateKind, terminalStates: machine.terminalStates,
-    requiredChildPredicates: ['NO_AUTHORITY_BEARING_PENDING_CHILD'], forbiddenPendingChildKinds: ['LEASE', 'SIDE_EFFECT', 'QUEUE', 'CLEANUP'], forbiddenProvisionalKinds: ['RUNTIME', 'IDENTITY', 'BINDING', 'POINTER'],
-    leaseAndFencePredicate: 'NO_ACTIVE_OR_STALE_LEASE', sideEffectPredicate: 'ALL_KNOWN_TERMINAL', pointerAndEpochPredicate: 'NO_MIXED_EPOCH', runtimeProcessPredicate: 'NO_AUTHORITY_PROCESS',
-    bindingPredicate: 'CURRENT_EXACT', queueOutboxInboxPredicate: 'NO_MANDATORY_GAP', artifactFilesystemPredicate: 'ALL_REFERENCES_MATCH_DIGEST', cleanupPredicate: 'COMPLETE',
-    auditEvidencePredicate: 'CHAIN_VALID', manualReviewPredicate: 'NONE', directQueryIds: [`QUERY-CLOSURE-${machine.aggregateKind}`], passExpression: 'AND_ALL_PREDICATES',
-    failureCode: 'TERMINAL_CLOSURE_INCOMPLETE', requirementIds: [], authoritySourceRefs: ['ssot://55/closure-predicate-registry/predicate'], canonicalDigest: sha(canonical({ kind: machine.aggregateKind, terminal: machine.terminalStates }))
-  }));
+  const closureRequirementIds = stableSort(requirements.filter((requirement) => requirement.authoritySourceRefs.some((sourceRef) => /^(?:ssot:\/\/(?:48\.38|49\.34|51\.26|54\.26|55\.13)\/)/u.test(sourceRef))).map((requirement) => requirement.requirementId));
+  const closure = stateMachines.map((machine) => closureRecordFor(machine, closureRequirementIds));
   const exposure = operations.map((operation) => ({
     operationId: operation.operationId, exposureClass: operation.exposureClass, apiOperationIds: operation.apiOperationIds,
     uiSurfaceIds: [`UI-${surfaceFor(operation.operationName)}`], uiActionIds: operation.uiActionIds, chatCapabilityIds: operation.chatCapabilityIds,
@@ -837,6 +882,32 @@ async function main() {
     requirement.runtimeEvidenceKinds = evidence.runtimeEvidenceKinds ?? ['EXACT_OPERATION_HANDLER', 'POSTGRES_CANONICAL_COMMAND_INTEGRATION', 'TERMINAL_IDEMPOTENCY_REPLAY'];
     requirement.status = 'ACTIVE';
   }
+
+  const closureSourcePath = 'packages/domain/src/closure-predicates.ts';
+  const closureTestPath = 'tests/closure/terminal-closure.test.ts';
+  const closureSourceArtifact = traceArtifact(closureSourcePath);
+  const closureTestArtifact = traceArtifact(closureTestPath);
+  const closureSourceLines = (await readFile(join(root, closureSourcePath), 'utf8')).split('\n');
+  const closureTestLines = (await readFile(join(root, closureTestPath), 'utf8')).split('\n');
+  const closureSourceLineIndex = closureSourceLines.findIndex((line) => line.includes('export async function evaluateClosure'));
+  const closureTestLineIndex = closureTestLines.findIndex((line) => line.includes("describe('TD-06 terminal closure direct-state oracle'"));
+  if (closureSourceLineIndex < 0 || closureTestLineIndex < 0) throw new Error('CLOSURE_PREDICATE_EVIDENCE_ANCHOR_MISSING');
+  const closureEvidenceRequirementIds = stableSort([...new Set(closure.flatMap((record) => record.requirementIds))]);
+  for (const requirementId of closureEvidenceRequirementIds) {
+    const requirement = requirementMap.get(requirementId);
+    if (!requirement) throw new Error(`CLOSURE_PREDICATE_REQUIREMENT_LOOKUP_FAILED:${requirementId}`);
+    appendTrace(closureSourceArtifact, requirementId, `${closureSourcePath}:${closureSourceLineIndex + 1}`, 'evaluateClosure', closureSourceLines[closureSourceLineIndex]);
+    appendTrace(closureTestArtifact, requirementId, `${closureTestPath}:${closureTestLineIndex + 1}`, 'TD-06 terminal closure direct-state oracle', closureTestLines[closureTestLineIndex]);
+    requirement.domainModule = 'packages/domain';
+    requirement.closurePredicateIds = stableSort([...new Set([...requirement.closurePredicateIds, ...closure.map((record) => record.closurePredicateId)])]);
+    requirement.testCaseIds = stableSort([...new Set([...requirement.testCaseIds, 'TEST-TD06-TERMINAL-CLOSURE-DIRECT-STATE'])]);
+    requirement.runtimeEvidenceKinds = stableSort([...new Set([...requirement.runtimeEvidenceKinds, 'POSTGRES_SERIALIZABLE_READ_ONLY_DEFERRABLE', 'RUNTIME_PROCESS_CGROUP_SOCKET_INVENTORY', 'FILESYSTEM_ARTIFACT_INVENTORY', 'EXTERNAL_READ_BACK'])]);
+    requirement.artifactIds = stableSort([...new Set([...requirement.artifactIds, closureSourceArtifact.artifactId, closureTestArtifact.artifactId])]);
+    requirement.acceptanceGateIds = stableSort([...new Set([...requirement.acceptanceGateIds, 'ARCH_CLOSURE_PREDICATES_COMPLETE', 'GATE-CONTRACT-PACK'])]);
+    requirement.status = 'ACTIVE';
+  }
+  closureSourceArtifact.registryRecordIds.push(...closure.map((record) => record.closurePredicateId));
+  closureTestArtifact.testIds.push('TEST-TD06-TERMINAL-CLOSURE-DIRECT-STATE');
 
   // Only literal Chapter-25 field declarations are linked here. Prose about
   // lifecycle, transitions, value constraints or transaction behavior is not
