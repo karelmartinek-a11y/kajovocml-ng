@@ -227,7 +227,8 @@ export async function runPostgresRealTrace(seed: number, migrate = true, service
         if (command.label === 'DUPLICATE' && (!response.metadata.idempotencyReplay || response.status !== 'SUCCEEDED')) throw new Error('MODEL_SUT_DUPLICATE_OUTCOME_INVALID');
         if (command.label === 'CONFLICT') throw new Error('MODEL_SUT_CONFLICT_ACCEPTED');
       } catch (error) {
-        if (command.label !== 'CONFLICT' || !(error instanceof Error) || !error.message.includes('IDEMPOTENCY_CONFLICT')) throw error;
+        const errorCode = error && typeof error === 'object' && 'code' in error ? String(error.code) : '';
+        if (command.label !== 'CONFLICT' || errorCode !== 'IDEMPOTENCY_CONFLICT') throw error;
       }
       if (command.label === 'VALID') {
         if (!await worker.runOnce()) throw new Error('MODEL_SUT_WORKER_DID_NOT_EXECUTE');
