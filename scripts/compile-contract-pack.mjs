@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFile, readdir, mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runInNewContext } from 'node:vm';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ssotPath = join(root, 'SSOT_CURRENT.md');
@@ -433,7 +434,7 @@ const registrySchemaRequirements = {
   BINDING_REGISTRY: ['bindingId', 'bindingKind', 'bindingRevision', 'bindingDigest', 'sourceObjectId', 'sourceRevisionId', 'targetObjectId', 'targetRevisionId', 'targetOperationOrRoute', 'contractSchemaDigest', 'secretVersionSelector', 'externalTargetOrOrigin', 'accountOrTenantConstraint', 'purpose', 'lifecycle', 'bindingSetRevision', 'activationSetId', 'activationEpoch', 'validFrom', 'validUntil', 'canonicalWriterId', 'targetOperationId', 'routeOperationId', 'contractDigest', 'exact'],
   AUTHORITY_OWNERSHIP_REGISTRY: ['authorityObjectKind', 'canonicalWriterId', 'ownerModule', 'ownerServiceOrWorker', 'stateMachineId', 'allowedOperationIds', 'authoritativePersistence', 'acceptedEvidenceProducers', 'prohibitedDirectWriters', 'projectionConsumers', 'closurePredicateId'],
   ERROR_RETRY_REGISTRY: ['errorCodeId', 'code', 'namespace', 'classification', 'canonicalMeaning', 'sideEffectPoint', 'terminalityRule', 'recoveryRuleKind', 'fixedRetryDirective', 'recoveryDecisionTableId', 'sameLogicalOperationRequired', 'refreshRequired', 'reconciliationRequired', 'manualReviewRequired', 'requiredSnapshotFields', 'affectedObjectKinds', 'httpMappings', 'kcipMappings', 'mcpMappings', 'uiMessageKey', 'canonicalOwnerActions', 'auditEvidenceKinds', 'testCaseIds'],
-  FAULT_CATALOG: ['faultPointId', 'operationId', 'phase', 'faultKinds', 'expectedOutcome', 'testCaseIds'],
+  FAULT_CATALOG: ['faultPointId', 'faultPointName', 'operationId', 'stateMachineId', 'phase', 'side', 'sourceLocation', 'possibleEffectClass', 'applicableFaultKinds', 'expectedRecoveryOracleId', 'expectedCanonicalOutcomeClasses', 'requiredDirectStateQueries', 'requiredCleanupChecks', 'testCaseIds', 'coverageStatus'],
   RECOVERY_ORACLE_REGISTRY: ['recoveryOracleId', 'subjectId', 'observedAuthoritativeStateSchema', 'requiredEvidence', 'forbiddenEvidenceAssumptions', 'rules', 'defaultOutcome', 'manualReviewSchemaRef', 'conflictingOperationBlockKeys', 'closurePredicateId', 'testCaseIds'],
   CLOSURE_PREDICATE_REGISTRY: ['closurePredicateId', 'rootKind', 'terminalStates', 'requiredChildPredicates', 'forbiddenPendingChildKinds', 'forbiddenProvisionalKinds', 'leaseAndFencePredicate', 'sideEffectPredicate', 'pointerAndEpochPredicate', 'runtimeProcessPredicate', 'bindingPredicate', 'queueOutboxInboxPredicate', 'artifactFilesystemPredicate', 'cleanupPredicate', 'auditEvidencePredicate', 'manualReviewPredicate', 'directQueryIds', 'passExpression', 'failureCode'],
   ACCEPTANCE_GATE_REGISTRY: ['gateId', 'gateKind', 'blocking', 'subjectScope', 'inputs', 'inputDigests', 'evaluatorId', 'evaluatorVersion', 'evaluatorDigest', 'environmentProfile', 'requiredEvidence', 'dependencies', 'passPredicate', 'failCodes', 'notApplicablePredicate', 'resultSchemaRef'],
@@ -448,7 +449,7 @@ const registrySchemaFilenames = {
   EXPOSURE_PARITY_REGISTRY: 'exposure-parity-registry.schema.json', ARTIFACT_TRACE_REGISTRY: 'artifact-trace-registry.schema.json'
 };
 
-const schemaField = (field) => field === 'bindingKind' ? { enum: ['CONTRACT_BINDING', 'SECRET_BINDING', 'EXTERNAL_TARGET_BINDING', 'EXTERNAL_AUTH_BINDING', 'AGENT_TOOL_BINDING', 'BROWSER_ACCOUNT_BINDING', 'BROWSER_PROFILE_ASSIGNMENT', 'ACTIVATION_SET_MEMBERSHIP', 'ROUTE_BINDING'] } : field === 'bindingRevision' ? { type: 'integer', minimum: 1 } : field === 'activationEpoch' ? { type: 'integer', minimum: 0 } : field === 'secretVersionSelector' || field === 'accountOrTenantConstraint' ? { type: ['object', 'null'] } : ['targetRevisionId', 'targetOperationId', 'routeOperationId', 'externalTargetOrOrigin', 'validFrom', 'validUntil'].includes(field) ? { type: ['string', 'null'] } : field.endsWith('Ids') || field.endsWith('Refs') || field.endsWith('States') || field.endsWith('Kinds') || field.endsWith('Types') || field.endsWith('Fields') || field.endsWith('Locks') || field.endsWith('Predicates') || field.endsWith('Writes') || field.endsWith('Outcomes') || field.endsWith('Evidence') || field.endsWith('Digests') || field === 'transitions' || field === 'rules' || field === 'inputs' || field === 'dependencies' || field === 'failCodes' || field === 'httpMappings' || field === 'kcipMappings' || field === 'mcpMappings' || field === 'allowedInheritedFds' || field === 'notApplicableReasons' || field === 'requiredChildPredicates' || field === 'forbiddenPendingChildKinds' || field === 'forbiddenProvisionalKinds' || field === 'directQueryIds' || field === 'terminalOutcomes' || field === 'auditEventTypes' || field === 'outboxPurposes' || field === 'auditEvidence' ? arrayField : field === 'generationToolDigest' ? { type: ['string', 'null'] } : field === 'blocking' || field.endsWith('Predicate') || field === 'stateVersionCas' || field === 'fencingPredicate' || field === 'platformIncarnationPredicate' || field === 'applicationDeploymentEpochPredicate' || field === 'bindingActivationPredicate' || field === 'exact' || field.endsWith('Required') || field === 'refreshRequired' || field === 'reconciliationRequired' || field === 'manualReviewRequired' || field === 'sameLogicalOperationRequired' ? booleanField : field === 'operationRevision' || field === 'evaluatorVersion' ? { type: 'integer' } : stringField;
+const schemaField = (field) => field === 'bindingKind' ? { enum: ['CONTRACT_BINDING', 'SECRET_BINDING', 'EXTERNAL_TARGET_BINDING', 'EXTERNAL_AUTH_BINDING', 'AGENT_TOOL_BINDING', 'BROWSER_ACCOUNT_BINDING', 'BROWSER_PROFILE_ASSIGNMENT', 'ACTIVATION_SET_MEMBERSHIP', 'ROUTE_BINDING'] } : field === 'bindingRevision' ? { type: 'integer', minimum: 1 } : field === 'activationEpoch' ? { type: 'integer', minimum: 0 } : field === 'sourceLocation' ? { type: 'object', required: ['repositoryPath', 'symbol', 'marker', 'line', 'symbolDigest'], properties: { repositoryPath: stringField, symbol: stringField, marker: stringField, line: { type: 'integer', minimum: 1 }, symbolDigest: { type: 'string', pattern: '^sha256:[0-9a-f]{64}$' } }, additionalProperties: false } : field === 'secretVersionSelector' || field === 'accountOrTenantConstraint' ? { type: ['object', 'null'] } : ['targetRevisionId', 'targetOperationId', 'routeOperationId', 'externalTargetOrOrigin', 'validFrom', 'validUntil'].includes(field) ? { type: ['string', 'null'] } : field.endsWith('Ids') || field.endsWith('Refs') || field.endsWith('States') || field.endsWith('Kinds') || field.endsWith('Types') || field.endsWith('Fields') || field.endsWith('Locks') || field.endsWith('Predicates') || field.endsWith('Writes') || field.endsWith('Outcomes') || field.endsWith('Evidence') || field.endsWith('Digests') || field === 'transitions' || field === 'rules' || field === 'inputs' || field === 'dependencies' || field === 'failCodes' || field === 'httpMappings' || field === 'kcipMappings' || field === 'mcpMappings' || field === 'allowedInheritedFds' || field === 'notApplicableReasons' || field === 'requiredChildPredicates' || field === 'forbiddenPendingChildKinds' || field === 'forbiddenProvisionalKinds' || field === 'directQueryIds' || field === 'terminalOutcomes' || field === 'auditEventTypes' || field === 'outboxPurposes' || field === 'auditEvidence' || field === 'expectedCanonicalOutcomeClasses' ? arrayField : field === 'generationToolDigest' ? { type: ['string', 'null'] } : field === 'blocking' || field.endsWith('Predicate') || field === 'stateVersionCas' || field === 'fencingPredicate' || field === 'platformIncarnationPredicate' || field === 'applicationDeploymentEpochPredicate' || field === 'bindingActivationPredicate' || field === 'exact' || field.endsWith('Required') || field === 'refreshRequired' || field === 'reconciliationRequired' || field === 'manualReviewRequired' || field === 'sameLogicalOperationRequired' ? booleanField : field === 'operationRevision' || field === 'evaluatorVersion' ? { type: 'integer' } : stringField;
 
 function makeRegistrySchema(kind) {
   const properties = { ...commonRecordProperties, recordKind: { const: kind } };
@@ -478,9 +479,40 @@ async function collectArtifacts(directory = root) {
     if (ignored.has(entry.name) || entry.name.startsWith('._')) continue;
     const path = join(directory, entry.name);
     if (entry.isDirectory()) output.push(...await collectArtifacts(path));
-    else if (entry.isFile() && !path.includes('/contracts/registries/') && !path.includes('/contracts/registry-schemas/')) output.push(path);
+    else if (entry.isFile() && !path.includes('/contracts/registries/') && !path.includes('/contracts/registry-schemas/') && relative(root, path) !== 'contracts/testing/fault-catalog/catalog.json') output.push(path);
   }
   return output;
+}
+
+async function loadFaultPointDeclarations(operations) {
+  const declarationPath = 'packages/domain/src/fault-declarations.ts';
+  const source = await readFile(join(root, declarationPath), 'utf8');
+  const match = source.match(/export const faultPointDeclarations = (\[[\s\S]*?\]) as const satisfies readonly FaultPointDeclaration\[\];/u);
+  if (!match) throw new Error('FAULT_DECLARATIONS_SOURCE_NOT_EXPLICIT_JSON');
+  let declarations;
+  try { declarations = runInNewContext(`(${match[1]})`, Object.create(null), { timeout: 1000 }); } catch (error) { throw new Error(`FAULT_DECLARATIONS_SOURCE_INVALID:${error instanceof Error ? error.message : String(error)}`); }
+  if (!Array.isArray(declarations) || declarations.length === 0) throw new Error('FAULT_DECLARATIONS_EMPTY');
+  const ids = new Set();
+  const names = new Set();
+  const records = [];
+  for (const declaration of declarations) {
+    if (!declaration || typeof declaration !== 'object') throw new Error('FAULT_DECLARATION_INVALID');
+    if (ids.has(declaration.faultPointId)) throw new Error(`FAULT_POINT_DUPLICATE:${declaration.faultPointId}`);
+    if (names.has(declaration.faultPointName)) throw new Error(`FAULT_POINT_NAME_DUPLICATE:${declaration.faultPointName}`);
+    ids.add(declaration.faultPointId); names.add(declaration.faultPointName);
+    if (!/^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9.-]*)+\.(before|after)$/u.test(declaration.faultPointName)) throw new Error(`FAULT_POINT_NAME_INVALID:${declaration.faultPointName}`);
+    if (!declaration.sourceLocation || typeof declaration.sourceLocation !== 'object') throw new Error(`FAULT_SOURCE_LOCATION_MISSING:${declaration.faultPointId}`);
+    const operation = operations.find((candidate) => candidate.operationName === declaration.operationName);
+    if (!operation) throw new Error(`FAULT_OPERATION_MISSING:${declaration.faultPointId}:${declaration.operationName}`);
+    const sourcePath = declaration.sourceLocation.repositoryPath;
+    const sourceBytes = await readFile(join(root, sourcePath), 'utf8');
+    const lines = sourceBytes.split('\n');
+    const line = lines.findIndex((candidate) => candidate.includes(declaration.sourceLocation.marker));
+    if (line < 0) throw new Error(`FAULT_SOURCE_MARKER_MISSING:${declaration.faultPointId}:${declaration.sourceLocation.marker}`);
+    const sourceLocation = { ...declaration.sourceLocation, line: line + 1, symbolDigest: sha(lines[line]) };
+    records.push({ ...declaration, sourceLocation, operationId: operation.operationId, stateMachineId: declaration.stateMachineId, requirementIds: stableSort([...new Set([...(operation.requirementIds ?? []), ...(declaration.requirementIds ?? [])])]), authoritySourceRefs: stableSort(declaration.authoritySourceRefs) });
+  }
+  return records.sort((left, right) => stableCompare(left.faultPointId, right.faultPointId));
 }
 
 function registryRecordId(kind, record) {
@@ -561,6 +593,9 @@ async function main() {
     }
     return operation;
   });
+  const faultPoints = await loadFaultPointDeclarations(operations);
+  const generatedFaultTestCatalog = { schemaVersion: '1.0', generatedFrom: 'packages/domain/src/fault-declarations.ts', generationToolDigest: compilerDigest, faultPoints: faultPoints.map(({ operationName: _operationName, ...point }) => ({ ...point, expectedOutcome: point.expectedCanonicalOutcomeClasses.join('|') })) };
+  const generatedFaultTestCatalogBytes = `${canonical(generatedFaultTestCatalog)}\n`;
   const stateMachines = stateMachineSpecs.map((spec) => makeStateMachine(spec, operations));
   const postgres = operations.filter((operation) => operation.transactionProfileId !== 'CONSISTENT_READ').map((operation) => ({
     postgresContractId: `PG-${operation.operationId}`, operationId: operation.operationId, transactionProfileId: operation.transactionProfileId,
@@ -699,6 +734,19 @@ async function main() {
     // include the repository path so identical project configuration files do
     // not collapse into duplicate registry records.
     addArtifact(repositoryPath, bytes);
+  }
+  addArtifact('contracts/testing/fault-catalog/catalog.json', generatedFaultTestCatalogBytes, { artifactKind: 'GENERATED_FAULT_CATALOG', generatedFrom: ['packages/domain/src/fault-declarations.ts'], generationToolDigest: compilerDigest, authoritySourceRefs: ['ssot://55.11/fault-catalog'] });
+  const faultCatalogArtifact = artifacts.at(-1);
+  const faultRequirementIds = stableSort([...new Set(faultPoints.flatMap((point) => point.requirementIds))]);
+  if (!faultCatalogArtifact) throw new Error('FAULT_CATALOG_ARTIFACT_MISSING');
+  faultCatalogArtifact.requirementIds = faultRequirementIds;
+  faultCatalogArtifact.operationIds = stableSort([...new Set(faultPoints.map((point) => point.operationId))]);
+  faultCatalogArtifact.registryRecordIds = faultPoints.map((point) => point.faultPointId).sort();
+  faultCatalogArtifact.testIds = stableSort([...new Set(faultPoints.flatMap((point) => point.testCaseIds))]);
+  for (const requirementId of faultRequirementIds) {
+    const requirement = requirementMap.get(requirementId);
+    if (!requirement) throw new Error(`FAULT_REQUIREMENT_MISSING:${requirementId}`);
+    requirement.artifactIds = stableSort([...new Set([...(requirement.artifactIds ?? []), faultCatalogArtifact.artifactId])]);
   }
   const artifactByPath = new Map(artifacts.map((artifact) => [artifact.repositoryPath, artifact]));
   const touchedTraceArtifacts = new Set();
@@ -1052,6 +1100,13 @@ async function main() {
   if (!runtimeVerificationOperation || !runtimeSeccompRequirement) throw new Error('RUNTIME_BOUNDARY_OPERATION_TRACE_TARGET_MISSING');
   runtimeVerificationOperation.requirementIds = [...new Set([...runtimeVerificationOperation.requirementIds, runtimeSeccompRequirement.requirementId])].sort();
   runtimeSeccompRequirement.operationIds = [...new Set([...runtimeSeccompRequirement.operationIds, runtimeVerificationOperation.operationId])].sort();
+  // Operation-specific evidence above may replace an artifact list. Re-apply
+  // the generated catalog's reverse edges after all specialized trace passes.
+  for (const requirementId of faultCatalogArtifact.requirementIds) {
+    const requirement = requirementMap.get(requirementId);
+    if (!requirement) throw new Error(`FAULT_REQUIREMENT_MISSING:${requirementId}`);
+    requirement.artifactIds = stableSort([...new Set([...(requirement.artifactIds ?? []), faultCatalogArtifact.artifactId])]);
+  }
   for (const artifact of touchedTraceArtifacts) {
     artifact.requirementIds = stableSort([...new Set(artifact.requirementIds)]);
     artifact.operationIds = stableSort([...new Set(artifact.operationIds)]);
@@ -1079,8 +1134,11 @@ async function main() {
     ['BINDING_REGISTRY', 'bindings/bindings.json', [...operations.map((operation) => makeBindingRecord(operation, bindingKindForOperation(operation), [])), ...makeBindingKindCoverageRecords()]],
     ['AUTHORITY_OWNERSHIP_REGISTRY', 'authority/authority-ownership.json', authorities],
     ['ERROR_RETRY_REGISTRY', 'errors/errors.json', errorRecords],
-    ['FAULT_CATALOG', 'faults/faults.json', operations.map((operation) => ({ faultPointId: `FAULT-${operation.operationId}`, operationId: operation.operationId, phase: 'PRE_AND_POST_SIDE_EFFECT', faultKinds: ['PROCESS_KILL','TIMEOUT','DUPLICATE','STALE_FENCE','DATABASE_RESTART'], expectedOutcome: 'RECOVERY_ORACLE', testCaseIds: [`FAULT-TEST-${operation.operationId}`], authoritySourceRefs: ['ssot://54/fault-catalog/fault-point'], requirementIds: operation.requirementIds, canonicalDigest: sha(canonical({ operationId: operation.operationId, phase: 'PRE_AND_POST_SIDE_EFFECT' })) }))],
-    ['RECOVERY_ORACLE_REGISTRY', 'recovery-oracles/recovery-oracles.json', [{ recoveryOracleId: 'ORACLE-SIDE-EFFECT', subjectId: 'SIDE_EFFECT', observedAuthoritativeStateSchema: 'SIDE_EFFECT_EVIDENCE', requiredEvidence: ['INTENT', 'DISPATCH', 'READ_BACK'], forbiddenEvidenceAssumptions: ['PROCESS_MEMORY', 'MISSING_LOG'], rules: [{ when: 'INTENT=false', outcome: 'CONFIRMED_NOT_APPLIED' }, { when: 'INTENT=true AND DISPATCH=false', outcome: 'CONFIRMED_NOT_APPLIED' }, { when: 'DISPATCH=true AND READ_BACK=true', outcome: 'CONFIRMED_APPLIED' }, { when: 'DISPATCH=true AND READ_BACK=false', outcome: 'MANUAL_REVIEW' }], defaultOutcome: 'MANUAL_REVIEW', manualReviewSchemaRef: 'contracts/registry-schemas/operation-command.schema.json', conflictingOperationBlockKeys: ['RESOURCE'], closurePredicateId: 'CLOSURE-SIDE_EFFECT', testCaseIds: ['TEST-RECOVERY-ORACLE'], requirementIds: [], authoritySourceRefs: ['ssot://54/recovery-oracle/oracle'], canonicalDigest: sha('ORACLE-SIDE_EFFECT_WITH_RULES') }]],
+    ['FAULT_CATALOG', 'faults/faults.json', faultPoints.map(({ operationName: _operationName, ...point }) => ({ ...point, expectedOutcome: point.expectedCanonicalOutcomeClasses.join('|') }))],
+    ['RECOVERY_ORACLE_REGISTRY', 'recovery-oracles/recovery-oracles.json', [
+      { recoveryOracleId: 'ORACLE-SIDE-EFFECT', subjectId: 'SIDE_EFFECT', observedAuthoritativeStateSchema: 'SIDE_EFFECT_EVIDENCE', requiredEvidence: ['INTENT', 'DISPATCH', 'READ_BACK'], forbiddenEvidenceAssumptions: ['PROCESS_MEMORY', 'MISSING_LOG'], rules: [{ when: 'INTENT=false', outcome: 'CONFIRMED_NOT_APPLIED' }, { when: 'INTENT=true AND DISPATCH=false', outcome: 'CONFIRMED_NOT_APPLIED' }, { when: 'DISPATCH=true AND READ_BACK=true', outcome: 'CONFIRMED_APPLIED' }, { when: 'DISPATCH=true AND READ_BACK=false', outcome: 'MANUAL_REVIEW' }], defaultOutcome: 'MANUAL_REVIEW', manualReviewSchemaRef: 'contracts/registry-schemas/operation-command.schema.json', conflictingOperationBlockKeys: ['RESOURCE'], closurePredicateId: 'CLOSURE-SIDE_EFFECT', testCaseIds: ['TEST-RECOVERY-ORACLE'], requirementIds: [], authoritySourceRefs: ['ssot://54/recovery-oracle/oracle'] },
+      ...[...new Map(faultPoints.map((point) => [point.expectedRecoveryOracleId, point])).values()].map((point) => ({ recoveryOracleId: point.expectedRecoveryOracleId, subjectId: point.operationId, observedAuthoritativeStateSchema: point.requiredDirectStateQueries.join('|'), requiredEvidence: ['FAULT_POINT', 'AUTHORITATIVE_STATE', 'CLEANUP'], forbiddenEvidenceAssumptions: ['PROCESS_MEMORY', 'MISSING_LOG', 'HTTP_STATUS_ONLY'], rules: [{ when: 'FAULT_BEFORE_POSSIBLE_EFFECT', outcome: 'CONFIRMED_NOT_APPLIED' }, { when: 'FAULT_AFTER_POSSIBLE_EFFECT_AND_READ_BACK', outcome: 'CONFIRMED_APPLIED' }, { when: 'POSSIBLE_EFFECT_WITHOUT_READ_BACK', outcome: 'MANUAL_REVIEW' }], defaultOutcome: 'MANUAL_REVIEW', manualReviewSchemaRef: 'contracts/registry-schemas/operation-command.schema.json', conflictingOperationBlockKeys: point.requiredCleanupChecks, closurePredicateId: `CLOSURE-${point.stateMachineId.replace(/^SM-/u, '')}`, testCaseIds: point.testCaseIds, requirementIds: point.requirementIds, authoritySourceRefs: point.authoritySourceRefs }))
+    ]],
     ['CLOSURE_PREDICATE_REGISTRY', 'closure-predicates/closure-predicates.json', closure],
     ['ACCEPTANCE_GATE_REGISTRY', 'acceptance-gates/acceptance-gates.json', gateRecords],
     ['EXPOSURE_PARITY_REGISTRY', 'exposure-parity/exposure-parity.json', exposure],
@@ -1113,6 +1171,7 @@ async function main() {
   const outputs = new Map();
   for (const [name, schema] of Object.entries(schemas)) outputs.set(`contracts/registry-schemas/${name}`, `${canonical(schema)}\n`);
   outputs.set('contracts/registry-schemas/bundle-manifest.json', `${canonical(schemaManifest)}\n`);
+  outputs.set('contracts/testing/fault-catalog/catalog.json', generatedFaultTestCatalogBytes);
 
   const registryManifest = [];
   const registrySchemaRef = new Map(compiledRegistries.map(([kind]) => [kind, `contracts/registry-schemas/${registrySchemaFilenames[kind]}`]));

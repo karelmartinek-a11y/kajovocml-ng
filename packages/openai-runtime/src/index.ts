@@ -6,7 +6,8 @@ import { allocateContiguousSequence, inTransaction } from '@kcml/database';
 import { canonicalDigest, type CanonicalJsonValue } from '@kcml/schemas';
 import type { AuthorityLineage } from '@kcml/agentic-authority';
 import { verifyAuthorityLineage } from '@kcml/agentic-authority';
-import { DomainError } from '@kcml/domain';
+import { DomainError, faultPointById } from '@kcml/domain';
+import { invokeFaultHook } from '@kcml/schemas';
 
 export interface OpenAISecretProvider { getOpenAIKey(): Promise<string>; }
 export interface ModelCallRequest {
@@ -44,6 +45,8 @@ export class ResponsesRuntime {
     const client=new OpenAI({apiKey,maxRetries:0,timeout:120_000});const events:StreamEvent[]=[];const started=Date.now();
     await this.pool.query(`UPDATE kcml.ai_model_call SET submit_state='DISPATCH_STARTED',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND submit_state='INTENT_RECORDED'`,[callId]);
     try{
+      // FAULT_POINT:OPENAI_SUBMIT_BEFORE
+      await invokeFaultHook(faultPointById('FP-OPENAI-MODEL-SUBMIT-BEFORE'),{operationId:'OP-GENERATION-MODEL-EXECUTE',logicalOperationId:callId});
       const stream=await client.responses.create({model:request.model,instructions:request.instructions,input:request.input as OpenAI.Responses.ResponseInput,stream:true,
         ...(request.previousResponseId?{previous_response_id:request.previousResponseId}:{}),
         ...(request.tools?{tools:request.tools}:{}),
@@ -56,6 +59,8 @@ export class ResponsesRuntime {
         if(event.type==='response.output_text.delta'&&typeof event.delta==='string')outputText+=event.delta;
         if(event.type==='response.completed')completed=event.response;}
       if(!responseId)throw new DomainError('MODEL_RESPONSE_ID_MISSING','Provider stream ended without a response identity',502,'MANUAL_REVIEW');
+      // FAULT_POINT:OPENAI_SUBMIT_AFTER
+      await invokeFaultHook(faultPointById('FP-OPENAI-MODEL-SUBMIT-AFTER'),{operationId:'OP-GENERATION-MODEL-EXECUTE',logicalOperationId:callId,metadata:{responseId}});
       const response=completed as Record<string,unknown>|null;const output=Array.isArray(response?.output)?response.output:[];const usage=response?.usage??null;
       await inTransaction(this.pool,'SERIALIZABLE',async client=>{await persistOutputItems(client,callId,responseId,output);await client.query(`UPDATE kcml.ai_model_call SET submit_state='COMPLETED',provider_response_id=$2,output_items=$3::jsonb,usage=$4::jsonb,latency_ms=$5,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`,[callId,responseId,JSON.stringify(output),JSON.stringify(usage),Date.now()-started]);});
       return{callId,responseId,outputText,output,usage,events};

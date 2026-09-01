@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseClient, DatabasePool } from '@kcml/database';
 import { allocateContiguousSequence, inTransaction, lockAdvisory } from '@kcml/database';
 import { loadOperationCatalog, type OperationContract } from '@kcml/contract-pack';
-import { canonicalDigest, canonicalJson, operationCommandSchema, sha256, type CanonicalJsonValue, type OperationResult } from '@kcml/schemas';
+import { canonicalDigest, canonicalJson, invokeFaultHook, operationCommandSchema, sha256, type CanonicalJsonValue, type OperationResult } from '@kcml/schemas';
 import { DomainError } from './errors.js';
 import { assertOperationHandlerCoverage, operationHandlerFor } from './operation-handler-catalog.js';
 import { exactComponentMutationOperations, exactComponentQueryOperations, executeExactComponentMutation, executeExactComponentQuery } from './component-operations.js';
@@ -12,6 +12,7 @@ import { exactSecretQueryOperations, executeExactSecretQuery } from './secret-op
 import { exactSelfTestQueryOperations, executeExactSelfTestQuery } from './self-test-operations.js';
 import { exactMonitorMutationOperations, exactMonitorQueryOperations, executeExactMonitorMutation, executeExactMonitorQuery } from './monitor-operations.js';
 import { mutationHandlerFor, queryHandlerFor, validateCanonicalOperationCommand } from './canonical-operation-handlers.js';
+import { faultPointById } from './fault-declarations.js';
 
 function requiredSourceSha(): string {
   const value = process.env.KCML_SOURCE_SHA;
@@ -123,6 +124,8 @@ export class CanonicalOperationService {
     const keyDigest=createHash('sha256').update(context.idempotencyKey).digest();
 
     return inTransaction(this.pool,'SERIALIZABLE',async(client)=>{
+      // FAULT_POINT:DOMAIN_ADMISSION_BEFORE
+      await invokeFaultHook(faultPointById('FP-DOMAIN-COMPONENT-REGISTER-ADMISSION-BEFORE'),{operationId:operation.operationId,logicalOperationId,correlationId:context.correlationId,targetId:command.targetId});
       await lockAdvisory(client,'IDEMPOTENCY_SCOPE',`${scopeDigest.toString('hex')}:${keyDigest.toString('hex')}`);
       const recoveryHead=await lockAndVerifyPlatformRecovery(client);
       const activationResult=await client.query(`SELECT current_epoch AS activation_epoch FROM kcml.activation_head WHERE singleton_key=1 FOR SHARE`);
@@ -173,6 +176,8 @@ export class CanonicalOperationService {
       const safeResponse=jsonSafe(response);const responseDigest=digestBytes(canonicalDigest(safeResponse));
       await client.query(`UPDATE kcml.domain_idempotency_record SET lifecycle='EXECUTING',response_status=202,response_body=$2,response_digest=$3,updated_at=clock_timestamp(),state_version=state_version+1 WHERE id=$1`,[idempotency.id,safeResponse,responseDigest]);
       await audit(client,'domain.command.accepted',context.actorId,'DOMAIN_COMMAND',commandId,context.correlationId,context.causationId??null,eventPayload);
+      // FAULT_POINT:DOMAIN_ADMISSION_AFTER
+      await invokeFaultHook(faultPointById('FP-DOMAIN-COMPONENT-REGISTER-ADMISSION-AFTER'),{operationId:operation.operationId,commandId,logicalOperationId,correlationId:context.correlationId,targetId:command.targetId});
       return response;
     });
   }
@@ -229,6 +234,8 @@ export interface WorkerOptions {queueNames:readonly string[];workerId:string;lea
 export class CanonicalCommandWorker {
   public constructor(private readonly pool:DatabasePool,private readonly catalog:OperationCatalogService,private readonly options:WorkerOptions){}
   public async runOnce():Promise<boolean>{
+    // FAULT_POINT:DOMAIN_QUEUE_CLAIM_BEFORE
+    await invokeFaultHook(faultPointById('FP-DOMAIN-COMPONENT-REGISTER-QUEUE-BEFORE'));
     const claim=await inTransaction(this.pool,'READ COMMITTED',async(client)=>{
       const recoveryHead=await lockAndVerifyPlatformRecovery(client);
       const candidateResult=await client.query(`SELECT q.id,q.command_id FROM kcml.queue_item q JOIN kcml.domain_command c ON c.id=q.command_id
@@ -264,6 +271,8 @@ export class CanonicalCommandWorker {
       return {...row,lease_owner:this.options.workerId,lease_fencing_token:leaseToken,concurrency_fencing_token:claimToken};
     });
     if(!claim)return false;
+    // FAULT_POINT:DOMAIN_QUEUE_CLAIM_AFTER
+    await invokeFaultHook(faultPointById('FP-DOMAIN-COMPONENT-REGISTER-QUEUE-AFTER'),{commandId:String(claim.command_id),logicalOperationId:String(claim.logical_operation_id),operationId:String(claim.operation_name)});
     let output:unknown;
     try{output=await this.applyCommand(claim);}
     catch(error){await this.fail(claim,error);return true;}
@@ -316,9 +325,13 @@ export class CanonicalCommandWorker {
         if(!await checkpointRecoveryAuthorized(client,row,checkpoint))throw new DomainError('COMMAND_CHECKPOINT_LINEAGE_CONFLICT','Persisted command checkpoint does not match current logical operation lineage or an exact terminal-replay recovery classification',409,'MANUAL_REVIEW');
         return checkpoint.output;
       }
+      // FAULT_POINT:DOMAIN_CHECKPOINT_BEFORE
+      await invokeFaultHook(faultPointById('FP-DOMAIN-COMPONENT-REGISTER-CHECKPOINT-BEFORE'),{commandId:String(row.command_id),logicalOperationId:String(row.logical_operation_id),operationId:String(row.operation_name)});
       const output=await apply(client,head);const safeOutput=jsonSafe(output);
       await client.query(`INSERT INTO kcml.domain_command_execution_checkpoint(command_id,logical_operation_id,checkpoint_state,output,output_digest,concurrency_claim_id,concurrency_fencing_token,recovery_epoch,platform_incarnation_id,application_deployment_epoch)
         VALUES($1,$2,'APPLIED',$3,digest(convert_to($3::jsonb::text,'UTF8'),'sha256'),$4,$5,$6,$7,$8)`,[row.command_id,row.logical_operation_id,safeOutput,row.concurrency_claim_id,row.concurrency_fencing_token,row.recovery_epoch,head.platform_incarnation_id,head.current_epoch]);
+      // FAULT_POINT:DOMAIN_CHECKPOINT_AFTER
+      await invokeFaultHook(faultPointById('FP-DOMAIN-COMPONENT-REGISTER-CHECKPOINT-AFTER'),{commandId:String(row.command_id),logicalOperationId:String(row.logical_operation_id),operationId:String(row.operation_name)});
       return safeOutput;
     });
   }
@@ -326,7 +339,10 @@ export class CanonicalCommandWorker {
   private async createGeneration(client:DatabaseClient,head:RecoveryAuthorityHead,args:JsonObject,row:any):Promise<unknown>{const result=await client.query(`INSERT INTO kcml.generation_job(mode,objective,target_object_ids,source_artifact_ids,model,platform_incarnation_id,application_deployment_epoch)VALUES($1,$2,$3,$4,$5,$6,$7)RETURNING *`,[args.mode??'CREATE',args.objective??'OWNER generation request',args.targetObjectIds??[],args.sourceArtifactIds??[],args.model??null,head.platform_incarnation_id,head.current_epoch]);return result.rows[0];}
   private async createBrowserSession(client:DatabaseClient,head:RecoveryAuthorityHead,args:JsonObject,row:any):Promise<unknown>{const result=await client.query(`INSERT INTO kcml.browser_session(parent_kind,parent_id,purpose,execution_target,runtime_build_id,account_binding_id,operation_scope,current_url,platform_incarnation_id,application_deployment_epoch)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)RETURNING *`,[args.parentKind??'OWNER_CHAT',dbUuid(args.parentId)??row.logical_operation_id,args.purpose??'OWNER browser session',args.executionTarget??'SERVER_MANAGED',args.runtimeBuildId??process.env.KCML_BROWSER_RUNTIME_BUILD??'playwright-1.58.2',dbUuid(args.accountBindingId),args.operationScope??{},args.targetUrl??null,head.platform_incarnation_id,head.current_epoch]);return result.rows[0];}
   private async createTestRun(client:DatabaseClient,head:RecoveryAuthorityHead,args:JsonObject,_row:any):Promise<unknown>{const env=jsonSafe({releaseId:process.env.KCML_RELEASE_ID??'development',sourceSha:requiredSourceSha()});const result=await client.query(`INSERT INTO kcml.self_test_run(suite_key,run_kind,source_sha,release_id,environment_digest,seed,platform_incarnation_id,application_deployment_epoch)VALUES($1,$2,$3,$4,$5,$6,$7,$8)RETURNING *`,[args.suiteKey??'self-test',args.runKind??'SELF_TEST',requiredSourceSha(),process.env.KCML_RELEASE_ID??'development',digestBytes(canonicalDigest(env)),args.seed??null,head.platform_incarnation_id,head.current_epoch]);return result.rows[0];}
-  private async complete(row:any,output:unknown):Promise<void>{await inTransaction(this.pool,'SERIALIZABLE',async(client)=>{
+  private async complete(row:any,output:unknown):Promise<void>{
+    // FAULT_POINT:DOMAIN_TERMINAL_BEFORE
+    await invokeFaultHook(faultPointById('FP-DOMAIN-COMPONENT-REGISTER-TERMINAL-BEFORE'),{commandId:String(row.command_id),logicalOperationId:String(row.logical_operation_id),operationId:String(row.operation_name)});
+    await inTransaction(this.pool,'SERIALIZABLE',async(client)=>{
     const recoveryHead=await lockAndVerifyPlatformRecovery(client);if(BigInt(row.recovery_epoch)!==BigInt(recoveryHead.recovery_epoch))throw new DomainError('STALE_RECOVERY_EPOCH','Worker terminal write recovery epoch is stale',409,'RECONCILE_THEN_RETRY');
     const checkpoint=(await client.query(`SELECT * FROM kcml.domain_command_execution_checkpoint WHERE command_id=$1`,[row.command_id])).rows[0];
     if(!checkpoint||!await checkpointRecoveryAuthorized(client,row,checkpoint))throw new DomainError('COMMAND_CHECKPOINT_MISSING','Successful terminalization requires the exact immutable execution checkpoint from the same recovery epoch or an authorized terminal-replay classification',409,'RECONCILE_THEN_RETRY');
@@ -342,7 +358,10 @@ export class CanonicalCommandWorker {
     await client.query(`UPDATE kcml.queue_item SET status='SUCCEEDED',lease_owner=NULL,lease_expires_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`,[row.id]);
     await terminalizeCommandGuards(client,row.command_id,row.logical_operation_id,row.concurrency_claim_id??null);
     await audit(client,'domain.command.succeeded',this.options.workerId,'DOMAIN_COMMAND',row.command_id,row.correlation_id,null,{commandId:row.command_id,operationName:row.operation_name,resultDigest:canonicalDigest(safeOutput)});
-  });}
+  });
+    // FAULT_POINT:DOMAIN_TERMINAL_AFTER
+    await invokeFaultHook(faultPointById('FP-DOMAIN-COMPONENT-REGISTER-TERMINAL-AFTER'),{commandId:String(row.command_id),logicalOperationId:String(row.logical_operation_id),operationId:String(row.operation_name)});
+  }
   private async fail(row:any,error:unknown):Promise<void>{const message=error instanceof Error?error.message:String(error);await inTransaction(this.pool,'SERIALIZABLE',async(client)=>{
     const recoveryHead=await lockAndVerifyPlatformRecovery(client);if(BigInt(row.recovery_epoch)!==BigInt(recoveryHead.recovery_epoch))throw new DomainError('STALE_RECOVERY_EPOCH','Worker failure write recovery epoch is stale',409,'RECONCILE_THEN_RETRY');
     const checkpointExists=Number((await client.query(`SELECT count(*)::int AS count FROM kcml.domain_command_execution_checkpoint WHERE command_id=$1`,[row.command_id])).rows[0]?.count??0)>0;
