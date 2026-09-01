@@ -84,7 +84,7 @@ export const operationResultSchema = z.object({
   status: z.enum(['ACCEPTED', 'SUCCEEDED', 'FAILED_FINAL', 'CANCELLED_FINAL', 'MANUAL_REVIEW']),
   metadata: operationMetadataSchema,
   result: z.unknown().nullable(),
-  error: z.object({ code: z.string(), message: z.string(), retryDirective: retryDirectiveSchema, details: z.unknown().nullable() }).strict().nullable()
+  error: z.object({ code: z.string(), message: z.string(), classification: z.string(), sideEffectPoint: z.string(), retryDirective: retryDirectiveSchema, recordDigest: digestSchema, details: z.unknown().nullable() }).strict().nullable()
 }).strict();
 export type OperationResult = z.infer<typeof operationResultSchema>;
 
@@ -147,4 +147,5 @@ export function newCorrelationId(): string {
   return randomUUID();
 }
 
+export * from './error-retry-registry.js';
 export { z };

@@ -3,7 +3,7 @@ import type { DatabaseClient, DatabasePool } from '@kcml/database';
 import { allocateContiguousSequence, inTransaction, lockAdvisory } from '@kcml/database';
 import { loadOperationCatalog, type OperationContract } from '@kcml/contract-pack';
 import { canonicalDigest, canonicalJson, operationCommandSchema, sha256, type CanonicalJsonValue, type OperationResult } from '@kcml/schemas';
-import { DomainError } from './errors.js';
+import { canonicalizeDomainError, DomainError } from './errors.js';
 import { assertOperationHandlerCoverage, operationHandlerFor } from './operation-handler-catalog.js';
 import { exactComponentMutationOperations, exactComponentQueryOperations, executeExactComponentMutation, executeExactComponentQuery } from './component-operations.js';
 import { exactRuntimeQueryOperations, executeExactRuntimeQuery } from './runtime-operations.js';
@@ -349,17 +349,18 @@ export class CanonicalCommandWorker {
     if(checkpointExists)throw new DomainError('APPLIED_COMMAND_CANNOT_FAIL','An applied command with immutable checkpoint must resume terminal replay instead of becoming failed',409,'RECONCILE_THEN_RETRY');
     await verifyWorkerClaimAndAdmission(client,row,['ADMITTED'],false);
     const locked=await client.query(`SELECT * FROM kcml.queue_item WHERE id=$1 FOR UPDATE`,[row.id]);const current=locked.rows[0];if(!current||current.status!=='CLAIMED'||current.lease_owner!==this.options.workerId)return;
-    const retry=Number(current.attempt_count)<Number(current.max_attempts)&&!(error instanceof DomainError&&error.retryDirective==='DO_NOT_RETRY');
+    const canonicalError = canonicalizeDomainError(error);
+    const retry=Number(current.attempt_count)<Number(current.max_attempts)&&canonicalError.retryDirective!=='DO_NOT_RETRY';
     if(retry){
       await client.query(`UPDATE kcml.queue_item SET status='READY',available_at=clock_timestamp()+make_interval(secs=>least(300,power(2,attempt_count)::int)),lease_owner=NULL,lease_expires_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`,[row.id]);
-      await client.query(`UPDATE kcml.domain_command SET status='ACCEPTED',error=$2,state_version=state_version+1 WHERE id=$1`,[row.command_id,{code:'WORKER_RETRY',message}]);
+      await client.query(`UPDATE kcml.domain_command SET status='ACCEPTED',error=$2,state_version=state_version+1 WHERE id=$1`,[row.command_id,{code:canonicalError.code,message,classification:canonicalError.classification,sideEffectPoint:canonicalError.sideEffectPoint,retryDirective:canonicalError.retryDirective,recordDigest:canonicalError.recordDigest,details:error instanceof DomainError?error.details:null}]);
     }else{
-      const failure={code:error instanceof DomainError?error.code:'COMMAND_FAILED',message,retryDirective:error instanceof DomainError?error.retryDirective:'DO_NOT_RETRY' as const,details:error instanceof DomainError?error.details:null};
+      const failure={code:canonicalError.code,message,classification:canonicalError.classification,sideEffectPoint:canonicalError.sideEffectPoint,retryDirective:canonicalError.retryDirective,recordDigest:canonicalError.recordDigest,details:error instanceof DomainError?error.details:null};
       const failureDigest=canonicalDigest(jsonSafe(failure));const terminalResponse:OperationResult={status:'FAILED_FINAL',metadata:{correlationId:row.correlation_id,logicalOperationId:row.logical_operation_id,commandId:row.command_id,stateVersion:0n,eventSequence:0n,activationEpoch:0n,resultDigest:failureDigest,idempotencyReplay:false,serverTime:new Date().toISOString()},result:null,error:failure};
       const safeTerminal=jsonSafe(terminalResponse);const terminalDigest=digestBytes(canonicalDigest(safeTerminal));
       await client.query(`UPDATE kcml.queue_item SET status='FAILED_FINAL',lease_owner=NULL,lease_expires_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`,[row.id]);
       await client.query(`UPDATE kcml.domain_command SET status='FAILED_FINAL',error=$2,completed_at=clock_timestamp(),state_version=state_version+1 WHERE id=$1`,[row.command_id,failure]);
-      await client.query(`UPDATE kcml.domain_idempotency_record SET lifecycle='FAILED_FINAL',response_status=$2,response_body=$3,response_digest=$4,terminal_outcome_digest=$4,completed_at=clock_timestamp(),updated_at=clock_timestamp(),state_version=state_version+1 WHERE command_id=$1`,[row.command_id,error instanceof DomainError?error.httpStatus:500,safeTerminal,terminalDigest]);
+      await client.query(`UPDATE kcml.domain_idempotency_record SET lifecycle='FAILED_FINAL',response_status=$2,response_body=$3,response_digest=$4,terminal_outcome_digest=$4,completed_at=clock_timestamp(),updated_at=clock_timestamp(),state_version=state_version+1 WHERE command_id=$1`,[row.command_id,canonicalError.record.httpMappings[0] ?? (error instanceof DomainError ? error.httpStatus : 500),safeTerminal,terminalDigest]);
       await terminalizeCommandGuards(client,row.command_id,row.logical_operation_id,row.concurrency_claim_id??null);
     }
   });}
