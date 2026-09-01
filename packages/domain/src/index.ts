@@ -16,3 +16,4 @@ export * from './binding-registry.js';
 export * from './monitor-operations.js';
 export * from './canonical-operation-handlers.js';
 export * from './closure-predicates.js';
+export * from './recovery-oracle.js';

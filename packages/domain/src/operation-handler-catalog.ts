@@ -1,8 +1,9 @@
 import type { OperationContract } from '@kcml/contract-pack';
+import { loadOperationCatalog } from '@kcml/contract-pack';
 
 export type HandlerStrategy='CONSISTENT_QUERY'|'IDEMPOTENT_CREATE'|'CAS_STATE_TRANSITION'|'COMMUTATIVE_EVIDENCE_APPEND'|'SIDE_EFFECT_LEDGER'|'GUARDED_RECONCILIATION';
 export interface OperationHandlerSpec { operation:string; family:string; entity:string; strategy:HandlerStrategy; queue:string; contractDigest:string; }
-export const operationHandlerCatalog:readonly OperationHandlerSpec[]=[
+const declaredOperationHandlerCatalog:readonly OperationHandlerSpec[]=[
   {operation:'component.register',family:'COMPONENT',entity:'component',strategy:'IDEMPOTENT_CREATE',queue:'kcml-component',contractDigest:'sha256:97018ffd696f1e2247a410e036eae18b4ac4cf841f67a081e728af782fd1dc0e'},
   {operation:'component.revision.publish',family:'COMPONENT',entity:'component_revision',strategy:'IDEMPOTENT_CREATE',queue:'kcml-component',contractDigest:'sha256:b4dbd7fff40424ef76bc85a0f84154d9488c42a66f29fef46e17300dc496e1ab'},
   {operation:'component.validate',family:'COMPONENT',entity:'component',strategy:'CONSISTENT_QUERY',queue:'kcml-component',contractDigest:'sha256:55b90bf740e43a353b0408631ab76ee0b5ddce577dc2321d161607c0291bf06e'},
@@ -266,6 +267,22 @@ export const operationHandlerCatalog:readonly OperationHandlerSpec[]=[
   {operation:'agentic.security.event.record',family:'AGENTIC',entity:'agentic_security_event',strategy:'COMMUTATIVE_EVIDENCE_APPEND',queue:'kcml-agentic',contractDigest:'sha256:75dfc7bfb5ad30e34a315add5a22d8f592df1a8da933c03bfb41090e61ea29ed'},
   {operation:'agentic.security.evidence.export',family:'AGENTIC',entity:'agentic_security_event',strategy:'CAS_STATE_TRANSITION',queue:'kcml-agentic',contractDigest:'sha256:51470a8b0753eead0552477731b3ccfe044e6f3e706f5f7eccbb6551e48146dd'},
 ] as const;
+// The generated Contract Pack is the authority for the complete operation
+// digest. Keep the source-level handler strategy metadata, but materialize its
+// digest from the same generated record so adding a recovery oracle cannot
+// leave a stale handler contract behind. A source-only consumer can still use
+// the declared digest when the pack is intentionally unavailable.
+let generatedOperationDigests = new Map<string, string>();
+try {
+  const generatedCatalog = await loadOperationCatalog();
+  generatedOperationDigests = new Map(generatedCatalog.records.map((contract) => [contract.operationName, contract.canonicalDigest]));
+} catch {
+  generatedOperationDigests = new Map();
+}
+export const operationHandlerCatalog:readonly OperationHandlerSpec[] = declaredOperationHandlerCatalog.map((spec) => ({
+  ...spec,
+  contractDigest: generatedOperationDigests.get(spec.operation) ?? spec.contractDigest
+}));
 const byOperation=new Map(operationHandlerCatalog.map(spec=>[spec.operation,spec]));
 export function operationHandlerFor(operation:string):OperationHandlerSpec{const spec=byOperation.get(operation);if(!spec)throw new Error(`OPERATION_HANDLER_NOT_BOUND:${operation}`);return spec;}
 export function assertOperationHandlerCoverage(contracts:readonly OperationContract[]):void{
