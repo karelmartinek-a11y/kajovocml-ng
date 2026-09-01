@@ -69,9 +69,13 @@ verify_heartbeats(){
   epoch=$(psql "${DATABASE_URL}" -Atqc "SELECT current_epoch FROM kcml.application_deployment_head WHERE singleton_key=1")
   while IFS='|' read -r service app user families writable dependency enabled; do
     [[ -z ${service} || ${service:0:1} == '#' || ${enabled} != yes || ${service} == kcml-web-api ]] && continue
-    psql "${DATABASE_URL}" -v service="${service}" -v release="${release_id}" -v sha="${expected_sha}" -v epoch="${epoch}" -Atqc "SELECT EXISTS(SELECT 1 FROM kcml.platform_worker_heartbeat WHERE service_name=:'service' AND status='READY' AND expires_at>clock_timestamp() AND release_id=:'release' AND source_sha=:'sha' AND deployment_epoch=:'epoch'::bigint)" | grep -qx t || missing=$((missing+1))
+    psql "${DATABASE_URL}" -v service="${service}" -v release="${release_id}" -v sha="${expected_sha}" -v epoch="${epoch}" -Atq <<'SQL' | grep -qx t || missing=$((missing+1))
+SELECT EXISTS(SELECT 1 FROM kcml.platform_worker_heartbeat WHERE service_name=:'service' AND status='READY' AND expires_at>clock_timestamp() AND release_id=:'release' AND source_sha=:'sha' AND deployment_epoch=:'epoch'::bigint);
+SQL
   done <"${release_path}/deploy/systemd/services.tsv"
-  psql "${DATABASE_URL}" -v release="${release_id}" -v sha="${expected_sha}" -v epoch="${epoch}" -Atqc "SELECT EXISTS(SELECT 1 FROM kcml.platform_worker_heartbeat WHERE service_name='kcml-browser-host' AND status='READY' AND expires_at>clock_timestamp() AND release_id=:'release' AND source_sha=:'sha' AND deployment_epoch=:'epoch'::bigint)" | grep -qx t || missing=$((missing+1))
+  psql "${DATABASE_URL}" -v release="${release_id}" -v sha="${expected_sha}" -v epoch="${epoch}" -Atq <<'SQL' | grep -qx t || missing=$((missing+1))
+SELECT EXISTS(SELECT 1 FROM kcml.platform_worker_heartbeat WHERE service_name='kcml-browser-host' AND status='READY' AND expires_at>clock_timestamp() AND release_id=:'release' AND source_sha=:'sha' AND deployment_epoch=:'epoch'::bigint);
+SQL
   [[ ${missing} -eq 0 ]]
 }
 healthy_samples(){ for sample in {1..5};do curl --fail --silent --unix-socket /run/kajovocml-ng/web-api.sock http://localhost/ready|jq -e '.status=="ready"'>/dev/null;sleep 3;done; }

@@ -21,7 +21,9 @@ describe('production acceptance contract', () => {
   it('feeds variable-bearing SQL through psql stdin so substitutions are evaluated', async () => {
     const deploy = await readFile('deploy/scripts/deploy-production.sh', 'utf8');
     const rollback = await readFile('deploy/scripts/rollback-production.sh', 'utf8');
-    expect(`${deploy}\n${rollback}`).not.toMatch(/psql[^\n]*-v[^\n]*-c\s/u);
+    expect(`${deploy}\n${rollback}`).not.toMatch(/psql[^\n]*-v[^\n]*\s-c\s/u);
+    expect(deploy).not.toMatch(/psql[^\n]*-v\s+service=[^\n]*-Atqc\b/u);
+    expect(deploy).not.toMatch(/psql[^\n]*-v\s+release=[^\n]*-Atqc\b/u);
     expect(deploy).toContain("<<'SQL'");
   });
 
