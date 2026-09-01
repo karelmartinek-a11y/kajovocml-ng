@@ -1,5 +1,6 @@
 import { createDatabasePool, loadBaseline, loadForwardMigrations, verifyDatabaseContract } from '@kcml/database';
 import { readFile } from 'node:fs/promises';
+import { runPostgresContractMatrix } from './contract-matrix.js';
 
 if (!process.env.DATABASE_URL) {
   console.log('NOT_EXECUTED_ENVIRONMENTAL: PostgreSQL integration requires DATABASE_URL');
@@ -9,12 +10,11 @@ if (!process.env.DATABASE_URL) {
 const pool = createDatabasePool({ applicationName: 'postgres-integration' });
 try {
   await pool.query(await loadBaseline());
-  const forwardMigrations=await loadForwardMigrations();const alertMigration=forwardMigrations.find(migration=>migration.version==='20260831000100');
-  if(!alertMigration||alertMigration.phasePlan.join(',')!=='EXPAND,VALIDATE,ACTIVATE'||alertMigration.transactionMode!=='TRANSACTIONAL'||Buffer.from(alertMigration.checksum).length!==32)throw new Error('OPERATIONAL_ALERT_FORWARD_MIGRATION_METADATA_INVALID');
-  await pool.query(alertMigration.sql);
-  const heartbeatMigration=forwardMigrations.find(migration=>migration.version==='20260831000101');
-  if(!heartbeatMigration||heartbeatMigration.phasePlan.join(',')!=='EXPAND,VALIDATE,ACTIVATE'||heartbeatMigration.transactionMode!=='TRANSACTIONAL'||Buffer.from(heartbeatMigration.checksum).length!==32)throw new Error('PLATFORM_WORKER_HEARTBEAT_FORWARD_MIGRATION_METADATA_INVALID');
-  await pool.query(heartbeatMigration.sql);
+  const forwardMigrations=await loadForwardMigrations();
+  for (const migration of forwardMigrations) {
+    if (migration.phasePlan.join(',')!=='EXPAND,VALIDATE,ACTIVATE'||migration.transactionMode!=='TRANSACTIONAL'||Buffer.from(migration.checksum).length!==32) throw new Error(`FORWARD_MIGRATION_METADATA_INVALID:${migration.filename}`);
+    await pool.query(migration.sql);
+  }
   await verifyDatabaseContract(pool);
   const heartbeatLineageColumns=(await pool.query(`SELECT count(*)::int AS count FROM information_schema.columns WHERE table_schema='kcml' AND table_name='platform_worker_heartbeat' AND column_name IN ('platform_incarnation_id','heartbeat_sequence','nonce') AND is_nullable='NO'`)).rows[0];
   if(Number(heartbeatLineageColumns?.count)!==3)throw new Error('PLATFORM_WORKER_HEARTBEAT_LINEAGE_COLUMNS_INVALID');
@@ -149,6 +149,7 @@ try {
   const ids = claimed.flat(); if (ids.length !== 40 || new Set(ids).size !== 40) throw new Error('SKIP_LOCKED_EXCLUSIVITY_FAILED');
   await pool.query(`DELETE FROM kcml.queue_item WHERE queue_name='test' AND partition_key=$1`,[key]);
   await pool.query(`DELETE FROM kcml.domain_idempotency_record WHERE canonical_key=$1`,[key]);
+  await runPostgresContractMatrix(pool);
   const verifiedColumnCount = schemaContracts.records.reduce((total, contract) => total + contract.columns.length, 0);
   const verifiedIndexCount = schemaContracts.records.reduce((total, contract) => total + contract.indexes.length, 0);
   const verifiedConstraintCount = schemaContracts.records.reduce((total, contract) => total + contract.constraints.length, 0);

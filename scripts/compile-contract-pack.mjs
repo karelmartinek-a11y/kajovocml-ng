@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFile, readdir, mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { contractFor } from './lib/postgres-operation-contract.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ssotPath = join(root, 'SSOT_CURRENT.md');
@@ -739,18 +740,9 @@ async function main() {
   };
   const ownershipMatchesForOperation = (operationName) => authoritySource.records.filter((record) => ownershipMatches(operationName, record));
   const stateMachines = stateMachineSpecs.map((spec) => makeStateMachine(spec, operations));
-  const postgres = operations.filter((operation) => operation.transactionProfileId !== 'CONSISTENT_READ').map((operation) => ({
-    postgresContractId: `PG-${operation.operationId}`, operationId: operation.operationId, transactionProfileId: operation.transactionProfileId,
-    isolationLevel: 'READ COMMITTED', transactionSegments: operation.sideEffectClass === 'LOCAL_STATE_IDEMPOTENT' ? ['T1', 'T3'] : ['T1', 'D', 'T2', 'T3'],
-    orderedAdvisoryLocks: ['PLATFORM_RECOVERY_BARRIER'], orderedRowLocks: ['PLATFORM', 'DEPLOYMENT', 'IDEMPOTENCY', 'ACTIVATION_DOMAIN', 'AGGREGATE', 'CONCURRENCY', 'CHILD', 'AUDIT'],
-    absentRowGuard: 'PARENT_HEAD_AND_UNIQUE_INDEX', readAfterLockGuards: ['DB_TIME', 'STATE_VERSION', 'RECOVERY_EPOCH', 'ACTIVATION_EPOCH'],
-    stateVersionCas: true, fencingPredicate: true, platformIncarnationPredicate: true, applicationDeploymentEpochPredicate: true, bindingActivationPredicate: true,
-    uniqueConstraints: ['IDEMPOTENCY_SCOPE_KEY', 'LOGICAL_OPERATION'], checkConstraints: ['NON_NEGATIVE_VERSIONS', 'DIGEST_LENGTH'], foreignKeys: ['PARENT_OWNERSHIP'],
-    deferredConstraintTriggers: ['TERMINAL_CLOSURE'], idempotencyUniqueness: 'SCOPE_KEY', sequenceAllocation: 'LOCKED_HEAD_INCREMENT', outboxWrites: ['DOMAIN_EVENT'], inboxWrites: [],
-    successorReservation: 'UNIQUE_DECLARED_EDGE', successorEnqueue: 'SAME_COMMIT', externalEffectSplit: 'T1_D_E_T2_T3', sqlstateRetryMap: 'ERR-RETRY-REGISTRY',
-    migrationImplications: ['FORWARD_ONLY_EXPAND_MIGRATE_VALIDATE_ACTIVATE_CONTRACT'], rollbackCompatibility: 'PREVIOUS_RELEASE_READS_FORWARD_SCHEMA',
-    parallelTestIds: [`PG-CONCURRENT-${operation.operationId}`], crashTestIds: [`CRASH-${operation.operationId}`], requirementIds: operation.requirementIds,
-    authoritySourceRefs: ['ssot://51/postgresql-transakcni-soubehovy-a-migracni-kontrakt/operation'], canonicalDigest: sha(canonical({ operationId: operation.operationId, profile: operation.transactionProfileId }))
+  const postgres = operations.map((operation) => ({
+    ...contractFor(operation), requirementIds: operation.requirementIds,
+    authoritySourceRefs: ['ssot://51/postgresql-transakcni-soubehovy-a-migracni-kontrakt/operation']
   }));
   const runtimeMatrixSourcePath = 'deploy/runtime/runtime-boundary-manifest.json';
   const runtimeMatrixSource = JSON.parse(await readFile(join(root, runtimeMatrixSourcePath), 'utf8'));
@@ -1285,6 +1277,46 @@ async function main() {
       testMarker: 'ARTIFACT_PUBLICATION_PHYSICAL_PROTOCOL_INVALID',
       testCaseId: 'TEST-PG-ARTIFACT-PUBLISHED-DIGEST',
       persistenceObjectIds: ['artifact_publication']
+    },
+    {
+      authoritySourceRef: 'ssot://51.2/51-2-datab-zov-role-session-stav-a-transak-n-profily/atom-6',
+      sourcePath: 'packages/database/src/index.ts',
+      sourceMarkers: ['WORKER_COMMIT: { id:'],
+      testPath: 'tests/unit/postgres-contracts.test.ts',
+      testMarker: 'declares the exact SSOT 51.2 profile',
+      testCaseId: 'TEST-PG-TRANSACTION-PROFILES'
+    },
+    {
+      authoritySourceRef: 'ssot://51.2/51-2-datab-zov-role-session-stav-a-transak-n-profily/atom-2',
+      sourcePath: 'packages/database/src/index.ts',
+      sourceMarkers: ['ADVISORY_NAMESPACE_IDS'],
+      testPath: 'tests/unit/postgres-contracts.test.ts',
+      testMarker: 'uses the SSOT namespace ids',
+      testCaseId: 'TEST-PG-ADVISORY-NAMESPACE-KEY'
+    },
+    {
+      authoritySourceRef: 'ssot://49.31/49-31-architektonick-closure-pravidlo/atom-5',
+      sourcePath: 'packages/database/src/index.ts',
+      sourceMarkers: ['export class LockOrderGuard'],
+      testPath: 'tests/unit/postgres-contracts.test.ts',
+      testMarker: 'rejects a lower lock class',
+      testCaseId: 'TEST-PG-LOCK-ORDER-GUARD'
+    },
+    {
+      authoritySourceRef: 'ssot://51.36/51-36-datab-zov-closure-pravidlo/atom-2',
+      sourcePath: 'scripts/lib/postgres-operation-contract.mjs',
+      sourceMarkers: ['function contractFor(operation)'],
+      testPath: 'tests/unit/postgres-contract-matrix.test.ts',
+      testMarker: 'covers every catalog operation',
+      testCaseId: 'TEST-PG-PER-OPERATION-MATRIX'
+    },
+    {
+      authoritySourceRef: 'ssot://51.36/51-36-datab-zov-closure-pravidlo/atom-6',
+      sourcePath: 'database/migrations/20260901000102_postgres_transaction_contracts.sql',
+      sourceMarkers: ['KCML_PHASE_PLAN: EXPAND, VALIDATE, ACTIVATE'],
+      testPath: 'tests/postgres/contract-matrix.ts',
+      testMarker: 'POSTGRES_CONTRACT_MATRIX: PASS',
+      testCaseId: 'TEST-PG-TRANSACTION-CONSTRAINT-MIGRATION'
     }
   ];
   for (const evidence of exactInfrastructureEvidence) {
