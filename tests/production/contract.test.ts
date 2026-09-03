@@ -29,6 +29,12 @@ describe('production acceptance contract', () => {
     expect(deploy).toContain('deploy/sql/verify-service-heartbeat.sql');
   });
 
+  it('loads deployment self-test registries from the immutable release instead of the runner working directory', async () => {
+    const adminCli = await readFile('apps/server/src/admin-cli.ts', 'utf8');
+    expect(adminCli).toContain("resolve(dirname(fileURLToPath(import.meta.url)),'../../..')");
+    expect(adminCli).toContain('loadOperationCatalog(releaseRoot)');
+  });
+
   it('uses password-authenticated PostgreSQL Unix sockets inside AF_UNIX-only services', async () => {
     const bootstrap = await readFile('deploy/scripts/bootstrap-production-server.sh', 'utf8');
     expect(bootstrap).toContain('local kajovocml_ng kajovocml_app scram-sha-256');
