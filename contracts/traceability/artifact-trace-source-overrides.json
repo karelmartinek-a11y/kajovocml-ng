@@ -256,7 +256,7 @@
         },
         {
           "requirementId": "KCML-REQ-OPENAI-fb32ec8cc9b6f4c583f7b1404be00a8f0972b4724667bae9b554f3b0dd244cbb",
-          "locator": "packages/openai-runtime/src/index.ts:172",
+          "locator": "packages/openai-runtime/src/index.ts:175",
           "symbol": "KcmlOpenAIResponsesModel",
           "snippetDigest": "sha256:5fa79d1b23fd57ea2d079ee19b90d0f749e1808e8066ec763c80f5192a5062ad"
         }

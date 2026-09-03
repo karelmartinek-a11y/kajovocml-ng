@@ -10,3 +10,5 @@
 - Test nesmí vykázat falešný PASS; environmentální neprovedení používá přesně `NOT_EXECUTED_ENVIRONMENTAL` podle SSOT 33 a 54.
 - Každý produkční artefakt musí mít skutečnou obousměrnou requirement/operation traceability podle SSOT 46 a 55.19; plošné nebo odvozené vazby bez důkazu jsou zakázané.
 - Projekce Contract Packu regeneruj pouze příkazem `pnpm contracts:build` a jejich PASS přijímej jen po skutečném vyhodnocení všech blocking gates podle SSOT 55.
+- Dokončení zadané úlohy je nevyjednatelnou povinností každého volání Codexu; úloha nesmí být označena za dokončenou, opravenou ani předanou bez přímého vyzkoušení výsledku na produkčním serveru.
+- Problém na GitHubu ani na produkčním serveru nesmí být označen jako `Blocker` nebo `Handoff`, protože Codex má z prostředí SSH přístup jak na GitHub, tak na produkční server; na produkčním serveru má root oprávnění a na GitHubu nejvyšší dostupná oprávnění.
