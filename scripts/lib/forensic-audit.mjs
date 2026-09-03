@@ -58,7 +58,8 @@ export async function runForensicAudit(root=process.cwd()){
   if(!routerSource.includes('for (const route of SSOT_ROUTES)')||!routerSource.includes('specialRouteKeys.has(route.routeKey)'))add('COMPILED_ROUTER_NOT_EXHAUSTIVE','Compiled router does not iterate the full generated SSOT route registry');
   if(!(wsSource.includes('browser-sessions\\/')&&wsSource.includes('preview\\/ws')))add('WSS_ROUTE_MISSING','Canonical browser preview WSS route is not registered');
   if(!serverSource.includes('IDEMPOTENCY_KEY_REQUIRED')||!serverSource.includes("['POST','PUT','PATCH','DELETE'].includes(request.method)"))add('MUTATION_IDEMPOTENCY_GATE_MISSING','Server lacks a global Idempotency-Key gate for all API mutations');
-  if(/ownerLoginSchema[\s\S]{0,220}username/u.test(serverSource))add('LOGIN_USERNAME_MUTABLE','Login request path accepts or derives a mutable username');
+  const authSource=await readFile(join(root,'packages/domain/src/auth.ts'),'utf8');
+  if(!serverSource.includes('auth.login(input.username, input.password')||!authSource.includes('validUsername')||!authSource.includes('timingSafeEqual(suppliedUsernameDigest, persistedUsernameDigest)'))add('LOGIN_USERNAME_ENTRY_GATE_MISSING','Login must require an explicitly entered username and compare it to the singleton persisted identity without exposing an alternate account selector');
   const readinessSource=await readFile(join(root,'apps/server/src/readiness.ts'),'utf8');
   for(const marker of ['missingServices','unhealthyServices','staleServices','mismatchedServices'])if(!readinessSource.includes(marker))add('SERVICE_READINESS_DIMENSION_MISSING',`Service readiness does not evaluate ${marker}`);
   for(const marker of ['evaluateServiceReadiness','SERVICE_READINESS_BLOCKED','OPENAI_CONFIGURATION_REQUIRED'])if(!serverSource.includes(marker))add('FAIL_CLOSED_READINESS_MISSING',`Server readiness/capability path lacks ${marker}`);

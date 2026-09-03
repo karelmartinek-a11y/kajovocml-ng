@@ -52,7 +52,7 @@ export class OwnerAuthenticationService {
     if (!verified.rows[0]?.password_hash || !(await argon2.verify(verified.rows[0].password_hash, password))) throw new Error('Deployment password verification failed');
   }
 
-  public async login(password: string, remoteAddress: string | null, userAgent: string | null, correlationId: string): Promise<LoginResult> {
+  public async login(username: string, password: string, remoteAddress: string | null, userAgent: string | null, correlationId: string): Promise<LoginResult> {
     const throttleKey = tokenDigest(`OWNER_LOGIN/1\u0000${remoteAddress ?? 'unknown'}`);
     const throttle = await this.pool.query(`SELECT failure_count,locked_until FROM kcml.owner_login_throttle WHERE attempt_key_digest=$1`, [throttleKey]);
     const lockedUntil = throttle.rows[0]?.locked_until ? new Date(throttle.rows[0].locked_until) : null;
@@ -60,8 +60,11 @@ export class OwnerAuthenticationService {
 
     const result = await this.pool.query(`SELECT * FROM kcml.owner_identity WHERE singleton_key=1`);
     const owner = result.rows[0];
+    const suppliedUsernameDigest = tokenDigest(`OWNER_USERNAME/1\u0000${username}`);
+    const persistedUsernameDigest = tokenDigest(`OWNER_USERNAME/1\u0000${typeof owner?.username === 'string' ? owner.username : ''}`);
+    const validUsername = timingSafeEqual(suppliedUsernameDigest, persistedUsernameDigest);
     const validPassword = typeof owner?.password_hash === 'string' && await argon2.verify(owner.password_hash, password).catch(() => false);
-    if (!validPassword) {
+    if (!validUsername || !validPassword) {
       await this.recordLoginFailure(throttleKey);
       const payload = { accepted: false, remoteAddress, reasonCode: 'INVALID_CREDENTIALS' };
       if (owner?.id) await this.pool.query(`SELECT * FROM kcml.append_audit_event('owner.login.rejected','OWNER_LOGIN','anonymous','OWNER',$1,$2,NULL,$3,$4)`, [owner.id, correlationId, payload, Buffer.from(canonicalJson(payload as CanonicalJsonValue))]);

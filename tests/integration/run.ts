@@ -18,7 +18,8 @@ try {
   const auth = new OwnerAuthenticationService(pool, cipher);
   const password = `integration-${Date.now()}-secure`;
   await auth.synchronizeDeploymentPassword(password);
-  const login = await auth.login(password, '127.0.0.1', 'integration', crypto.randomUUID());
+  const invalidUsernameRejected=await auth.login('invalid-owner',password,'127.0.0.1','integration',crypto.randomUUID()).then(()=>false).catch((error)=>typeof error==='object'&&error!==null&&'code' in error&&error.code==='INVALID_CREDENTIALS');if(!invalidUsernameRejected)throw new Error('OWNER_LOGIN_ACCEPTED_INVALID_USERNAME');
+  const login = await auth.login('KRMAR78', password, '127.0.0.1', 'integration', crypto.randomUUID());
   if (!login.sessionToken || login.state === 'AUTHENTICATED') throw new Error('OWNER_MFA_ENROLLMENT_NOT_ENFORCED');
   const secrets = new SecretManager(pool, cipher);
   const owner = await pool.query(`SELECT id FROM kcml.owner_identity WHERE singleton_key=1`);

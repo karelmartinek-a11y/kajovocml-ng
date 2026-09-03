@@ -175,7 +175,7 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
 
   app.post('/api/v1/auth/login', { config: { rateLimit: { max: 12, timeWindow: '15 minutes' } } }, async (request, reply) => {
     const input = ownerLoginSchema.parse(request.body);
-    const result = await auth.login(input.password, request.ip, request.headers['user-agent'] ?? null, request.requestCorrelationId);
+    const result = await auth.login(input.username, input.password, request.ip, request.headers['user-agent'] ?? null, request.requestCorrelationId);
     reply.setCookie('kcml_session', result.sessionToken, cookieOptions());
     reply.header('x-csrf-token', result.csrfToken);
     return { state: result.state, csrfToken: result.csrfToken, expiresAt: result.expiresAt, username: 'KRMAR78' };

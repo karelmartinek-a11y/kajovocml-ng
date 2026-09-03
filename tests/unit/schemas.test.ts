@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canonicalDigest, canonicalJson, operationCommandSchema } from '@kcml/schemas';
+import { canonicalDigest, canonicalJson, operationCommandSchema, ownerLoginSchema } from '@kcml/schemas';
 
 describe('canonical contracts', () => {
   it('orders object keys recursively and has a stable digest', () => {
@@ -8,5 +8,9 @@ describe('canonical contracts', () => {
   });
   it('rejects undeclared command fields', () => {
     expect(() => operationCommandSchema.parse({ operation: 'x', surprise: true })).toThrow();
+  });
+  it('requires both manually entered OWNER login fields', () => {
+    expect(() => ownerLoginSchema.parse({ password: 'secret' })).toThrow();
+    expect(ownerLoginSchema.parse({ username: 'entered-owner', password: 'secret' })).toEqual({ username: 'entered-owner', password: 'secret' });
   });
 });

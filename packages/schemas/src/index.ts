@@ -105,7 +105,7 @@ export const kcipEnvelopeSchema = z.object({
 }).strict();
 export type KcipEnvelope = z.infer<typeof kcipEnvelopeSchema>;
 
-export const ownerLoginSchema = z.object({ password: z.string().min(1).max(4096), mfaContinuation: z.string().min(1).max(4096).optional() }).strict();
+export const ownerLoginSchema = z.object({ username: z.string().min(1).max(128), password: z.string().min(1).max(4096), mfaContinuation: z.string().min(1).max(4096).optional() }).strict();
 export const mfaChallengeSchema = z.object({ challengeId: uuidSchema, code: z.string().regex(/^\d{6}$|^[A-Z0-9-]{8,64}$/u), trustDevice: z.boolean().default(false) }).strict();
 
 export const secretInputSchema = z.object({
