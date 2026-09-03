@@ -35,6 +35,12 @@ describe('production acceptance contract', () => {
     expect(adminCli).toContain('loadOperationCatalog(releaseRoot)');
   });
 
+  it('loads the stable error registry from the service working directory instead of a pnpm package symlink', async () => {
+    const registry = await readFile('packages/schemas/src/error-retry-registry.ts', 'utf8');
+    expect(registry).toContain("resolve(process.cwd(), 'contracts/registries/errors/errors.json')");
+    expect(registry).not.toContain("new URL('../../../contracts/registries/errors/errors.json', import.meta.url)");
+  });
+
   it('uses password-authenticated PostgreSQL Unix sockets inside AF_UNIX-only services', async () => {
     const bootstrap = await readFile('deploy/scripts/bootstrap-production-server.sh', 'utf8');
     expect(bootstrap).toContain('local kajovocml_ng kajovocml_app scram-sha-256');

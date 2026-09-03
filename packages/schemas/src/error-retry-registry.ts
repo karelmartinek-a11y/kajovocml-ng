@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 export const stableRetryDirectives = [
   'DO_NOT_RETRY',
@@ -134,8 +135,8 @@ export function validateErrorRetryRegistry(records: readonly StableErrorRecord[]
 function loadRegistry(): Map<string, StableErrorRecord> {
   let parsed: unknown;
   try {
-    const url = new URL('../../../contracts/registries/errors/errors.json', import.meta.url);
-    parsed = JSON.parse(readFileSync(url, 'utf8')) as unknown;
+    const path = resolve(process.cwd(), 'contracts/registries/errors/errors.json');
+    parsed = JSON.parse(readFileSync(path, 'utf8')) as unknown;
   } catch (error) {
     throw new ErrorRecoveryContractError(`ERROR_RECOVERY_CONTRACT_INCOMPLETE:registry_unreadable:${error instanceof Error ? error.message : String(error)}`);
   }
