@@ -292,10 +292,34 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
 
   const uiRoot = resolve(process.cwd(), 'apps/owner-ui/dist');
   if (existsSync(uiRoot)) {
-    await app.register(fastifyStatic, { root: uiRoot, prefix: '/', wildcard: false });
+    await app.register(fastifyStatic, {
+      root: uiRoot,
+      prefix: '/',
+      wildcard: false,
+      // Release artifacts have deterministic timestamps. Files with the same size
+      // would therefore receive the same weak ETag across different releases and
+      // could leave a browser running an index that references a removed bundle.
+      cacheControl: false,
+      etag: false,
+      lastModified: false,
+      setHeaders: (reply, pathName) => {
+        if (pathName.endsWith('index.html')) {
+          reply.header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+          reply.header('Pragma', 'no-cache');
+          reply.header('Expires', '0');
+          return;
+        }
+        if (pathName.includes('/assets/')) reply.header('Cache-Control', 'public, max-age=31536000, immutable');
+      }
+    });
     app.setNotFoundHandler((request, reply) => {
       if (request.url.startsWith('/api/')) return reply.status(404).send({ error: { code: 'ROUTE_NOT_FOUND', message: 'API route not found', correlationId: request.requestCorrelationId } });
-      return reply.type('text/html').sendFile('index.html');
+      return reply
+        .header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+        .header('Pragma', 'no-cache')
+        .header('Expires', '0')
+        .type('text/html')
+        .sendFile('index.html');
     });
   }
   app.addHook('onClose', async () => { if (!dependencies.pool) await pool.end(); });

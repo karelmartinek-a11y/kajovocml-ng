@@ -11,6 +11,17 @@ fi
 origin=$KCML_PRODUCTION_ORIGIN
 curl --fail --silent --show-error "$origin/health" | jq -e '.status=="healthy"' >/dev/null
 curl --fail --silent --show-error "$origin/ready" | jq -e '.status=="ready"' >/dev/null
+index_headers=$(mktemp)
+index_body=$(mktemp)
+trap 'rm -f "$index_headers" "$index_body"' EXIT
+index_status=$(curl --silent --show-error --output "$index_body" --dump-header "$index_headers" --write-out '%{http_code}' -H 'If-None-Match: W/"stale-release-index"' -H 'If-Modified-Since: Wed, 01 Jan 2020 00:00:00 GMT' "$origin/")
+[[ $index_status == 200 ]]
+grep -Eiq '^cache-control:.*no-store' "$index_headers"
+! grep -Eiq '^(etag|last-modified):' "$index_headers"
+ui_asset=$(sed -n 's/.*src="\([^"?]*\/assets\/[^"?]*\.js\)".*/\1/p' "$index_body" | head -1)
+[[ -n $ui_asset ]]
+asset_type=$(curl --fail --silent --show-error --output /dev/null --write-out '%{content_type}' "$origin$ui_asset")
+[[ $asset_type == application/javascript* ]]
 version=$(curl --fail --silent --show-error -H "Authorization: Bearer $KCML_OWNER_API_KEY" "$origin/api/v1/system/version")
 jq -e '(.releaseId | length > 0) and (.sourceSha | length == 40)' <<<"$version" >/dev/null
 curl --fail --silent --show-error -H "Authorization: Bearer $KCML_OWNER_API_KEY" "$origin/api/v1/operations/catalog" | jq -e '.operations|length>250' >/dev/null

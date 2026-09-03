@@ -36,6 +36,14 @@ verify_bundle(){ minisign -Vm "${bundle}" -x "${signature}" -p /etc/kajovocml-ng
 create_backup(){ local path=/var/lib/kajovocml-ng/backups/pre-${release_id}-$(date -u +%Y%m%dT%H%M%SZ);install -d -o root -g kcml-platform -m 0700 "${path}";pg_dump --format=custom --file="${path}/database.dump" "${DATABASE_URL}";tar -C /etc -czf "${path}/configuration.tar.gz" kajovocml-ng;sha256sum "${path}"/* >"${path}/SHA256SUMS"; }
 stage_release(){ [[ ! -e ${release_path} && ! -e ${stage_path} ]] || { echo 'Release ID již existuje.' >&2; return 1; };install -d -m 0755 "${stage_path}";tar -xzf "${bundle}" -C "${stage_path}" --strip-components=1;grep -qx "${expected_sha}" "${stage_path}/SOURCE_SHA";grep -qx "${release_id}" "${stage_path}/RELEASE_ID";(cd "${stage_path}"&&sha256sum -c FILES.sha256); }
 install_release(){ mv "${stage_path}" "${release_path}";chown -R root:root "${release_path}";find "${release_path}" -type d -exec chmod a-w {} +;find "${release_path}" -type f -exec chmod a-w {} +;"${release_path}/deploy/scripts/install-systemd.sh" "${release_path}"; }
+reconcile_nginx(){
+  local target=/etc/nginx/sites-available/kajovocml-ng.conf backup
+  backup=$(mktemp)
+  cp "${target}" "${backup}"
+  install -o root -g root -m 0644 "${release_path}/deploy/nginx/kajovocml-ng.conf" "${target}"
+  if ! nginx -t; then install -o root -g root -m 0644 "${backup}" "${target}"; rm -f "${backup}"; return 1; fi
+  rm -f "${backup}"
+}
 preflight(){ node --version|grep -q '^v24\.';pnpm --version|grep -q '^11\.';psql "${DATABASE_URL}" -Atqc 'SELECT current_setting('"'"'server_version_num'"'"')::int >= 160000';test -s /etc/kajovocml-ng/master.key;nginx -t; }
 reconcile_platform(){
   test "$(stat -c %a /etc/kajovocml-ng/master.key)" = 440
@@ -90,6 +98,7 @@ unset pass_value
 run_step owner_api_key node "${stage_path}/apps/server/dist/admin-cli.js" ensure-owner-api-key
 run_step immutable_release_install install_release
 run_step atomic_switch switch_release
+run_step nginx_config_reconciliation reconcile_nginx
 run_step service_restart restart_services
 run_step health_version_readiness verify_runtime
 run_step service_heartbeats verify_heartbeats
