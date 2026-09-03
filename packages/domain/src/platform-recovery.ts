@@ -127,6 +127,7 @@ export class PlatformRecoveryCoordinator {
     await this.classifyCommands(authority,workerId);
     await this.classifyOutbox(authority,workerId);
     await this.classifyCurrentDeployment(authority,workerId);
+    await this.classifyAiModelCalls(authority,workerId);
     await this.classifyRemainingInventory(authority,workerId);
     await this.options.faultInjector?.('BEFORE_RECOVERY_READY_TRANSITION',{attemptId:authority.attemptId,recoveryEpoch:authority.recoveryEpoch,fencingToken:authority.fencingToken});
     return this.finalize(authority,workerId);
@@ -219,6 +220,23 @@ export class PlatformRecoveryCoordinator {
     const existing=Number((await client.query(`SELECT count(*)::int AS count FROM kcml.platform_recovery_item WHERE recovery_attempt_id=$1 AND owner_kind='DEPLOYMENT_RUN' AND owner_id=$2`,[authority.attemptId,String(current.id)])).rows[0]?.count??0)>0;
     if(!existing)await insertRecoveryItem(client,authority,record,'RESUME',false,'DEPLOYMENT_RUN',String(current.id),safeJson({reason:'CURRENT_DEPLOYMENT_HEAD_EXACTLY_MATCHES_IN_FLIGHT_RUN',releaseId:String(current.release_id),sourceSha:String(current.source_sha),deploymentEpoch:String(current.deployment_epoch),status:String(current.status)}));
   });}
+
+  private async classifyAiModelCalls(authority:RecoveryAuthority,workerId:string):Promise<void>{
+    const ids=(await this.pool.query(`SELECT id::text AS id FROM kcml.ai_model_call WHERE submit_state NOT IN ('COMPLETED','FAILED_FINAL') ORDER BY id`)).rows.map((row)=>String(row.id));
+    for(const callId of ids)await inTransaction(this.pool,'SERIALIZABLE',async(client)=>{
+      await exclusiveRecoveryLock(client);await this.assertFence(client,authority,workerId);
+      const call=(await client.query(`SELECT * FROM kcml.ai_model_call WHERE id=$1 FOR UPDATE`,[callId])).rows[0];
+      if(!call||['COMPLETED','FAILED_FINAL'].includes(String(call.submit_state)))return;
+      const existing=Number((await client.query(`SELECT count(*)::int AS count FROM kcml.platform_recovery_item WHERE recovery_attempt_id=$1 AND owner_kind='AI_MODEL_CALL' AND owner_id=$2`,[authority.attemptId,callId])).rows[0]?.count??0)>0;
+      if(existing)return;
+      const record:InventoryRecord={ownerKind:'AI_MODEL_CALL',ownerId:callId,snapshot:safeJson({submitState:call.submit_state,stateVersion:call.state_version,providerResponseId:call.provider_response_id})};
+      const hasProviderResponse=typeof call.provider_response_id==='string'&&call.provider_response_id.length>0;
+      await insertRecoveryItem(client,authority,record,hasProviderResponse?'RESUME':'MANUAL_REVIEW',!hasProviderResponse,hasProviderResponse?'AI_MODEL_CALL':null,hasProviderResponse?callId:null,safeJson({
+        reason:hasProviderResponse?'PROVIDER_RESPONSE_ID_PRESENT_CANONICAL_RETRIEVE_REQUIRED':'PROVIDER_RESPONSE_ID_MISSING_OUTCOME_UNKNOWN',
+        providerResponseId:call.provider_response_id??null
+      }));
+    });
+  }
 
   private async classifyRemainingInventory(authority:RecoveryAuthority,workerId:string):Promise<void>{await inTransaction(this.pool,'SERIALIZABLE',async(client)=>{
     await exclusiveRecoveryLock(client);await this.assertFence(client,authority,workerId);
