@@ -93,13 +93,13 @@ run_step deployment_record begin_deployment_record
 run_step platform_identity_config_reconciliation reconcile_platform
 run_step platform_preflight preflight
 run_step provider_capability_inventory capability_inventory
-run_step pass_sync bash -c 'printf "%s" "$1" | node "$2/apps/server/dist/admin-cli.js" sync-password' _ "${pass_value}" "${stage_path}"
-unset pass_value
-run_step owner_api_key node "${stage_path}/apps/server/dist/admin-cli.js" ensure-owner-api-key
 run_step immutable_release_install install_release
 run_step atomic_switch switch_release
 run_step nginx_config_reconciliation reconcile_nginx
 run_step service_restart restart_services
+run_step owner_api_key node "${release_path}/apps/server/dist/admin-cli.js" ensure-owner-api-key
+run_step pass_sync bash -c 'printf "%s" "$1" | node "$2/apps/server/dist/admin-cli.js" sync-password' _ "${pass_value}" "${release_path}"
+unset pass_value
 run_step health_version_readiness verify_runtime
 run_step service_heartbeats verify_heartbeats
 run_step self_test node "${release_path}/apps/server/dist/admin-cli.js" self-test
