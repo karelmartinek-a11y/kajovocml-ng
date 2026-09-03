@@ -109,7 +109,7 @@ async function eventPersistence(pool:DatabasePool,callId:string,event:Record<str
       const old=(await client.query<{payload_digest:Buffer}>("SELECT payload_digest FROM kcml.ai_model_event WHERE model_call_id=$1 AND provider_sequence=$2",[callId,providerSequence])).rows[0];
       if(old){if(Buffer.from(old.payload_digest).equals(payloadDigest))return false;throw new DomainError('OPENAI_STREAM_PROTOCOL_CONFLICT','Provider sequence payload conflict',409,'DO_NOT_RETRY',{callId,providerSequence});}
     }
-    await client.query("INSERT INTO kcml.ai_model_event(id,parent_id,stable_key,model_call_id,sequence,provider_response_id,provider_sequence,event_type,raw_payload,payload_digest,persisted_at,canonical_digest) VALUES($1,$2,$3,$2,$4,$5,$6,$7,$8,$9,clock_timestamp(),$9) ON CONFLICT(stable_key) DO NOTHING",[randomUUID(),callId,'model-event:'+callId+':'+(providerSequence??localSequence),localSequence,responseIdValue,providerSequence,String(event.type??'unknown'),payload,payloadDigest]);
+    await client.query("INSERT INTO kcml.ai_model_event(id,parent_id,stable_key,model_call_id,sequence,provider_response_id,provider_sequence,event_type,raw_payload,payload_digest,persisted_at,canonical_digest) VALUES($1,$2,$3,$2,$4,$5,$6,$7,$8,$9,clock_timestamp(),$9) ON CONFLICT DO NOTHING",[randomUUID(),callId,'model-event:'+callId+':'+(providerSequence??localSequence),localSequence,responseIdValue,providerSequence,String(event.type??'unknown'),payload,payloadDigest]);
     return true;
   });
 }
