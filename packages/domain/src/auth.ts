@@ -36,7 +36,7 @@ export class OwnerAuthenticationService {
   public constructor(private readonly pool: DatabasePool, private readonly cipher: EnvelopeCipher) {}
 
   public async synchronizeDeploymentPassword(password: string): Promise<void> {
-    if (Buffer.byteLength(password, 'utf8') < 12) throw new DomainError('PASSWORD_TOO_SHORT', 'PASS must contain at least 12 UTF-8 bytes', 422);
+    if (Buffer.byteLength(password, 'utf8') === 0) throw new DomainError('PASSWORD_EMPTY', 'PASS must not be empty', 422);
     const hash = await argon2.hash(password, { type: argon2.argon2id, memoryCost: 65_536, timeCost: 3, parallelism: 1, hashLength: 32 });
     await inTransaction(this.pool, 'SERIALIZABLE', async (client) => {
       const headResult = await client.query(`SELECT * FROM kcml.owner_identity WHERE singleton_key=1 FOR UPDATE`);

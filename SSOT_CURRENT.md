@@ -5431,7 +5431,7 @@ Databázový constraint dovoluje právě jeden řádek se singleton key `OWNER` 
 
 ### 21.2 Přihlášení
 
-Přihlášení používá zobrazenou read-only identitu `KRMAR78` a heslo; klient neposílá volitelnou identitu jiného uživatele. Heslo je hashované Argon2. Login throttle používá failure count, timestamps a lockedUntil. Úspěšné přihlášení vytváří secure `__Host-` session cookie a CSRF token.
+Přihlášení vyžaduje ruční zadání username i hesla. Login formulář pevné username nezobrazuje, nenapovídá ani nepředvyplňuje. Server porovná zadané username s persistovanou singleton identitou `KRMAR78` a nepřipouští volbu nebo vytvoření jiné identity. Heslo je hashované Argon2. Login throttle používá failure count, timestamps a lockedUntil. Úspěšné přihlášení vytváří secure `__Host-` session cookie a CSRF token.
 
 Jediný OWNER API klíč poskytuje rovnocenný produkční přístup bez interaktivního loginu. Klíč lze standardním API voláním vyměnit za webovou OWNER session pro automatizované UI a Playwright E2E testy.
 
@@ -7974,7 +7974,7 @@ POST   /owner/api-key/rotate
 GET    /owner/api-key/usage
 ```
 
-Neexistuje `/users`, `/accounts`, `/roles`, `/groups`, `/memberships`, `/invites`, `/permissions` ani jiný user-management endpoint. Login body obsahuje pouze heslo a volitelný MFA continuation; server vždy autentizuje pevnou identitu `KRMAR78`.
+Neexistuje `/users`, `/accounts`, `/roles`, `/groups`, `/memberships`, `/invites`, `/permissions` ani jiný user-management endpoint. Login body obsahuje ručně zadané username, heslo a volitelný MFA continuation; server username pouze exact porovná s jedinou persistovanou identitou `KRMAR78` a nikdy jej nepoužije jako volbu účtu.
 
 ### 26.3 Dashboard
 
