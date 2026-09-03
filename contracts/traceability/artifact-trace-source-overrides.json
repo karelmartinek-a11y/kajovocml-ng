@@ -2561,6 +2561,24 @@
           "snippetDigest": "sha256:a766784d4c85212387194e11357bd6daffabd4c26427b593fac7e64e80604128"
         }
       ]
+    },
+    {
+      "repositoryPath": "deploy/sql/verify-service-heartbeat.sql",
+      "requirementIds": [
+        "KCML-REQ-DEPLOYMENT-6bf1fc6b8ba7bc7c3d5a1c907beb7228cb05baa768547ed5c4a590e04913cba3"
+      ],
+      "operationIds": [],
+      "stateMachineIds": [],
+      "registryRecordIds": [],
+      "testIds": [],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-DEPLOYMENT-6bf1fc6b8ba7bc7c3d5a1c907beb7228cb05baa768547ed5c4a590e04913cba3",
+          "locator": "deploy/sql/verify-service-heartbeat.sql:1",
+          "symbol": "verify-service-heartbeat",
+          "snippetDigest": "sha256:c39fec4d03186185421365eb5bdbc38c91a7858048d8d8854b65c360f55b273b"
+        }
+      ]
     }
   ]
 }

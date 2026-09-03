@@ -70,7 +70,9 @@ export async function runForensicAudit(root=process.cwd()){
   if(!productionAcceptance.includes('Authorization: Bearer $KCML_OWNER_API_KEY')||!productionAcceptance.includes('/api/v1/system/version'))add('PRODUCTION_AUTH_EVIDENCE_MISSING','Production acceptance does not authenticate protected system evidence');
   if(!productionAcceptance.includes('/api/v1/operations/catalog')||productionAcceptance.includes('"$origin/api/v1/operations"'))add('PRODUCTION_CANONICAL_ROUTE_MISSING','Production acceptance does not use the canonical operations catalog route');
   const deploymentSource=await readFile(join(root,'deploy/scripts/deploy-production.sh'),'utf8');
-  for(const marker of ["service_name='kcml-browser-host'","status='READY'","source_sha=:'sha'","deployment_epoch=:'epoch'::bigint",'.services.ready==true'])if(!deploymentSource.includes(marker))add('DEPLOYMENT_READINESS_EVIDENCE_MISSING',`Deployment verification lacks ${marker}`);
+  const heartbeatQuery=await readFile(join(root,'deploy/sql/verify-service-heartbeat.sql'),'utf8');
+  const deploymentReadinessSource=`${deploymentSource}\n${heartbeatQuery}`;
+  for(const marker of ['-v service="kcml-browser-host"',"status = 'READY'","source_sha = :'sha'","deployment_epoch = :'epoch'::bigint",'.services.ready==true'])if(!deploymentReadinessSource.includes(marker))add('DEPLOYMENT_READINESS_EVIDENCE_MISSING',`Deployment verification lacks ${marker}`);
   const propertySource=await readFile(join(root,'tests/property/run.ts'),'utf8');
   const chaosSource=await readFile(join(root,'tests/chaos/run.ts'),'utf8');
   if(!propertySource.includes('numRuns: 10_000')||!propertySource.includes('KCML_PROPERTY_SEED'))add('MODEL_FAST_PROPERTY_DEPTH_MISSING','MODEL_FAST property suite lacks 10,000 exact-seed runs');

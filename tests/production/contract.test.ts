@@ -11,20 +11,22 @@ describe('production acceptance contract', () => {
 
   it('gates deployment completion on exact service heartbeat evidence', async () => {
     const source = await readFile('deploy/scripts/deploy-production.sh', 'utf8');
+    const query = await readFile('deploy/sql/verify-service-heartbeat.sql', 'utf8');
     expect(source).toContain('.services.ready==true');
-    expect(source).toContain("service_name='kcml-browser-host'");
-    expect(source).toContain("status='READY'");
-    expect(source).toContain("source_sha=:'sha'");
-    expect(source).toContain("deployment_epoch=:'epoch'::bigint");
+    expect(source).toContain('-v service="kcml-browser-host"');
+    expect(source).toContain('-Atqf "${release_path}/deploy/sql/verify-service-heartbeat.sql"');
+    expect(query).toContain("status = 'READY'");
+    expect(query).toContain("source_sha = :'sha'");
+    expect(query).toContain("deployment_epoch = :'epoch'::bigint");
   });
 
-  it('feeds variable-bearing SQL through psql stdin so substitutions are evaluated', async () => {
+  it('feeds variable-bearing SQL through files so substitutions are evaluated independently of loop stdin', async () => {
     const deploy = await readFile('deploy/scripts/deploy-production.sh', 'utf8');
     const rollback = await readFile('deploy/scripts/rollback-production.sh', 'utf8');
     expect(`${deploy}\n${rollback}`).not.toMatch(/psql[^\n]*-v[^\n]*\s-c\s/u);
     expect(deploy).not.toMatch(/psql[^\n]*-v\s+service=[^\n]*-Atqc\b/u);
     expect(deploy).not.toMatch(/psql[^\n]*-v\s+release=[^\n]*-Atqc\b/u);
-    expect(deploy).toContain("<<'SQL'");
+    expect(deploy).toContain('deploy/sql/verify-service-heartbeat.sql');
   });
 
   it('uses password-authenticated PostgreSQL Unix sockets inside AF_UNIX-only services', async () => {
