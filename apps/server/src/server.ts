@@ -266,7 +266,11 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
       return apiSafe({ conversationId, messageId, assistantMessageId, ...result, authorityLineage: lineage, idempotencyReplay:false });
     }catch(error){
       const details=error instanceof DomainError&&typeof error.details==='object'&&error.details!==null?error.details as Record<string,unknown>:{};
-      await systemChat.fail({conversationId,ownerMessageId:messageId,message:error instanceof Error?error.message:String(error),modelCallId:typeof details.callId==='string'?details.callId:null,correlationId:request.requestCorrelationId});
+      try{
+        await systemChat.fail({conversationId,ownerMessageId:messageId,message:error instanceof Error?error.message:String(error),modelCallId:typeof details.callId==='string'?details.callId:null,correlationId:request.requestCorrelationId});
+      }catch(persistenceError){
+        logger.error('chat.failure_persistence_failed',{correlationId:request.requestCorrelationId,code:error instanceof DomainError?error.code:'OPENAI_PROVIDER_TRANSIENT',error:persistenceError instanceof Error?persistenceError.message:String(persistenceError)});
+      }
       throw error;
     }
   });

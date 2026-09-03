@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
-import { buildOpenAIRequestPayload, canTransitionOpenAILocalState, normalizeOpenAIResponse } from '../../packages/openai-runtime/src/index.js';
+import { buildOpenAIRequestPayload, canTransitionOpenAILocalState, normalizeOpenAIResponse, normalizeProviderFailure } from '../../packages/openai-runtime/src/index.js';
 
 describe('OpenAI trusted runtime contract', () => {
   it('uses official packages and Responses API only inside the trusted runtime', async () => {
@@ -36,5 +36,20 @@ describe('OpenAI persisted lifecycle behavior', () => {
     const request = { parentRunId: 'run', ownerKind: 'AGENT_RUN' as const, model: 'gpt-test', instructions: 'test', input: 'hello', authority: {} as never };
     expect(buildOpenAIRequestPayload(request, false, true)).toMatchObject({ background: true, store: true, stream: false });
     expect(() => buildOpenAIRequestPayload({ ...request, previousResponseId: 'resp', conversationId: 'conv' }, false, true)).toThrow('mutually exclusive');
+  });
+});
+
+describe('OpenAI provider error normalization', () => {
+  it('maps raw provider failures to a stable API error instead of INTERNAL_ERROR', () => {
+    const error = normalizeProviderFailure('call-1', new Error('provider connection failed'));
+    expect(error.code).toBe('OPENAI_PROVIDER_TRANSIENT');
+    expect(error.httpStatus).toBe(502);
+    expect(error.retryDirective).toBe('RETRY_SAME_OPERATION');
+    expect(error.details).toEqual({ callId: 'call-1' });
+  });
+
+  it('preserves canonical domain errors during provider normalization', () => {
+    const original = normalizeProviderFailure('call-1', new Error('provider connection failed'));
+    expect(normalizeProviderFailure('call-1', original)).toBe(original);
   });
 });

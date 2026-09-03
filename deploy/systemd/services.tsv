@@ -1,5 +1,5 @@
 # unit|app|user|address-families|read-write-paths|socket-dependencies|enabled
-kcml-web-api|server|kcml-web-api|AF_UNIX|/run/kajovocml-ng /var/lib/kajovocml-ng/data|Requires=kcml-web-api.socket After=kcml-web-api.socket|yes
+kcml-web-api|server|kcml-web-api|AF_UNIX AF_INET AF_INET6|/run/kajovocml-ng /var/lib/kajovocml-ng/data|Requires=kcml-web-api.socket After=kcml-web-api.socket|yes
 kcml-runtime-gateway|runtime-gateway|kcml-runtime-gateway|AF_UNIX|/run/kajovocml-ng/gateway /var/lib/kajovocml-ng/runtime|Requires=kcml-runtime-gateway.socket After=kcml-runtime-gateway.socket|yes
 kcml-central-chat-worker|central-chat-worker|kcml-chat|AF_UNIX AF_INET AF_INET6|/var/lib/kajovocml-ng/data| |yes
 kcml-generation-coordinator|generation-coordinator|kcml-gen-coord|AF_UNIX|/var/lib/kajovocml-ng/generation| |yes
