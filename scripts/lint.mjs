@@ -3,7 +3,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { extname, join, relative } from 'node:path';
 
 const root = new URL('../', import.meta.url).pathname;
-const ignored = new Set(['node_modules', 'dist', '.git', 'artifacts', 'generated_images']);
+const ignored = new Set(['node_modules', 'dist', '.git', 'artifacts', 'test-results', 'generated_images']);
 // These are immutable user-provided and generated forensic records.  They are
 // evidence, rather than implementation text, so a literal task label in them
 // must not be mistaken for an unfinished implementation marker.

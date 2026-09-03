@@ -877,7 +877,7 @@ const schemas = {
 for (const kind of Object.keys(registrySchemaRequirements)) schemas[registrySchemaFilenames[kind]] = makeRegistrySchema(kind);
 
 async function collectArtifacts(directory = root) {
-  const ignored = new Set(['node_modules', 'dist', '.git', 'artifacts', 'FORENSIC_AUDIT_CURRENT.md']);
+  const ignored = new Set(['node_modules', 'dist', '.git', 'artifacts', 'test-results', 'FORENSIC_AUDIT_CURRENT.md']);
   const entries = await readdir(directory, { withFileTypes: true });
   const output = [];
   for (const entry of entries.sort((a, b) => stableCompare(a.name, b.name))) {

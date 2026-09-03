@@ -7,7 +7,16 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium firefox webkit
       - run: bash tests/production/run.sh
         env:
           KCML_PRODUCTION_ORIGIN: https://kaja.hcasc.cz
+          KCML_OWNER_API_KEY: '${{ secrets.KCML_OWNER_API_KEY }}'
+      - run: bash tests/e2e/run.sh
+        env:
+          KCML_E2E_BASE_URL: https://kaja.hcasc.cz
           KCML_OWNER_API_KEY: '${{ secrets.KCML_OWNER_API_KEY }}'

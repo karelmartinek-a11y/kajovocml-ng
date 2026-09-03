@@ -13,7 +13,7 @@ const json = async (path) => JSON.parse(await read(path));
 const digest = (bytes) => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
 
 async function walk(directory = root) {
-  const ignored = new Set(['.git', 'node_modules', 'dist', 'build', 'coverage', 'artifacts', 'FORENSIC_AUDIT_CURRENT.md']);
+  const ignored = new Set(['.git', 'node_modules', 'dist', 'build', 'coverage', 'artifacts', 'test-results', 'FORENSIC_AUDIT_CURRENT.md']);
   const output = [];
   for (const entry of (await readdir(directory, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
     if (ignored.has(entry.name) || entry.name.startsWith('._')) continue;
