@@ -41,6 +41,11 @@ describe('production acceptance contract', () => {
     expect(registry).not.toContain("new URL('../../../contracts/registries/errors/errors.json', import.meta.url)");
   });
 
+  it('evaluates release and source SHA assertions against the full version response', async () => {
+    const acceptance = await readFile('tests/production/run.sh', 'utf8');
+    expect(acceptance).toContain("jq -e '(.releaseId | length > 0) and (.sourceSha | length == 40)'");
+  });
+
   it('uses password-authenticated PostgreSQL Unix sockets inside AF_UNIX-only services', async () => {
     const bootstrap = await readFile('deploy/scripts/bootstrap-production-server.sh', 'utf8');
     expect(bootstrap).toContain('local kajovocml_ng kajovocml_app scram-sha-256');
