@@ -71,7 +71,10 @@ export class OwnerAuthenticationService {
       throw new DomainError('INVALID_CREDENTIALS', 'Invalid credentials', 401);
     }
     await this.pool.query(`DELETE FROM kcml.owner_login_throttle WHERE attempt_key_digest=$1`, [throttleKey]);
-    return this.createSession(owner, remoteAddress, userAgent, !owner.mfa_enabled);
+    // Interactive password login never satisfies MFA. A fresh installation must
+    // complete enrollment, and an enrolled installation must verify a TOTP or
+    // recovery code before any MFA-protected endpoint is accessible.
+    return this.createSession(owner, remoteAddress, userAgent, false);
   }
 
   private async recordLoginFailure(attemptKeyDigest: Buffer): Promise<void> {

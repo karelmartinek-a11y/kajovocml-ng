@@ -4,7 +4,7 @@ if (!process.env.DATABASE_URL) {
 }
 
 const { createDatabasePool, loadBaseline } = await import('@kcml/database');
-const { CanonicalCommandWorker, CanonicalOperationService, EnvelopeCipher, OperationCatalogService, OwnerAuthenticationService, PlatformRecoveryCoordinator, SecretManager, SsotSurfaceService, SystemChatService } = await import('@kcml/domain');
+const { CanonicalCommandWorker, CanonicalOperationService, EnvelopeCipher, OperationCatalogService, OwnerAuthenticationService, PlatformRecoveryCoordinator, SecretManager, SsotSurfaceService, SystemChatService, totp } = await import('@kcml/domain');
 const { McpRuntime, supportedMcpVersions } = await import('@kcml/mcp-runtime');
 const { canonicalDigest } = await import('@kcml/schemas');
 const { compileAuthorityLineage } = await import('../../packages/agentic-authority/src/index.js');
@@ -21,6 +21,10 @@ try {
   const invalidUsernameRejected=await auth.login('invalid-owner',password,'127.0.0.1','integration',crypto.randomUUID()).then(()=>false).catch((error)=>typeof error==='object'&&error!==null&&'code' in error&&error.code==='INVALID_CREDENTIALS');if(!invalidUsernameRejected)throw new Error('OWNER_LOGIN_ACCEPTED_INVALID_USERNAME');
   const login = await auth.login('KRMAR78', password, '127.0.0.1', 'integration', crypto.randomUUID());
   if (!login.sessionToken || login.state === 'AUTHENTICATED') throw new Error('OWNER_MFA_ENROLLMENT_NOT_ENFORCED');
+  const preEnrollmentAccessRejected=await auth.authenticate(login.sessionToken).then(()=>false).catch((error)=>typeof error==='object'&&error!==null&&'code' in error&&error.code==='MFA_REQUIRED');if(!preEnrollmentAccessRejected)throw new Error('OWNER_PRE_ENROLLMENT_SESSION_BYPASSED_MFA');
+  const enrollment=await auth.beginMfaEnrollment(login.sessionToken);if(!enrollment.otpauthUri.startsWith('otpauth://totp/')||!enrollment.secret)throw new Error('OWNER_MFA_ENROLLMENT_PAYLOAD_INVALID');
+  const completedEnrollment=await auth.completeMfa(login.sessionToken,totp(enrollment.secret));if(completedEnrollment.recoveryCodes.length!==10)throw new Error('OWNER_MFA_RECOVERY_CODES_INVALID');
+  const enrolledPrincipal=await auth.authenticate(login.sessionToken);if(!enrolledPrincipal.mfaVerified)throw new Error('OWNER_MFA_VERIFIED_SESSION_NOT_ACTIVATED');
   const secrets = new SecretManager(pool, cipher);
   const owner = await pool.query(`SELECT id FROM kcml.owner_identity WHERE singleton_key=1`);
   const created = await secrets.create({ stableName: `INTEGRATION_SECRET_${Date.now()}`, displayName: 'Integration secret', kind: 'API_KEY', value: 'integration-secret', metadata: {} }, owner.rows[0].id);

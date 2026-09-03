@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0",
   "kind": "REQUIREMENT_ATOM_TRACE_SOURCE",
-  "ssotDigest": "sha256:85fc3cd817f3fb14b9b357625542be1c28957af7485fddec3e5112fff18a3488",
+  "ssotDigest": "sha256:6cb63d0d1aa11a1ae7e4a880e81d49b0fa78f157c4a0c43753260bfc46be27b7",
   "records": 13959,
   "relationKinds": [
     "SOURCE",
@@ -62,7 +62,7 @@
       "domain": "OPENAI",
       "repositoryPath": "contracts/traceability/requirement-atom-trace/openai.jsonl",
       "recordCount": 276,
-      "contentDigest": "sha256:9058e2454c6219a88e5a59e230afa8837456c9d002b34a881dff9dcd2434293c"
+      "contentDigest": "sha256:0dbff3f703225be212e2f1005020e14b240e417dc4e6992a9fc6df2eb8849573"
     },
     {
       "domain": "POSTGRES",
@@ -79,8 +79,8 @@
     {
       "domain": "SECURITY",
       "repositoryPath": "contracts/traceability/requirement-atom-trace/security.jsonl",
-      "recordCount": 722,
-      "contentDigest": "sha256:f554be04a765fe568bc6baeac2f238b3781994f89f601069a34e7c1448f9d319"
+      "recordCount": 723,
+      "contentDigest": "sha256:975ee90b1e61a3a75fef522879f59e1d3d1a14d62021c28bf859073ac78816e2"
     },
     {
       "domain": "TESTING",
@@ -91,8 +91,8 @@
     {
       "domain": "UI",
       "repositoryPath": "contracts/traceability/requirement-atom-trace/ui.jsonl",
-      "recordCount": 108,
-      "contentDigest": "sha256:4c4ed6c5b6ad91821f75cf65bf7a19faa79de00d8baf820c15bebaec2c742b30"
+      "recordCount": 107,
+      "contentDigest": "sha256:aea74dde71dfe08e6f609a580411086703468c23414e4d4a4c67a539a916687b"
     }
   ]
 }

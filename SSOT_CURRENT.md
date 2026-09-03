@@ -868,7 +868,7 @@ Detailní MCP interoperability a wire edge-case matrix je v kapitole 10; formál
 
 ### 7.1 Jediná lidská identita
 
-Jedinou lidskou identitou je pevný OWNER `KRMAR78`. Interaktivní přístup ověřuje heslo, volitelné MFA a platnost webové relace. Tím autentizace končí: role, skupiny, uživatelské scopes, uživatelská oprávnění a objektové ACL neexistují. Platná OWNER session má vždy celý funkční rozsah systému.
+Jedinou lidskou identitou je pevný OWNER `KRMAR78`. Interaktivní přístup ověřuje ručně zadané username, heslo, povinné MFA a platnost webové relace. Pokud MFA ještě není aktivní, úspěšné ověření hesla povinně přejde do registrační procedury a do jejího dokončení nevznikne MFA-ověřená relace. Tím autentizace končí: role, skupiny, uživatelské scopes, uživatelská oprávnění a objektové ACL neexistují. Platná OWNER session má vždy celý funkční rozsah systému.
 
 ### 7.2 Jediný OWNER API klíč
 
@@ -5437,7 +5437,7 @@ Jediný OWNER API klíč poskytuje rovnocenný produkční přístup bez interak
 
 ### 21.3 MFA
 
-OWNER může z UI aktivovat TOTP pomocí QR nebo manual seed, ověřit kód, zobrazit recovery codes a zaregistrovat nový autentifikátor. Důvěryhodné zařízení má konfigurovatelnou dobu. Recovery kód je jednorázový.
+TOTP MFA je pro interaktivní OWNER přihlášení povinné. Není-li dosud aktivní, první správné zadání username a hesla vytvoří pouze omezenou enrollment relaci, zobrazí QR kód i záložní manual seed pro autentizační aplikaci a vyžádá první šestimístný kód. Až jeho úspěšné ověření atomicky aktivuje MFA, označí relaci jako MFA-ověřenou a jednorázově zobrazí recovery codes; před dokončením enrollmentu nesmí relace volat MFA-chráněné endpointy. Další přihlášení vždy vyžadují TOTP nebo nepoužitý jednorázový recovery kód. Důvěryhodné zařízení má konfigurovatelnou dobu.
 
 ### 21.4 Relace
 
@@ -11198,7 +11198,7 @@ Kanonická struktura jednoho privátního repozitáře:
 
 ### 39.1 Přihlášení
 
-Obrazovka používá centrovaný panel do 430 px, logo KájovoCML NG, read-only označení identity `KRMAR78`, password, pokračovací tlačítko, stavové hlášení a technický correlation detail při chybě. Username není editovatelné pole. Druhý krok MFA obsahuje TOTP/recovery input, návrat a správu důvěryhodného zařízení. Provozní bootstrap probíhá automaticky; OpenAI credential se doplňuje v Password Manageru nebo centrálním chatu a jeho absence zachovává login i celý ne-AI systém.
+Obrazovka používá centrovaný panel do 430 px, logo KájovoCML NG, ručně vyplňované username a password, pokračovací tlačítko, stavové hlášení a technický correlation detail při chybě. Pevné username nesmí být zobrazené v nápovědě, placeholderu ani předvyplněné hodnotě. Pokud MFA není aktivní, navazující povinný enrollment krok zobrazí QR kód pro autentizační aplikaci, rozbalitelný manual seed a input pro první šestimístný kód. Běžný druhý krok MFA obsahuje TOTP/recovery input, návrat a správu důvěryhodného zařízení. Provozní bootstrap probíhá automaticky; OpenAI credential se doplňuje v Password Manageru nebo centrálním chatu a jeho absence zachovává login i celý ne-AI systém.
 
 ### 39.2 Dashboard
 
