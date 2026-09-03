@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 trap 'printf "REPOSITORY_CONSISTENCY: FAIL line=%s\n" "$LINENO" >&2' ERR
-expected_ssot=995937b0a3242a4e022451f96dbd8881562764d1a78e5efbb32502c78217e6d7
+expected_ssot=85fc3cd817f3fb14b9b357625542be1c28957af7485fddec3e5112fff18a3488
 test "$(sha256sum SSOT_CURRENT.md | cut -d' ' -f1)" = "$expected_ssot"
 for path in apps packages contracts database deploy tests docs .github/workflows; do test -d "$path"; done
 for file in package.json pnpm-workspace.yaml pnpm-lock.yaml AGENTS.md README.md START_HERE.md BOOTSTRAP_REQUIRED_VALUES.md; do test -s "$file"; done
