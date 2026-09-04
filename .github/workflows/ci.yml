@@ -34,6 +34,13 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '24.11.1', cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      - name: Create isolated SUT databases
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'CREATE DATABASE kcml_ci_postgres'
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'CREATE DATABASE kcml_ci_integration'
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'CREATE DATABASE kcml_ci_property'
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'CREATE DATABASE kcml_ci_chaos'
+      - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm contracts:check
       - run: pnpm conformance:audit
       - run: pnpm lint
@@ -44,9 +51,13 @@ jobs:
       - run: pnpm db:migrate
       - run: pnpm db:verify
       - run: pnpm test:postgres
+        env: { DATABASE_URL: 'postgresql://kcml:kcml-ci-password@127.0.0.1:5432/kcml_ci_postgres' }
       - run: pnpm test:integration
+        env: { DATABASE_URL: 'postgresql://kcml:kcml-ci-password@127.0.0.1:5432/kcml_ci_integration' }
       - run: pnpm test:property
+        env: { DATABASE_URL: 'postgresql://kcml:kcml-ci-password@127.0.0.1:5432/kcml_ci_property' }
       - run: pnpm test:chaos
+        env: { DATABASE_URL: 'postgresql://kcml:kcml-ci-password@127.0.0.1:5432/kcml_ci_chaos' }
       - run: pnpm test:ipc
       - run: pnpm test:systemd
       - run: bash scripts/repository-consistency.sh
