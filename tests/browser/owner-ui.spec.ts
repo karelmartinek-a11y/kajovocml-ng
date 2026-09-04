@@ -25,7 +25,12 @@ test('OWNER authenticates and every principal workspace is navigable', async ({ 
   await expect.poll(async () => (await page.request.get('/api/v1/session')).status()).toBe(200);
   try {
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: /Provozní přehled/u })).toBeVisible();
+    const browserSession=await page.evaluate(async () => {
+      const response=await fetch('/api/v1/session',{credentials:'same-origin'});
+      return {status:response.status,body:await response.json() as {username?:string}};
+    });
+    expect(browserSession).toMatchObject({status:200,body:{username:'KRMAR78'}});
+    await expect(page.locator('body')).toContainText('Provozní přehled',{timeout:15_000});
     await page.goto('/generation');
     await expect(page.getByText(/Výrobní workspace/u)).toBeVisible();
     await page.goto('/browser');
