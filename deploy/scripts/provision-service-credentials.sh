@@ -3,6 +3,15 @@ set -Eeuo pipefail
 [[ ${EUID} -eq 0 ]] || { echo 'Provisioning service credentials requires root.' >&2; exit 77; }
 repository_root=${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 manifest=${repository_root}/deploy/security/service-capabilities.tsv
+hba_file=$(runuser -u postgres -- psql -Atqc 'SHOW hba_file')
+hba_candidate=$(mktemp)
+{
+  printf '%s\n' 'local kajovocml_ng kajovocml_app scram-sha-256' 'local kajovocml_ng +kcml_service_login scram-sha-256'
+  grep -vxF -e 'local kajovocml_ng kajovocml_app scram-sha-256' -e 'local kajovocml_ng +kcml_service_login scram-sha-256' "${hba_file}"
+} >"${hba_candidate}"
+install -o postgres -g postgres -m 0640 "${hba_candidate}" "${hba_file}"
+rm -f "${hba_candidate}"
+runuser -u postgres -- psql -c 'SELECT pg_reload_conf()' >/dev/null
 while IFS='|' read -r unit primary_group supplementary_groups database_role credentials read_only_paths; do
   [[ -z ${unit} || ${unit:0:1} == '#' ]] && continue
   [[ ${database_role} == '-' ]] && continue

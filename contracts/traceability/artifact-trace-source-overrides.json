@@ -3077,7 +3077,7 @@
       "traceAnchors": [
         {
           "requirementId": "KCML-REQ-POSTGRES-dceaacd8f0ad44e6e76a65ce6b1d472776ceeabd9afa58a4f578eea199dc1e0b",
-          "locator": "deploy/scripts/provision-service-credentials.sh:17",
+          "locator": "deploy/scripts/provision-service-credentials.sh:26",
           "symbol": "service-database-role-provisioning",
           "snippetDigest": "sha256:e0cdfb135993735d2572413f4315ca65a2172ceb4028997754e92f4c26d819aa"
         }
