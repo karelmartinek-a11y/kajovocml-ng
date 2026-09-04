@@ -16,6 +16,7 @@ describe('canonical contracts', () => {
   it('materializes one strict JSON-safe representation', () => {
     expect(toCanonicalJsonValue({ when: new Date('2026-09-04T00:00:00Z'), amount: 42n, nested: [null, 'ž'] }))
       .toEqual({ amount: '42', nested: [null, 'ž'], when: '2026-09-04T00:00:00.000Z' });
+    expect(toCanonicalJsonValue({ bytes: Buffer.from([1, 2, 3]) })).toEqual({ bytes: 'base64:AQID' });
     expect(() => toCanonicalJsonValue({ value: Number.NaN })).toThrow('non-finite number');
     expect(() => toCanonicalJsonValue({ value: () => true })).toThrow('function');
     const cyclic: Record<string, unknown> = {};

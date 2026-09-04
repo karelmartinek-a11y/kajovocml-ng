@@ -44,6 +44,7 @@ export function toCanonicalJsonValue(value: unknown): CanonicalJsonValue {
       if (Number.isNaN(input.getTime())) throw new CanonicalJsonConversionError(path, 'invalid Date');
       return input.toISOString();
     }
+    if (input instanceof Uint8Array) return `base64:${Buffer.from(input).toString('base64')}`;
     if (typeof input !== 'object') throw new CanonicalJsonConversionError(path, typeof input);
     if (ancestors.has(input)) throw new CanonicalJsonConversionError(path, 'cycle');
     const prototype = Object.getPrototypeOf(input);
