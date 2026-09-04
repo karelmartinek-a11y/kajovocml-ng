@@ -28,7 +28,7 @@ fail(){
   psql "${DATABASE_URL}" -v deployment_id="${deployment_id}" -v status="${status}" >/dev/null 2>&1 <<'SQL' || true
 UPDATE kcml.deployment_run SET status='FAILED',evidence=evidence||jsonb_build_object('failureExit',(:'status')::int),completed_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp() WHERE id=:'deployment_id'::uuid;
 SQL
-  if [[ ${rolling_back} -eq 0 && -n ${previous_path} && -d ${previous_path} ]]; then rolling_back=1; /opt/kajovocml-ng/current/deploy/scripts/rollback-production.sh --release-path "${previous_path}" --failed-release "${release_id}" || true; fi
+  if [[ ${rolling_back} -eq 0 && -n ${previous_path} && -d ${previous_path} ]]; then rolling_back=1; "${previous_path}/deploy/scripts/rollback-production.sh" --release-path "${previous_path}" --failed-release "${release_id}" || true; fi
   echo "DEPLOYMENT FAILED exit=${status}" >&2
   exit "${status}"
 }
@@ -37,6 +37,27 @@ verify_bundle(){ minisign -Vm "${bundle}" -x "${signature}" -p /etc/kajovocml-ng
 create_backup(){ local path=/var/lib/kajovocml-ng/backups/pre-${release_id}-$(date -u +%Y%m%dT%H%M%SZ);install -d -o root -g kcml-platform -m 0700 "${path}";pg_dump --format=custom --file="${path}/database.dump" "${DATABASE_URL}";tar -C /etc -czf "${path}/configuration.tar.gz" kajovocml-ng;sha256sum "${path}"/* >"${path}/SHA256SUMS"; }
 stage_release(){ [[ ! -e ${release_path} && ! -e ${stage_path} ]] || { echo 'Release ID již existuje.' >&2; return 1; };install -d -m 0755 "${stage_path}";tar -xzf "${bundle}" -C "${stage_path}" --strip-components=1;grep -qx "${expected_sha}" "${stage_path}/SOURCE_SHA";grep -qx "${release_id}" "${stage_path}/RELEASE_ID";(cd "${stage_path}"&&sha256sum -c FILES.sha256); }
 install_release(){ mv "${stage_path}" "${release_path}";chown -R root:root "${release_path}";find "${release_path}" -type d -exec chmod a-w {} +;find "${release_path}" -type f -exec chmod a-w {} +;"${release_path}/deploy/scripts/install-systemd.sh" "${release_path}"; }
+create_group(){ getent group "$1" >/dev/null || groupadd --system "$1"; }
+create_user(){ local name=$1 primary_group=$2;getent passwd "${name}" >/dev/null||useradd --system --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin --gid "${primary_group}" "${name}";usermod --gid "${primary_group}" "${name}"; }
+reconcile_service_identities(){
+  local unit app service_user rest security_row security_unit primary_group supplementary_groups database_role credentials read_only_paths group
+  for group in kcml-platform kcml-release-readers kcml-runtime-callers kcml-runtime-gateway kcml-browser-worker kcml-runtime-host kcml-browser-host kcml-recovery kcml-deploy;do create_group "${group}";done
+  while IFS='|' read -r unit primary_group supplementary_groups database_role credentials read_only_paths;do [[ -z ${unit}||${unit:0:1} == '#' ]]&&continue;create_group "${primary_group}";done <"${stage_path}/deploy/security/service-capabilities.tsv"
+  while IFS='|' read -r unit app service_user rest;do [[ -z ${unit}||${unit:0:1} == '#' ]]&&continue;security_row=$(awk -F'|' -v unit="${unit}" '$1==unit {print}' "${stage_path}/deploy/security/service-capabilities.tsv");IFS='|' read -r security_unit primary_group supplementary_groups database_role credentials read_only_paths <<<"${security_row}";[[ ${security_unit} == "${unit}"&&-n ${primary_group} ]]||return 1;create_user "${service_user}" "${primary_group}";[[ -n ${supplementary_groups} ]]&&usermod -a -G "${supplementary_groups// /,}" "${service_user}";done <"${stage_path}/deploy/systemd/services.tsv"
+  create_user kcml-runtime-host kcml-runtime-host;create_user kcml-browser-host kcml-browser-host;create_user kcml-recovery kcml-recovery
+  usermod -a -G kcml-runtime-callers,kcml-release-readers kcml-runtime-gateway
+  usermod -a -G kcml-runtime-callers,kcml-release-readers kcml-runtime-host
+  usermod -a -G kcml-browser-worker,kcml-release-readers kcml-browser-host
+  usermod -a -G kcml-release-readers kcml-recovery
+  install -d -o root -g kcml-release-readers -m 0750 /opt/kajovocml-ng /opt/kajovocml-ng/releases
+  sed -i -E '/^(DATABASE_URL|KCML_MASTER_KEY_FILE)=/d' /etc/kajovocml-ng/runtime.env
+  chown root:kcml-release-readers /etc/kajovocml-ng/runtime.env;chmod 0440 /etc/kajovocml-ng/runtime.env
+  chown root:root /etc/kajovocml-ng/master.key /etc/kajovocml-ng/deploy.env;chmod 0400 /etc/kajovocml-ng/master.key /etc/kajovocml-ng/deploy.env
+  while IFS='|' read -r unit app service_user families writable dependency enabled;do [[ -z ${unit}||${unit:0:1} == '#' ]]&&continue;for writable_path in ${writable};do [[ ! -e ${writable_path} ]]||setfacl -m "u:${service_user}:rwx" "${writable_path}";done;done <"${stage_path}/deploy/systemd/services.tsv"
+  setfacl -m u:kcml-runtime-host:rwx /var/lib/kajovocml-ng/runtime /var/lib/kajovocml-ng/runtime/instances /run/kajovocml-ng/runtime-hosts 2>/dev/null||true
+  setfacl -m u:kcml-browser-host:rx /var/lib/kajovocml-ng/browser /var/lib/kajovocml-ng/browser/runtime-builds 2>/dev/null||true
+  setfacl -m u:kcml-browser-host:rwx /var/lib/kajovocml-ng/browser/hosts /var/lib/kajovocml-ng/browser/sessions /run/kajovocml-ng/browser-hosts 2>/dev/null||true
+}
 reconcile_nginx(){
   local target=/etc/nginx/sites-available/kajovocml-ng.conf backup
   backup=$(mktemp)
@@ -89,6 +110,7 @@ migrate_candidate(){ (cd "${stage_path}" && env KCML_RELEASE_ID="${release_id}" 
 run_step verify_source_and_signature verify_bundle
 run_step backup create_backup
 run_step verified_candidate_staging stage_release
+run_step service_identity_reconciliation reconcile_service_identities
 run_step forward_migrations migrate_candidate
 run_step deployment_record begin_deployment_record
 run_step platform_identity_config_reconciliation reconcile_platform

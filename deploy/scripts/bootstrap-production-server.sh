@@ -33,9 +33,11 @@ create_user kcml-runtime-host kcml-runtime-host; create_user kcml-browser-host k
 # bootstrap. Fresh accounts retain the dedicated KCML deployment home.
 if ! pgrep -u kcml-deploy >/dev/null 2>&1; then usermod --home /var/lib/kajovocml-ng/deploy-home --shell /bin/bash kcml-deploy; fi
 usermod -a -G kcml-runtime-callers,kcml-release-readers kcml-runtime-gateway
-usermod -a -G kcml-runtime-callers kcml-runtime-host
+usermod -a -G kcml-runtime-callers,kcml-release-readers kcml-runtime-host
 usermod -a -G kcml-browser-worker kcml-browser-worker
-usermod -a -G kcml-browser-host kcml-browser-worker
+usermod -a -G kcml-browser-host,kcml-release-readers kcml-browser-worker
+usermod -a -G kcml-release-readers kcml-browser-host
+usermod -a -G kcml-release-readers kcml-recovery
 
 install -d -o root -g kcml-release-readers -m 0750 /opt/kajovocml-ng /opt/kajovocml-ng/releases
 install -d -o root -g root -m 0750 /etc/kajovocml-ng /etc/kajovocml-ng/tls /etc/kajovocml-ng/credentials

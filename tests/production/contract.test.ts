@@ -58,4 +58,18 @@ describe('production acceptance contract', () => {
     expect(unit).toContain('Group=kcml-runtime-gateway');
     expect(unit).toContain('SupplementaryGroups=kcml-runtime-callers kcml-release-readers');
   });
+
+  it('reconciles service identities and credentials before immutable unit installation', async () => {
+    const deploy = await readFile('deploy/scripts/deploy-production.sh', 'utf8');
+    expect(deploy.indexOf('run_step service_identity_reconciliation reconcile_service_identities')).toBeLessThan(deploy.indexOf('run_step forward_migrations migrate_candidate'));
+    expect(deploy).toContain('usermod -a -G kcml-release-readers kcml-recovery');
+    expect(deploy).toContain("sed -i -E '/^(DATABASE_URL|KCML_MASTER_KEY_FILE)=/d' /etc/kajovocml-ng/runtime.env");
+    expect(deploy).toContain('chmod 0400 /etc/kajovocml-ng/master.key /etc/kajovocml-ng/deploy.env');
+  });
+
+  it('executes rollback code from the previously verified immutable release', async () => {
+    const deploy = await readFile('deploy/scripts/deploy-production.sh', 'utf8');
+    expect(deploy).toContain('"${previous_path}/deploy/scripts/rollback-production.sh" --release-path "${previous_path}"');
+    expect(deploy).not.toContain('/opt/kajovocml-ng/current/deploy/scripts/rollback-production.sh --release-path');
+  });
 });

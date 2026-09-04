@@ -128,6 +128,7 @@ export class PlatformRecoveryCoordinator {
     await this.classifyOutbox(authority,workerId);
     await this.classifyCurrentDeployment(authority,workerId);
     await this.classifyAiModelCalls(authority,workerId);
+    await this.classifySafeBrowserCleanup(authority,workerId);
     await this.classifyRemainingInventory(authority,workerId);
     await this.options.faultInjector?.('BEFORE_RECOVERY_READY_TRANSITION',{attemptId:authority.attemptId,recoveryEpoch:authority.recoveryEpoch,fencingToken:authority.fencingToken});
     return this.finalize(authority,workerId);
@@ -235,6 +236,31 @@ export class PlatformRecoveryCoordinator {
         reason:hasProviderResponse?'PROVIDER_RESPONSE_ID_PRESENT_CANONICAL_RETRIEVE_REQUIRED':'PROVIDER_RESPONSE_ID_MISSING_OUTCOME_UNKNOWN',
         providerResponseId:call.provider_response_id??null
       }));
+    });
+  }
+
+  private async classifySafeBrowserCleanup(authority:RecoveryAuthority,workerId:string):Promise<void>{
+    const ids=(await this.pool.query(`SELECT session.id::text AS id FROM kcml.browser_session session
+      WHERE session.lifecycle NOT IN ('CLOSED','FAILED','EXPIRED')
+        AND NOT EXISTS(SELECT 1 FROM kcml.browser_session_dispatch_lease lease WHERE lease.session_id=session.id AND lease.released_at IS NULL)
+        AND NOT EXISTS(SELECT 1 FROM kcml.browser_action_run action WHERE action.session_id=session.id AND action.dispatch_phase NOT IN ('CONFIRMED_APPLIED','CONFIRMED_NOT_APPLIED','FAILED_FINAL'))
+        AND NOT EXISTS(SELECT 1 FROM kcml.browser_challenge challenge WHERE challenge.session_id=session.id AND challenge.status='PENDING')
+        AND NOT EXISTS(SELECT 1 FROM kcml.browser_download download WHERE download.session_id=session.id AND (download.state NOT IN ('COMPLETED','FAILED','CANCELLED') OR download.cleanup_state IS DISTINCT FROM 'COMPLETE'))
+        AND NOT EXISTS(SELECT 1 FROM kcml.browser_upload_handle upload WHERE upload.session_id=session.id AND upload.cleanup_at IS NULL AND (upload.consumed_at IS NULL OR upload.expires_at>clock_timestamp()))
+      ORDER BY session.id`)).rows.map((row)=>String(row.id));
+    for(const sessionId of ids)await inTransaction(this.pool,'SERIALIZABLE',async(client)=>{
+      await exclusiveRecoveryLock(client);await this.assertFence(client,authority,workerId);
+      const existing=Number((await client.query(`SELECT count(*)::int AS count FROM kcml.platform_recovery_item WHERE recovery_attempt_id=$1 AND owner_kind='BROWSER_SESSION' AND owner_id=$2`,[authority.attemptId,sessionId])).rows[0]?.count??0)>0;if(existing)return;
+      const record=(await collectInventory(client)).find((item)=>item.ownerKind==='BROWSER_SESSION'&&item.ownerId===sessionId);if(!record)return;
+      const safe=(await client.query(`SELECT session.lifecycle,session.state_version,
+          NOT EXISTS(SELECT 1 FROM kcml.browser_session_dispatch_lease lease WHERE lease.session_id=session.id AND lease.released_at IS NULL) AS no_active_lease,
+          NOT EXISTS(SELECT 1 FROM kcml.browser_action_run action WHERE action.session_id=session.id AND action.dispatch_phase NOT IN ('CONFIRMED_APPLIED','CONFIRMED_NOT_APPLIED','FAILED_FINAL')) AS no_uncertain_action,
+          NOT EXISTS(SELECT 1 FROM kcml.browser_challenge challenge WHERE challenge.session_id=session.id AND challenge.status='PENDING') AS no_pending_challenge,
+          NOT EXISTS(SELECT 1 FROM kcml.browser_download download WHERE download.session_id=session.id AND (download.state NOT IN ('COMPLETED','FAILED','CANCELLED') OR download.cleanup_state IS DISTINCT FROM 'COMPLETE')) AS no_pending_download,
+          NOT EXISTS(SELECT 1 FROM kcml.browser_upload_handle upload WHERE upload.session_id=session.id AND upload.cleanup_at IS NULL AND (upload.consumed_at IS NULL OR upload.expires_at>clock_timestamp())) AS no_live_upload
+        FROM kcml.browser_session session WHERE session.id=$1 FOR UPDATE`,[sessionId])).rows[0];
+      if(!safe||!safe.no_active_lease||!safe.no_uncertain_action||!safe.no_pending_challenge||!safe.no_pending_download||!safe.no_live_upload)return;
+      await insertRecoveryItem(client,authority,record,'CLEANUP',false,'BROWSER_SESSION',sessionId,safeJson({reason:'NO_HOST_AUTHORITY_OR_UNCERTAIN_BROWSER_EFFECT',lifecycle:String(safe.lifecycle),stateVersion:String(safe.state_version),oracle:{noActiveLease:true,noUncertainAction:true,noPendingChallenge:true,noPendingDownload:true,noLiveUpload:true}}));
     });
   }
 
