@@ -1,1 +1,3 @@
-import { runService } from '@kcml/worker-runtime'; await runService({serviceName:'kcml-browser-bridge-gateway',queueNames:['kcml-browser']});
+import { startSpecializedService } from '@kcml/worker-runtime';
+
+await startSpecializedService('kcml-browser-bridge-gateway');

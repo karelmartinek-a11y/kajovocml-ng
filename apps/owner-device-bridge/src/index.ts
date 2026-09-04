@@ -1,1 +1,3 @@
-import { runService } from '@kcml/worker-runtime'; await runService({serviceName:'kcml-owner-device-bridge'});
+import { startSpecializedService } from '@kcml/worker-runtime';
+
+await startSpecializedService('kcml-owner-device-bridge');

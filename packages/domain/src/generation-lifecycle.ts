@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseClient, DatabasePool } from '@kcml/database';
 import { allocateContiguousSequence, inTransaction, withSerializableRetry } from '@kcml/database';
-import { canonicalDigest } from '@kcml/schemas';
+import { canonicalDigest, toCanonicalJsonValue } from '@kcml/schemas';
 import { DomainError } from './errors.js';
 
 export const GENERATION_PHASES = ['DISCUSSING', 'ANALYZING', 'IMPLEMENTING', 'INTEGRATING', 'VALIDATING', 'CML_CONFORMANCE', 'ACTIVATING'] as const;
@@ -17,7 +17,16 @@ const phaseIndex = new Map<string, number>(GENERATION_PHASES.map((phase, index) 
 const transitionable = new Set<GenerationJobState>(['DISCUSSING', 'ANALYZING', 'IMPLEMENTING', 'INTEGRATING', 'VALIDATING', 'CML_CONFORMANCE', 'ACTIVATING', 'BLOCKED']);
 
 function safeJson(value: unknown): unknown {
-  return JSON.parse(JSON.stringify(value, (_key, item) => typeof item === 'bigint' ? item.toString() : item));
+  return toCanonicalJsonValue(value);
+}
+
+export function generationWorkerPool(phase: GenerationPhase): string {
+  if (phase === 'DISCUSSING') return 'kcml-generation-coordinator';
+  if (phase === 'ANALYZING') return 'kcml-generation-openai';
+  if (phase === 'IMPLEMENTING') return 'kcml-generation-workspace';
+  if (phase === 'INTEGRATING') return 'kcml-generation-integration';
+  if (phase === 'ACTIVATING') return 'kcml-generation-activation';
+  return 'kcml-generation-validation';
 }
 
 function digest(value: unknown): Buffer {
@@ -103,7 +112,7 @@ export async function startGenerationPhase(pool: DatabasePool, input: { jobId: s
     const phaseRunId = randomUUID();
     const planRange = { phase: input.phase, sourceCheckpointId: job.latest_checkpoint_id ?? null, workspaceRevisionId: job.workspace_revision_id ?? null, authorityId: job.execution_authority_id ?? null };
     const phaseRun = (await client.query(`INSERT INTO kcml.generation_phase_run(id,job_id,phase,attempt,state,worker_pool,lease_owner,lease_fencing_token,lease_expires_at,heartbeat_at,plan_node_range,input_checkpoint_id,canonical_digest,logical_operation_id,correlation_id,activation_epoch,platform_incarnation_id,application_deployment_epoch)
-      VALUES($1,$2,$3,$4,'RUNNING','kcml-generation',$5,$6,clock_timestamp()+interval '5 minutes',clock_timestamp(),$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`, [phaseRunId, input.jobId, input.phase, attempt.toString(), input.workerId, fence.toString(), planRange, job.latest_checkpoint_id ?? null, digest({ phaseRunId, phase: input.phase, attempt: attempt.toString(), fence: fence.toString(), planRange }), input.logicalOperationId ?? job.logical_operation_id ?? null, input.correlationId ?? job.correlation_id ?? null, job.activation_epoch, job.platform_incarnation_id, job.application_deployment_epoch])).rows[0];
+      VALUES($1,$2,$3,$4,'RUNNING',$5,$6,$7,clock_timestamp()+interval '5 minutes',clock_timestamp(),$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`, [phaseRunId, input.jobId, input.phase, attempt.toString(), generationWorkerPool(input.phase), input.workerId, fence.toString(), planRange, job.latest_checkpoint_id ?? null, digest({ phaseRunId, phase: input.phase, attempt: attempt.toString(), fence: fence.toString(), planRange }), input.logicalOperationId ?? job.logical_operation_id ?? null, input.correlationId ?? job.correlation_id ?? null, job.activation_epoch, job.platform_incarnation_id, job.application_deployment_epoch])).rows[0];
     const changed = (await client.query(`UPDATE kcml.generation_job SET lifecycle=$2,current_phase=$2,active_phase_run_id=$3,lease_fencing_token=$4,active_worker_id=$5,lease_expires_at=clock_timestamp()+interval '5 minutes',state_version=state_version+1 WHERE id=$1 AND state_version=$6 RETURNING *`, [input.jobId, input.phase, phaseRunId, fence.toString(), input.workerId, job.state_version])).rows[0];
     if (!changed) throw new DomainError('STATE_VERSION_CONFLICT', 'Generation job changed while starting phase', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
     await checkpoint(client, changed, input.phase, input.phase === 'ANALYZING' ? 'SOURCE_INTAKE' : 'PHASE_PROGRESS', { state: 'RUNNING', phaseRunId, fence: fence.toString() }, phaseRunId, null);
@@ -137,7 +146,7 @@ export async function completeGenerationPhase(pool: DatabasePool, input: { phase
     if (successor) {
       const successorId = randomUUID();
       successorRun = (await client.query(`INSERT INTO kcml.generation_phase_run(id,job_id,phase,attempt,state,worker_pool,plan_node_range,input_checkpoint_id,canonical_digest,logical_operation_id,correlation_id,activation_epoch,platform_incarnation_id,application_deployment_epoch)
-        VALUES($1,$2,$3,1,'QUEUED','kcml-generation',$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`, [successorId, job.id, successor, { phase: successor, predecessorPhaseRunId: run.id }, outputCheckpoint.id, digest({ successorId, successor, predecessorPhaseRunId: run.id }), job.logical_operation_id ?? null, job.correlation_id ?? null, job.activation_epoch, job.platform_incarnation_id, job.application_deployment_epoch])).rows[0];
+        VALUES($1,$2,$3,1,'QUEUED',$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`, [successorId, job.id, successor, generationWorkerPool(successor), { phase: successor, predecessorPhaseRunId: run.id }, outputCheckpoint.id, digest({ successorId, successor, predecessorPhaseRunId: run.id }), job.logical_operation_id ?? null, job.correlation_id ?? null, job.activation_epoch, job.platform_incarnation_id, job.application_deployment_epoch])).rows[0];
     }
     const finalState = successor ?? 'COMPLETED';
     const changed = (await client.query(`UPDATE kcml.generation_job SET lifecycle=$2,current_phase=$2,active_phase_run_id=$3,latest_checkpoint_id=$4,terminal_evidence=CASE WHEN $2='COMPLETED' THEN $5 ELSE terminal_evidence END,state_version=state_version+1 WHERE id=$1 AND state_version=$6 RETURNING *`, [job.id, finalState, successorRun?.id ?? null, outputCheckpoint.id, safeJson(terminalEvidence), job.state_version])).rows[0];
@@ -186,7 +195,7 @@ export async function applyWorkspacePatchSet(pool: DatabasePool, input: { jobId:
       phaseRunId = randomUUID();
       const fence = await allocateContiguousSequence(client, 'GENERATION_PHASE_FENCE', input.jobId, 'IMPLEMENTING');
       await client.query(`INSERT INTO kcml.generation_phase_run(id,job_id,phase,attempt,state,worker_pool,lease_owner,lease_fencing_token,lease_expires_at,heartbeat_at,plan_node_range,canonical_digest,logical_operation_id,correlation_id,activation_epoch,platform_incarnation_id,application_deployment_epoch)
-        VALUES($1,$2,'IMPLEMENTING',1,'RUNNING','kcml-generation',$3,$4,clock_timestamp()+interval '5 minutes',clock_timestamp(),$5,$6,$7,$8,$9,$10,$11)`, [phaseRunId, input.jobId, input.logicalOperationId ?? randomUUID(), fence.toString(), { phase: 'IMPLEMENTING', compatibility: true }, digest({ phaseRunId, fence: fence.toString() }), input.logicalOperationId ?? job.logical_operation_id ?? null, input.correlationId ?? job.correlation_id ?? null, job.activation_epoch, job.platform_incarnation_id, job.application_deployment_epoch]);
+        VALUES($1,$2,'IMPLEMENTING',1,'RUNNING',$3,$4,$5,clock_timestamp()+interval '5 minutes',clock_timestamp(),$6,$7,$8,$9,$10,$11,$12)`, [phaseRunId, input.jobId, generationWorkerPool('IMPLEMENTING'), input.logicalOperationId ?? randomUUID(), fence.toString(), { phase: 'IMPLEMENTING', compatibility: true }, digest({ phaseRunId, fence: fence.toString() }), input.logicalOperationId ?? job.logical_operation_id ?? null, input.correlationId ?? job.correlation_id ?? null, job.activation_epoch, job.platform_incarnation_id, job.application_deployment_epoch]);
       await client.query(`UPDATE kcml.generation_job SET active_phase_run_id=$2,lease_fencing_token=$3,state_version=state_version+1 WHERE id=$1`, [input.jobId, phaseRunId, fence.toString()]);
     }
     const run = (await client.query(`SELECT id,state,job_id FROM kcml.generation_phase_run WHERE id=$1 AND job_id=$2 FOR UPDATE`, [phaseRunId, input.jobId])).rows[0];

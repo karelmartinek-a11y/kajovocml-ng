@@ -1,1 +1,3 @@
-import { runService } from '@kcml/worker-runtime'; await runService({serviceName:'kcml-runtime-host',queueNames:['kcml-runtime']});
+import { startSpecializedService } from '@kcml/worker-runtime';
+
+await startSpecializedService('kcml-runtime-host');

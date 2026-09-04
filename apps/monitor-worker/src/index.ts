@@ -1,1 +1,3 @@
-import { runService } from '@kcml/worker-runtime'; await runService({serviceName:'kcml-monitor-worker',queueNames:['kcml-monitor'],intervalMs:1000});
+import { startSpecializedService } from '@kcml/worker-runtime';
+
+await startSpecializedService('kcml-monitor-worker');

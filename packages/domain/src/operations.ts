@@ -237,7 +237,7 @@ async function nextStreamSequence(client:DatabaseClient,stream:string):Promise<b
 async function audit(client:DatabaseClient,eventType:string,actorId:string,aggregateType:string,aggregateId:string,correlationId:string,causationId:string|null,payload:JsonObject):Promise<void>{const bytes=Buffer.from(canonicalJson(jsonSafe(payload)));await client.query(`SELECT * FROM kcml.append_audit_event($1,'OWNER',$2,$3,$4,$5,$6,$7,$8)`,[eventType,actorId,aggregateType,aggregateId,correlationId,causationId,payload,bytes]);}
 
 export type WorkerFaultPoint='AFTER_COMMAND_CHECKPOINT_BEFORE_TERMINAL';
-export interface WorkerOptions {queueNames:readonly string[];workerId:string;leaseSeconds?:number;faultInjector?:(point:WorkerFaultPoint,context:Readonly<{commandId:string;logicalOperationId:string;operationName:string}>)=>void|Promise<void>;}
+export interface WorkerOptions {queueNames:readonly string[];allowedOperations?:readonly string[];workerId:string;leaseSeconds?:number;faultInjector?:(point:WorkerFaultPoint,context:Readonly<{commandId:string;logicalOperationId:string;operationName:string}>)=>void|Promise<void>;}
 
 export class CanonicalCommandWorker {
   public constructor(private readonly pool:DatabasePool,private readonly catalog:OperationCatalogService,private readonly options:WorkerOptions){}
@@ -245,11 +245,11 @@ export class CanonicalCommandWorker {
     const claim=await inTransactionProfile(this.pool,'WORKER_COMMIT',async(client)=>{
       const recoveryHead=await lockAndVerifyPlatformRecovery(client);
       const candidateResult=await client.query(`SELECT q.id,q.command_id FROM kcml.queue_item q JOIN kcml.domain_command c ON c.id=q.command_id
-        WHERE q.queue_name=ANY($1) AND q.available_at<=clock_timestamp()
+        WHERE q.queue_name=ANY($1) AND ($5::text[] IS NULL OR c.operation_name=ANY($5)) AND q.available_at<=clock_timestamp()
           AND (q.status='READY' OR (q.status='CLAIMED' AND q.lease_expires_at<=clock_timestamp()))
           AND q.platform_incarnation_id=$2 AND q.application_deployment_epoch=$3 AND q.recovery_epoch=$4
           AND c.platform_incarnation_id=$2 AND c.application_deployment_epoch=$3 AND c.recovery_epoch=$4
-        ORDER BY q.priority,q.available_at,q.id LIMIT 1`,[this.options.queueNames,recoveryHead.platform_incarnation_id,recoveryHead.current_epoch,recoveryHead.recovery_epoch]);const candidate=candidateResult.rows[0];if(!candidate)return null;
+        ORDER BY q.priority,q.available_at,q.id LIMIT 1`,[this.options.queueNames,recoveryHead.platform_incarnation_id,recoveryHead.current_epoch,recoveryHead.recovery_epoch,this.options.allowedOperations??null]);const candidate=candidateResult.rows[0];if(!candidate)return null;
       const guard=(await client.query(`SELECT relation.id AS admission_id,relation.activation_domain_id,relation.state AS admission_state,c.operation_name,c.target_id,c.logical_operation_id,c.concurrency_claim_id,c.concurrency_fencing_token,c.activation_epoch
         FROM kcml.domain_command c JOIN kcml.domain_command_activation_domain relation ON relation.domain_command_id=c.id WHERE c.id=$1`,[candidate.command_id])).rows[0];if(!guard)return null;
       await client.query(`SELECT id FROM kcml.activation_domain_head WHERE id=$1 FOR UPDATE`,[guard.activation_domain_id]);

@@ -8,8 +8,15 @@
         "KCML-REQ-BROWSER-707e7ba8eb2bd2b8c22e5000500c866a4e17e300303d5664ab5a3324df63e791",
         "KCML-REQ-BROWSER-063f2fc0c2a709c13a063c81536295177019fbfe32434d529c3f8c1cfdff8016"
       ],
-      "operationIds": ["OP-BROWSER-PREVIEW-RESYNC", "OP-BROWSER-PREVIEW-TICKET-CREATE"],
-      "registryRecordIds": ["OP-BROWSER-PREVIEW-RESYNC", "OP-BROWSER-PREVIEW-TICKET-CREATE", "ORACLE-SIDE-EFFECT"],
+      "operationIds": [
+        "OP-BROWSER-PREVIEW-RESYNC",
+        "OP-BROWSER-PREVIEW-TICKET-CREATE"
+      ],
+      "registryRecordIds": [
+        "OP-BROWSER-PREVIEW-RESYNC",
+        "OP-BROWSER-PREVIEW-TICKET-CREATE",
+        "ORACLE-SIDE-EFFECT"
+      ],
       "testIds": [],
       "traceAnchors": []
     },
@@ -28,9 +35,13 @@
         "OP-BROWSER-DOWNLOAD-PERSIST",
         "OP-BROWSER-SESSION-CREATE"
       ],
-      "stateMachineIds": ["SM-BROWSER_SESSION"],
+      "stateMachineIds": [
+        "SM-BROWSER_SESSION"
+      ],
       "registryRecordIds": [],
-      "testIds": ["TEST-TD-05-BROWSER-LIFECYCLE"],
+      "testIds": [
+        "TEST-TD-05-BROWSER-LIFECYCLE"
+      ],
       "traceAnchors": [
         {
           "requirementId": "KCML-REQ-BROWSER-028a37088c596a05ca911c4b663f4336122685aa2d0ac10d7c3e2e57a60e8d03",
@@ -74,9 +85,15 @@
         "OP-BROWSER-DOWNLOAD-PERSIST",
         "OP-BROWSER-DOWNLOAD-STARTED"
       ],
-      "stateMachineIds": ["SM-BROWSER_SESSION"],
-      "registryRecordIds": ["ORACLE-SIDE-EFFECT"],
-      "testIds": ["TEST-TD-05-BROWSER-LIFECYCLE"],
+      "stateMachineIds": [
+        "SM-BROWSER_SESSION"
+      ],
+      "registryRecordIds": [
+        "ORACLE-SIDE-EFFECT"
+      ],
+      "testIds": [
+        "TEST-TD-05-BROWSER-LIFECYCLE"
+      ],
       "traceAnchors": [
         {
           "requirementId": "KCML-REQ-BROWSER-028a37088c596a05ca911c4b663f4336122685aa2d0ac10d7c3e2e57a60e8d03",

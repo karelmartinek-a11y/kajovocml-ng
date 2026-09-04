@@ -1,1 +1,3 @@
-import { runService } from '@kcml/worker-runtime'; await runService({serviceName:'kcml-central-chat-worker',queueNames:['kcml-chat']});
+import { startSpecializedService } from '@kcml/worker-runtime';
+
+await startSpecializedService('kcml-central-chat-worker');

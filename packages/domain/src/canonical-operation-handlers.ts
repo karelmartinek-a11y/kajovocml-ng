@@ -2,8 +2,9 @@ import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseClient, DatabasePool } from '@kcml/database';
 import { allocateContiguousSequence } from '@kcml/database';
 import type { OperationContract } from '@kcml/contract-pack';
-import { canonicalDigest, type CanonicalJsonValue } from '@kcml/schemas';
+import { canonicalDigest, toCanonicalJsonValue, type CanonicalJsonValue } from '@kcml/schemas';
 import { DomainError } from './errors.js';
+import { generationWorkerPool, type GenerationPhase } from './generation-lifecycle.js';
 import { exactComponentMutationOperations, executeExactComponentMutation } from './component-operations.js';
 import { exactMonitorMutationOperations, executeExactMonitorMutation } from './monitor-operations.js';
 import { exactMutationHandlerFor, exactQueryHandlerFor } from './exact-operation-handlers.js';
@@ -31,7 +32,7 @@ export type CanonicalMutationHandler = (client: DatabaseClient, context: Canonic
 export type CanonicalQueryHandler = (pool: DatabasePool, context: Pick<CanonicalHandlerContext, 'operation' | 'targetId' | 'arguments'>) => Promise<unknown>;
 
 function safeJson(value: unknown): CanonicalJsonValue {
-  return JSON.parse(JSON.stringify(value, (_key, item) => typeof item === 'bigint' ? item.toString() : item)) as CanonicalJsonValue;
+  return toCanonicalJsonValue(value);
 }
 
 function digest(value: unknown): Buffer {
@@ -737,7 +738,7 @@ async function generationMutation(client: DatabaseClient, context: CanonicalHand
     if (['generation.job.resume', 'generation.job.retry'].includes(name)) {
       const phaseRunId = randomUUID();
       const queued = (await client.query(`INSERT INTO kcml.generation_phase_run(id,job_id,phase,attempt,state,worker_pool,plan_node_range,canonical_digest,logical_operation_id,correlation_id,activation_epoch,platform_incarnation_id,application_deployment_epoch)
-        VALUES($1,$2,$3,1,'QUEUED','kcml-generation',$4,$5,$6,$7,$8,$9,$10) RETURNING *`, [phaseRunId, jobId, transition.to, { phase: transition.to, resumedFrom: current.lifecycle }, digest({ phaseRunId, phase: transition.to, resumedFrom: current.lifecycle }), context.logicalOperationId, context.correlationId, context.activationEpoch.toString(), context.platformIncarnationId, context.applicationDeploymentEpoch.toString()])).rows[0];
+        VALUES($1,$2,$3,1,'QUEUED',$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`, [phaseRunId, jobId, transition.to, generationWorkerPool(transition.to as GenerationPhase), { phase: transition.to, resumedFrom: current.lifecycle }, digest({ phaseRunId, phase: transition.to, resumedFrom: current.lifecycle }), context.logicalOperationId, context.correlationId, context.activationEpoch.toString(), context.platformIncarnationId, context.applicationDeploymentEpoch.toString()])).rows[0];
       const withSuccessor = (await client.query(`UPDATE kcml.generation_job SET active_phase_run_id=$2,latest_checkpoint_id=$3,state_version=state_version+1 WHERE id=$1 RETURNING *`, [jobId, phaseRunId, checkpointRow.id])).rows[0];
       await client.query(`INSERT INTO kcml.transactional_outbox(stream_key,stream_sequence,purpose,event_type,aggregate_id,payload,payload_digest,recovery_epoch)
         VALUES($1,$2,'GENERATION_PHASE_SUCCESSOR','generation.phase.enqueue',$3,$4,$5,(SELECT recovery_epoch FROM kcml.platform_recovery_head WHERE singleton_key=1))`, [`generation:${jobId}`, (await allocateContiguousSequence(client, 'GENERATION_OUTBOX', jobId, 'SEQUENCE')).toString(), jobId, { phaseRunId, phase: transition.to, checkpointId: checkpointRow.id }, digest({ phaseRunId, phase: transition.to, checkpointId: checkpointRow.id })]);
@@ -762,7 +763,7 @@ async function generationMutation(client: DatabaseClient, context: CanonicalHand
     const fence = await allocateContiguousSequence(client, 'GENERATION_PHASE_FENCE', jobId, phase);
     const phaseRunId = randomUUID();
     const phaseRun = (await client.query(`INSERT INTO kcml.generation_phase_run(id,job_id,phase,attempt,state,worker_pool,lease_owner,lease_fencing_token,lease_expires_at,heartbeat_at,plan_node_range,input_checkpoint_id,canonical_digest,logical_operation_id,correlation_id,activation_epoch,platform_incarnation_id,application_deployment_epoch)
-      VALUES($1,$2,$3,$4,'RUNNING','kcml-generation',$5,$6,clock_timestamp()+interval '5 minutes',clock_timestamp(),$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`, [phaseRunId, jobId, phase, attempt.toString(), context.arguments.workerId ?? context.logicalOperationId, fence.toString(), { phase, workspaceRevisionId: job.workspace_revision_id ?? null }, job.latest_checkpoint_id, digest({ phaseRunId, phase, attempt: attempt.toString(), fence: fence.toString() }), context.logicalOperationId, context.correlationId, job.activation_epoch, context.platformIncarnationId, context.applicationDeploymentEpoch.toString()])).rows[0];
+      VALUES($1,$2,$3,$4,'RUNNING',$5,$6,$7,clock_timestamp()+interval '5 minutes',clock_timestamp(),$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`, [phaseRunId, jobId, phase, generationWorkerPool(phase as GenerationPhase), context.arguments.workerId ?? context.logicalOperationId, fence.toString(), { phase, workspaceRevisionId: job.workspace_revision_id ?? null }, job.latest_checkpoint_id, digest({ phaseRunId, phase, attempt: attempt.toString(), fence: fence.toString() }), context.logicalOperationId, context.correlationId, job.activation_epoch, context.platformIncarnationId, context.applicationDeploymentEpoch.toString()])).rows[0];
     const updated = (await client.query(`UPDATE kcml.generation_job SET lifecycle=$2,current_phase=$2,active_phase_run_id=$3,lease_fencing_token=$4,lease_expires_at=clock_timestamp()+interval '5 minutes',state_version=state_version+1 WHERE id=$1 AND state_version=$5 RETURNING *`, [jobId, phase, phaseRunId, fence.toString(), job.state_version])).rows[0];
     if (!updated) throw new DomainError('STATE_VERSION_CONFLICT', 'Generation job changed while starting a phase', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
     const checkpointRow = await appendCheckpoint(updated, phase, phase === 'ANALYZING' ? 'SOURCE_INTAKE' : 'PHASE_PROGRESS', { phaseRunId, fence: fence.toString() }, phaseRunId);
@@ -792,7 +793,7 @@ async function generationMutation(client: DatabaseClient, context: CanonicalHand
     }
     const successorId = randomUUID();
     const successor = (await client.query(`INSERT INTO kcml.generation_phase_run(id,job_id,phase,attempt,state,worker_pool,plan_node_range,input_checkpoint_id,canonical_digest,logical_operation_id,correlation_id,activation_epoch,platform_incarnation_id,application_deployment_epoch)
-      VALUES($1,$2,$3,1,'QUEUED','kcml-generation',$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`, [successorId, job.id, next, { phase: next, predecessorPhaseRunId: run.id }, cp.id, digest({ successorId, next, predecessorPhaseRunId: run.id }), context.logicalOperationId, context.correlationId, job.activation_epoch, context.platformIncarnationId, context.applicationDeploymentEpoch.toString()])).rows[0];
+      VALUES($1,$2,$3,1,'QUEUED',$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`, [successorId, job.id, next, generationWorkerPool(next as GenerationPhase), { phase: next, predecessorPhaseRunId: run.id }, cp.id, digest({ successorId, next, predecessorPhaseRunId: run.id }), context.logicalOperationId, context.correlationId, job.activation_epoch, context.platformIncarnationId, context.applicationDeploymentEpoch.toString()])).rows[0];
     const changed = (await client.query(`UPDATE kcml.generation_job SET lifecycle=$2,current_phase=$2,active_phase_run_id=$3,latest_checkpoint_id=$4,state_version=state_version+1 WHERE id=$1 AND state_version=$5 RETURNING *`, [job.id, next, successor.id, cp.id, job.state_version])).rows[0];
     if (!changed) throw new DomainError('STATE_VERSION_CONFLICT', 'Generation job changed while enqueuing successor phase', 409, 'RECONCILE_THEN_RETRY');
     await client.query(`INSERT INTO kcml.transactional_outbox(stream_key,stream_sequence,purpose,event_type,aggregate_id,payload,payload_digest,recovery_epoch)

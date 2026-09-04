@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import type { DatabaseClient, DatabasePool } from '@kcml/database';
 import { allocateContiguousSequence } from '@kcml/database';
-import { canonicalDigest, canonicalJson, type CanonicalJsonValue } from '@kcml/schemas';
+import { canonicalDigest, canonicalJson, toCanonicalJsonValue, type CanonicalJsonValue } from '@kcml/schemas';
 import { DomainError } from './errors.js';
+import { generationWorkerPool, type GenerationPhase } from './generation-lifecycle.js';
 import type {
   CanonicalHandlerContext,
   CanonicalMutationHandler,
@@ -16,7 +17,7 @@ type ArgumentContext = Pick<CanonicalHandlerContext, 'operation' | 'arguments'>;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
 function json(value: unknown): CanonicalJsonValue {
-  return JSON.parse(JSON.stringify(value ?? null, (_key, item) => typeof item === 'bigint' ? item.toString() : item)) as CanonicalJsonValue;
+  return toCanonicalJsonValue(value ?? null);
 }
 
 function digest(value: unknown): Buffer {
@@ -1631,7 +1632,7 @@ async function handleGenerationPhaseStart(client: DatabaseClient, context: Canon
   const attempt = await nextSequence(client, 'GENERATION_PHASE_ATTEMPT', jobId, phase);
   const phaseRun = row((await client.query(`INSERT INTO kcml.generation_phase_run(job_id,phase,attempt,state,worker_pool,plan_node_range,started_at,canonical_digest,logical_operation_id,correlation_id,activation_epoch,platform_incarnation_id,application_deployment_epoch)
     VALUES($1,$2,$3,'RUNNING',$4,$5,clock_timestamp(),$6,$7,$8,$9,$10,$11) RETURNING *`, [
-    jobId, phase, attempt.toString(), textArg(context, 'workerPool', 'kcml-generation'), objectArg(context, 'planNodeRange'), digest({ jobId, phase, attempt: attempt.toString() }), context.logicalOperationId, context.correlationId, context.activationEpoch.toString(), context.platformIncarnationId, context.applicationDeploymentEpoch.toString()
+    jobId, phase, attempt.toString(), generationWorkerPool(phase as GenerationPhase), objectArg(context, 'planNodeRange'), digest({ jobId, phase, attempt: attempt.toString() }), context.logicalOperationId, context.correlationId, context.activationEpoch.toString(), context.platformIncarnationId, context.applicationDeploymentEpoch.toString()
   ])).rows as Row[], 'GENERATION_PHASE_NOT_CREATED', 'Generation phase run was not persisted');
   const updatedJob = row((await client.query(`UPDATE kcml.generation_job SET lifecycle='IMPLEMENTING',current_phase=$2,active_phase_run_id=$3,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND state_version=$4 RETURNING *`, [jobId, phase, phaseRun.id, job.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Generation job changed while starting phase');
   await recordAudit(client, context, 'GENERATION_PHASE_RUN', String(phaseRun.id), { phaseRunId: phaseRun.id, jobId, phase, attempt: attempt.toString() });

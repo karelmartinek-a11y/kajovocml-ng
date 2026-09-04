@@ -1,1 +1,3 @@
-import { runService } from '@kcml/worker-runtime'; await runService({serviceName:'kcml-component-e2e-worker',queueNames:['kcml-component','kcml-mcp','kcml-selftest']});
+import { startSpecializedService } from '@kcml/worker-runtime';
+
+await startSpecializedService('kcml-component-e2e-worker');

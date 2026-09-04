@@ -1,1 +1,3 @@
-import { runService } from '@kcml/worker-runtime'; await runService({serviceName:'kcml-self-test-worker',queueNames:['kcml-selftest']});
+import { startSpecializedService } from '@kcml/worker-runtime';
+
+await startSpecializedService('kcml-self-test-worker');

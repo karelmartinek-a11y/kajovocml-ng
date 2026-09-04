@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { canonicalJson, type CanonicalJsonValue } from '@kcml/schemas';
+import { canonicalJson, toCanonicalJsonValue, type CanonicalJsonValue } from '@kcml/schemas';
 import { createDatabasePool, inTransaction, type DatabaseClient } from '@kcml/database';
 import { CanonicalCommandWorker, EnvelopeCipher, OperationCatalogService, SecretManager } from '@kcml/domain';
 import { StructuredLogger } from '@kcml/observability';
@@ -15,6 +15,9 @@ function requiredSourceSha(): string {
 export interface ServiceOptions {
   serviceName: string;
   queueNames?: readonly string[];
+  allowedOperationPrefixes?: readonly string[];
+  allowedOperations?: readonly string[];
+  runtimeKind?: 'COMMAND_COORDINATOR' | 'SPECIALIST_HANDLER' | 'CAPABILITY_BROKER' | 'PROTOCOL_GATEWAY' | 'EVIDENCE_WORKER';
   broker?: 'secret' | 'state' | 'egress';
   socketPath?: string;
   intervalMs?: number;
@@ -23,7 +26,56 @@ export interface ServiceOptions {
 type JsonObject = Record<string, unknown>;
 
 function jsonSafe(value: unknown): CanonicalJsonValue {
-  return JSON.parse(JSON.stringify(value, (_key, item) => typeof item === 'bigint' ? item.toString() : item)) as CanonicalJsonValue;
+  return toCanonicalJsonValue(value);
+}
+
+const specializedServices = {
+  'kcml-runtime-gateway': { queueNames: ['kcml-runtime'], allowedOperationPrefixes: ['runtime.'], runtimeKind: 'PROTOCOL_GATEWAY' },
+  'kcml-central-chat-worker': { queueNames: ['kcml-chat'], allowedOperationPrefixes: ['chat.'], runtimeKind: 'SPECIALIST_HANDLER' },
+  'kcml-generation-coordinator': { queueNames: ['kcml-generation-coordinator'], allowedOperationPrefixes: ['generation.'], runtimeKind: 'COMMAND_COORDINATOR' },
+  'kcml-generation-openai-worker': { queueNames: ['kcml-generation-openai'], allowedOperations: ['generation.model.execute'], runtimeKind: 'SPECIALIST_HANDLER' },
+  'kcml-generation-workspace-worker': { queueNames: ['kcml-generation-workspace'], allowedOperationPrefixes: ['generation.workspace.'], runtimeKind: 'SPECIALIST_HANDLER' },
+  'kcml-generation-integration-worker': { queueNames: ['kcml-generation-integration'], allowedOperations: ['generation.candidate.publish', 'generation.integration.step'], runtimeKind: 'SPECIALIST_HANDLER' },
+  'kcml-generation-validation-worker': { queueNames: ['kcml-generation-validation'], allowedOperations: ['generation.validation.run'], runtimeKind: 'EVIDENCE_WORKER' },
+  'kcml-generation-activation-worker': { queueNames: ['kcml-generation-activation'], allowedOperationPrefixes: ['generation.activation.'], runtimeKind: 'SPECIALIST_HANDLER' },
+  'kcml-agent-worker': { queueNames: ['kcml-agent', 'kcml-authority', 'kcml-agentic', 'kcml-provenance'], allowedOperationPrefixes: ['agent.', 'authority.', 'agentic.', 'provenance.'], runtimeKind: 'SPECIALIST_HANDLER' },
+  'kcml-browser-worker': { queueNames: ['kcml-browser'], allowedOperationPrefixes: ['browser.'], runtimeKind: 'SPECIALIST_HANDLER' },
+  'kcml-browser-bridge-gateway': { queueNames: ['kcml-browser'], allowedOperationPrefixes: ['browser.bridge.'], runtimeKind: 'PROTOCOL_GATEWAY' },
+  'kcml-component-control-worker': { queueNames: ['kcml-component'], allowedOperations: ['component.control.enable', 'component.control.disable', 'component.control.ack', 'component.heartbeat', 'component.state.report'], runtimeKind: 'SPECIALIST_HANDLER' },
+  'kcml-component-e2e-worker': { queueNames: ['kcml-selftest'], allowedOperations: ['selfTest.registeredElement.run'], runtimeKind: 'EVIDENCE_WORKER' },
+  'kcml-monitor-worker': { queueNames: ['kcml-monitor'], allowedOperationPrefixes: ['monitor.'], runtimeKind: 'EVIDENCE_WORKER', intervalMs: 1000 },
+  'kcml-alert-primary-worker': { queueNames: ['kcml-monitor'], allowedOperationPrefixes: ['monitor.alert.'], runtimeKind: 'SPECIALIST_HANDLER' },
+  'kcml-alert-backup-worker': { queueNames: ['kcml-monitor'], allowedOperationPrefixes: ['monitor.alert.'], runtimeKind: 'SPECIALIST_HANDLER' },
+  'kcml-secret-broker': { broker: 'secret', socketPath: '/run/kajovocml-ng/brokers/secret-broker.sock', runtimeKind: 'CAPABILITY_BROKER' },
+  'kcml-state-broker': { broker: 'state', socketPath: '/run/kajovocml-ng/brokers/state-broker.sock', runtimeKind: 'CAPABILITY_BROKER' },
+  'kcml-egress-gateway': { broker: 'egress', socketPath: '/run/kajovocml-ng/brokers/egress-gateway.sock', runtimeKind: 'CAPABILITY_BROKER' },
+  'kcml-audit-archiver': { queueNames: ['kcml-audit'], allowedOperationPrefixes: ['audit.'], runtimeKind: 'EVIDENCE_WORKER' },
+  'kcml-self-test-worker': { queueNames: ['kcml-selftest'], allowedOperationPrefixes: ['selfTest.'], runtimeKind: 'EVIDENCE_WORKER' },
+  'kcml-acceptance-runner': { queueNames: ['kcml-selftest'], allowedOperationPrefixes: ['selfTest.'], runtimeKind: 'EVIDENCE_WORKER', intervalMs: 250 },
+  'kcml-runtime-host': { queueNames: ['kcml-runtime'], allowedOperationPrefixes: ['runtime.'], runtimeKind: 'SPECIALIST_HANDLER' },
+  'kcml-owner-device-bridge': { runtimeKind: 'PROTOCOL_GATEWAY' }
+} as const satisfies Record<string, Omit<ServiceOptions, 'serviceName'>>;
+
+export type SpecializedServiceName = keyof typeof specializedServices;
+
+export function serviceReadinessDescriptor(serviceName: SpecializedServiceName): Readonly<Record<string, unknown>> {
+  const service = specializedServices[serviceName];
+  return Object.freeze({
+    schemaVersion: '1.0', serviceName, runtimeKind: service.runtimeKind,
+    queues: 'queueNames' in service ? service.queueNames : [],
+    operationPrefixes: 'allowedOperationPrefixes' in service ? service.allowedOperationPrefixes : [],
+    operations: 'allowedOperations' in service ? service.allowedOperations : [],
+    capabilities: 'broker' in service ? [service.broker] : []
+  });
+}
+
+export function listSpecializedServiceDescriptors(): readonly Readonly<Record<string, unknown>>[] {
+  return Object.keys(specializedServices).sort().map((name) => serviceReadinessDescriptor(name as SpecializedServiceName));
+}
+
+export async function startSpecializedService(serviceName: SpecializedServiceName): Promise<void> {
+  const definition = specializedServices[serviceName];
+  await runService({ serviceName, ...definition });
 }
 
 function sha256(value: unknown): string {
@@ -188,6 +240,8 @@ async function handleBrokerRequest(pool: ReturnType<typeof createDatabasePool>, 
 }
 
 export async function runService(options: ServiceOptions): Promise<void> {
+  if (!options.runtimeKind) throw new Error('SERVICE_RUNTIME_KIND_REQUIRED');
+  if (options.queueNames?.length && !options.allowedOperations?.length && !options.allowedOperationPrefixes?.length) throw new Error('SERVICE_OPERATION_ALLOWLIST_REQUIRED');
   const logger = new StructuredLogger(options.serviceName);
   const pool = createDatabasePool({ applicationName: options.serviceName });
   const instanceId = randomUUID();
@@ -236,12 +290,18 @@ export async function runService(options: ServiceOptions): Promise<void> {
   }
 
   const catalog = options.queueNames ? await OperationCatalogService.load() : null;
-  const worker = options.queueNames && catalog ? new CanonicalCommandWorker(pool, catalog, { queueNames: options.queueNames, workerId: instanceId }) : null;
+  const allowedOperations = catalog ? catalog.operations.filter((operation) =>
+    options.allowedOperations?.includes(operation.operationName)
+    || options.allowedOperationPrefixes?.some((prefix) => operation.operationName.startsWith(prefix))
+  ).map((operation) => operation.operationName) : [];
+  if (options.queueNames && allowedOperations.length === 0) throw new Error('SERVICE_OPERATION_ALLOWLIST_EMPTY');
+  const worker = options.queueNames && catalog ? new CanonicalCommandWorker(pool, catalog, { queueNames: options.queueNames, allowedOperations, workerId: instanceId }) : null;
   const stop = () => { stopping = true; };
   process.once('SIGTERM', stop);
   process.once('SIGINT', stop);
-  await heartbeat('READY', { queues: options.queueNames ?? [], broker: options.broker ?? null });
-  const heartbeatTimer = setInterval(() => void heartbeat('READY', { queues: options.queueNames ?? [], broker: options.broker ?? null }).catch((error) => logger.error('heartbeat.failed', { error: String(error) })), 10_000);
+  const readiness = { schemaVersion: '1.0', runtimeKind: options.runtimeKind, queues: options.queueNames ?? [], allowedOperations, broker: options.broker ?? null };
+  await heartbeat('READY', readiness);
+  const heartbeatTimer = setInterval(() => void heartbeat('READY', readiness).catch((error) => logger.error('heartbeat.failed', { error: String(error) })), 10_000);
   while (!stopping) {
     let worked = false;
     if (worker) worked = await worker.runOnce().catch(async (error) => {
