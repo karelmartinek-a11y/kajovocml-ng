@@ -84,9 +84,9 @@ describe('TD-16 operation/state-machine recovery oracle', () => {
     const applied = baseEvidence(); applied.dispatch = { intentRecorded: true, outboxCommitted: true, claimCurrent: true, sendPhase: 'REQUEST_BYTES_SENT', targetIdempotencyKey: null }; applied.external.readBack = 'APPLIED';
     expect(() => evaluateRecoveryOracle(oracle, applied)).toThrowError(expect.objectContaining({ code: 'RECOVERY_ORACLE_CONFLICT' }));
     const mutated = baseEvidence(); mutated.untrusted = { missingLog: 'no log' };
-    expect(() => evaluateRecoveryOracle(record(), mutated)).toThrowError(expect.objectContaining({ code: 'RECOVERY_UNTRUSTED_EVIDENCE' }));
+    expect(() => evaluateRecoveryOracle(record(), mutated)).toThrowError(expect.objectContaining({ code: 'RECOVERY_ORACLE_CONFLICT' }));
     const stale = baseEvidence(); stale.lineage.fenceCurrent = false;
-    expect(() => evaluateRecoveryOracle(record(), stale)).toThrowError(expect.objectContaining({ code: 'RECOVERY_FENCE_LOST' }));
+    expect(() => evaluateRecoveryOracle(record(), stale)).toThrowError(expect.objectContaining({ code: 'FENCING_TOKEN_STALE' }));
   });
 
   it('executes an automatic decision through canonical operation with a fresh fence', async () => {

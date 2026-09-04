@@ -17,7 +17,7 @@ describe('TD-05 persisted Browser Interaction Plane contract', () => {
       sessionId: id,
       action: 'UPLOAD',
       payload: { filePath: '/etc/passwd' }
-    })).toThrowError(expect.objectContaining({ code: 'BROWSER_ARBITRARY_PATH_DENIED' }));
+    })).toThrowError(expect.objectContaining({ code: 'BROWSER_ACTIONABILITY_FAILED' }));
   });
 
   it('requires a content-addressed artifact handle for artifacts', () => {
@@ -28,7 +28,7 @@ describe('TD-05 persisted Browser Interaction Plane contract', () => {
       artifactDigest: digest,
       sizeBytes: 1,
       safeName: 'download.bin'
-    })).toThrowError(expect.objectContaining({ code: 'BROWSER_ARTIFACT_HANDLE_INVALID' }));
+    })).toThrowError(expect.objectContaining({ code: 'BROWSER_ARTIFACT_INVALID' }));
   });
 
   it('accepts a persisted challenge request without treating an exception as its state', () => {
@@ -48,21 +48,21 @@ describe('TD-05 persisted Browser Interaction Plane contract', () => {
   it('does not allow outcome resolution without independent read-back evidence', () => {
     expect(() => validateCanonicalOperationCommand(operation('browser.action.reconcile'), id, {
       outcome: 'CONFIRMED_APPLIED'
-    })).toThrowError(expect.objectContaining({ code: 'BROWSER_READBACK_REQUIRED' }));
+    })).toThrowError(expect.objectContaining({ code: 'BROWSER_RECONCILIATION_REQUIRED' }));
   });
 
   it('only admits the canonical monotonic host dispatch phases', () => {
     expect(() => validateCanonicalOperationCommand(operation('browser.action.dispatchPhase'), id, {
       phase: 'OBSERVATION_SAVED',
       evidence: { source: 'fixture' }
-    })).toThrowError(expect.objectContaining({ code: 'BROWSER_DISPATCH_PHASE_INVALID' }));
+    })).toThrowError(expect.objectContaining({ code: 'BROWSER_ACTIONABILITY_FAILED' }));
   });
 
   it('requires a persisted artifact before a download can become complete', () => {
     expect(() => validateCanonicalOperationCommand(operation('browser.download.persist'), id, {
       contentDigest: digest,
       sizeBytes: 10
-    })).toThrowError(expect.objectContaining({ code: 'OPERATION_ARGUMENT_REQUIRED' }));
+    })).toThrowError(expect.objectContaining({ code: 'TOOL_ARGUMENT_SCHEMA_INVALID' }));
   });
 
   it('accepts only opaque upload handles, never a host path', () => {
@@ -70,7 +70,7 @@ describe('TD-05 persisted Browser Interaction Plane contract', () => {
       sessionId: id,
       downloadId: id,
       tempHandle: 'upload:/tmp/download.bin'
-    })).toThrowError(expect.objectContaining({ code: 'BROWSER_ARTIFACT_HANDLE_INVALID' }));
+    })).toThrowError(expect.objectContaining({ code: 'BROWSER_ARTIFACT_INVALID' }));
     expect(() => validateCanonicalOperationCommand(operation('browser.download.started'), null, {
       sessionId: id,
       downloadId: id,

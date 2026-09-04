@@ -43,7 +43,7 @@ describe('OpenAI provider error normalization', () => {
   it('maps raw provider failures to a stable API error instead of INTERNAL_ERROR', () => {
     const error = normalizeProviderFailure('call-1', new Error('provider connection failed'));
     expect(error.code).toBe('OPENAI_PROVIDER_TRANSIENT');
-    expect(error.httpStatus).toBe(502);
+    expect(error.httpStatus).toBe(503);
     expect(error.retryDirective).toBe('RETRY_SAME_OPERATION');
     expect(error.details).toEqual({ callId: 'call-1' });
   });

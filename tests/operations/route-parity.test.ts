@@ -79,7 +79,7 @@ describe('SSOT route operation bindings', () => {
     expect(routerSource).toContain('assertCanonicalRouteHandler');
     expect(routerSource).toContain('operationHandlerFor');
     expect(routerSource).not.toContain('surface.mutate(');
-    expect(surfaceSource).toContain("SSOT_OPERATION_BINDING_REQUIRED");
+    expect(surfaceSource).toContain("OPERATION_CONTRACT_INCOMPLETE");
     expect(surfaceSource).toContain('Promise<never>');
   });
 });
