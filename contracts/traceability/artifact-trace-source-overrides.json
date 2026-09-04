@@ -3079,7 +3079,7 @@
           "requirementId": "KCML-REQ-POSTGRES-dceaacd8f0ad44e6e76a65ce6b1d472776ceeabd9afa58a4f578eea199dc1e0b",
           "locator": "deploy/scripts/provision-service-credentials.sh:17",
           "symbol": "service-database-role-provisioning",
-          "snippetDigest": "sha256:a13bff01c038e050c6eee4190ac9335733d550d01eaf290d03c1739d41b68844"
+          "snippetDigest": "sha256:e0cdfb135993735d2572413f4315ca65a2172ceb4028997754e92f4c26d819aa"
         }
       ]
     }

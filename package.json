@@ -47,6 +47,7 @@
   "devDependencies": {
     "@babel/parser": "7.29.8",
     "@kcml/agent-sdk": "workspace:*",
+    "@kcml/browser-automation-runtime": "workspace:*",
     "@kcml/browser-preview-protocol": "workspace:*",
     "@kcml/browser-runtime-contracts": "workspace:*",
     "@kcml/content-provenance": "workspace:*",

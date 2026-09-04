@@ -65,6 +65,9 @@ importers:
       '@kcml/agent-sdk':
         specifier: workspace:*
         version: link:packages/agent-sdk
+      '@kcml/browser-automation-runtime':
+        specifier: workspace:*
+        version: link:packages/browser-automation-runtime
       '@kcml/browser-preview-protocol':
         specifier: workspace:*
         version: link:packages/browser-preview-protocol
@@ -164,9 +167,6 @@ importers:
       '@kcml/browser-automation-runtime':
         specifier: workspace:*
         version: link:../../packages/browser-automation-runtime
-      '@kcml/database':
-        specifier: workspace:*
-        version: link:../../packages/database
 
   apps/browser-worker:
     dependencies:

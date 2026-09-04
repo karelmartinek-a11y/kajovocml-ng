@@ -5,6 +5,7 @@ repository_root=${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 manifest=${repository_root}/deploy/security/service-capabilities.tsv
 while IFS='|' read -r unit primary_group supplementary_groups database_role credentials read_only_paths; do
   [[ -z ${unit} || ${unit:0:1} == '#' ]] && continue
+  [[ ${database_role} == '-' ]] && continue
   [[ ${database_role} =~ ^kcml_[a-z0-9_]+$ ]] || { echo "Invalid database role for ${unit}." >&2; exit 78; }
   credential_root="/etc/kajovocml-ng/credentials/${unit}"
   password_path="${credential_root}/database-password"

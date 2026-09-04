@@ -9,7 +9,7 @@ kcml-generation-integration-worker|kcml-gen-int|kcml-release-readers|kcml_genera
 kcml-generation-validation-worker|kcml-gen-val|kcml-release-readers|kcml_generation_validation_worker|database-url|/opt/kajovocml-ng/current /etc/kajovocml-ng/runtime.env
 kcml-generation-activation-worker|kcml-gen-act|kcml-release-readers|kcml_generation_activation_worker|database-url|/opt/kajovocml-ng/current /etc/kajovocml-ng/runtime.env
 kcml-agent-worker|kcml-agent|kcml-release-readers|kcml_agent_worker|database-url|/opt/kajovocml-ng/current /etc/kajovocml-ng/runtime.env
-kcml-browser-worker|kcml-browser-worker|kcml-release-readers kcml-browser-worker|kcml_browser_worker|database-url|/opt/kajovocml-ng/current /etc/kajovocml-ng/runtime.env
+kcml-browser-worker|kcml-browser-worker|kcml-release-readers kcml-browser-worker kcml-browser-host|kcml_browser_worker|database-url|/opt/kajovocml-ng/current /etc/kajovocml-ng/runtime.env
 kcml-browser-bridge-gateway|kcml-browser-bridge|kcml-release-readers|kcml_browser_bridge_gateway|database-url|/opt/kajovocml-ng/current /etc/kajovocml-ng/runtime.env
 kcml-component-control-worker|kcml-comp-ctl|kcml-release-readers|kcml_component_control_worker|database-url|/opt/kajovocml-ng/current /etc/kajovocml-ng/runtime.env
 kcml-component-e2e-worker|kcml-comp-e2e|kcml-release-readers|kcml_component_e2e_worker|database-url|/opt/kajovocml-ng/current /etc/kajovocml-ng/runtime.env
@@ -25,4 +25,4 @@ kcml-self-test-worker|kcml-selftest|kcml-release-readers|kcml_self_test_worker|d
 kcml-acceptance-runner|kcml-accept|kcml-release-readers|kcml_acceptance_runner|database-url|/opt/kajovocml-ng/current /etc/kajovocml-ng/runtime.env
 kcml-platform-recovery|kcml-recovery|kcml-release-readers|kcml_platform_recovery|database-url|/opt/kajovocml-ng/current /etc/kajovocml-ng/runtime.env
 kcml-runtime-host|kcml-runtime-host|kcml-release-readers kcml-runtime-callers|kcml_runtime_host|database-url|/opt/kajovocml-ng/current /etc/kajovocml-ng/runtime.env
-kcml-browser-host|kcml-browser-host|kcml-release-readers|kcml_browser_host|database-url|/opt/kajovocml-ng/current /etc/kajovocml-ng/runtime.env
+kcml-browser-host|kcml-browser-host|kcml-release-readers|-||/opt/kajovocml-ng/current /etc/kajovocml-ng/runtime.env

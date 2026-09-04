@@ -156,6 +156,34 @@
           "snippetDigest": "sha256:9dde8eed96bbff0e54603e21a69ce7d84318dd32e19bd4981a4d126d945ea5b5"
         }
       ]
+    },
+    {
+      "repositoryPath": "packages/browser-automation-runtime/src/host.ts",
+      "requirementIds": [
+        "KCML-REQ-BROWSER-0b5f1e100f5903679201a6fbaa69cc6b94c6d258d4b108091bedf0e5f2b28ff9",
+        "KCML-REQ-BROWSER-2afd60719546735f8bd7120d896e9fd9ad214cd57161b89ae1275e9902bdd397",
+        "KCML-REQ-BROWSER-6a303bfcdb440f77a564705a42ead888c633fd3f5e0f697bf45cf490c8d6fb2d",
+        "KCML-REQ-BROWSER-ea1a519d32297ed256c63844d415bb03b3a3e41dfc38da076e6356696dcfc127",
+        "KCML-REQ-BROWSER-ef10f5b0934585a9fa18647f9fe12ac897ddf897aeb0c53f36f66b107b220e2d"
+      ],
+      "operationIds": ["OP-BROWSER-ACTION-DISPATCHPHASE", "OP-BROWSER-SESSION-ATTACH"],
+      "stateMachineIds": ["SM-BROWSER_SESSION"],
+      "registryRecordIds": ["ORACLE-SIDE-EFFECT"],
+      "testIds": [],
+      "traceAnchors": []
+    },
+    {
+      "repositoryPath": "tests/unit/browser-host-boundary.test.ts",
+      "requirementIds": [
+        "KCML-REQ-BROWSER-2afd60719546735f8bd7120d896e9fd9ad214cd57161b89ae1275e9902bdd397",
+        "KCML-REQ-BROWSER-72483539e45b935a706ca17abb5d0cf882233faad05e38cfa4fe9e877d4d5a50",
+        "KCML-REQ-BROWSER-ea1a519d32297ed256c63844d415bb03b3a3e41dfc38da076e6356696dcfc127"
+      ],
+      "operationIds": ["OP-BROWSER-ACTION-DISPATCHPHASE", "OP-BROWSER-SESSION-ATTACH"],
+      "stateMachineIds": ["SM-BROWSER_SESSION"],
+      "registryRecordIds": [],
+      "testIds": [],
+      "traceAnchors": []
     }
   ]
 }

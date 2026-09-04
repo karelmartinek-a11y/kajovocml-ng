@@ -10,8 +10,6 @@ Group=kcml-browser-host
 SupplementaryGroups=kcml-release-readers
 WorkingDirectory=/opt/kajovocml-ng/current
 EnvironmentFile=/etc/kajovocml-ng/runtime.env
-LoadCredential=database-url:/etc/kajovocml-ng/credentials/kcml-browser-host/database-url
-Environment=KCML_DATABASE_URL_FILE=%d/database-url
 Environment=NODE_ENV=production
 Environment=KCML_BROWSER_HOST_SLOT=%i
 ExecStart=/usr/bin/node /opt/kajovocml-ng/current/apps/browser-host/dist/index.js
@@ -19,6 +17,8 @@ Restart=on-failure
 KillMode=control-group
 TimeoutStopSec=60s
 UMask=0077
+RuntimeDirectory=kajovocml-ng/browser-hosts/%i
+RuntimeDirectoryMode=0750
 NoNewPrivileges=yes
 PrivateTmp=yes
 PrivateDevices=yes

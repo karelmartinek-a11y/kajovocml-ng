@@ -35,6 +35,7 @@ if ! pgrep -u kcml-deploy >/dev/null 2>&1; then usermod --home /var/lib/kajovocm
 usermod -a -G kcml-runtime-callers,kcml-release-readers kcml-runtime-gateway
 usermod -a -G kcml-runtime-callers kcml-runtime-host
 usermod -a -G kcml-browser-worker kcml-browser-worker
+usermod -a -G kcml-browser-host kcml-browser-worker
 
 install -d -o root -g kcml-release-readers -m 0750 /opt/kajovocml-ng /opt/kajovocml-ng/releases
 install -d -o root -g root -m 0750 /etc/kajovocml-ng /etc/kajovocml-ng/tls /etc/kajovocml-ng/credentials
