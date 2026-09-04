@@ -884,14 +884,14 @@ async function handleBrowserChallengeResolve(client: DatabaseClient, context: Ca
 }
 
 async function handleBrowserCleanupResume(client: DatabaseClient, context: CanonicalHandlerContext): Promise<unknown> {
-  const id = target(context);
-  const session = row((await client.query(`SELECT * FROM kcml.browser_session WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'BROWSER_SESSION_NOT_FOUND', 'Browser session does not exist');
-  assertVersion(context, session);
-  await client.query(`UPDATE kcml.browser_upload_handle SET cleanup_at=coalesce(cleanup_at,clock_timestamp()),state_version=state_version+1,updated_at=clock_timestamp() WHERE session_id=$1 AND cleanup_at IS NULL AND (consumed_at IS NOT NULL OR expires_at<=clock_timestamp())`, [id]);
-  await client.query(`UPDATE kcml.browser_download SET cleanup_state='CLEANED',state_version=state_version+1,updated_at=clock_timestamp() WHERE session_id=$1 AND state='COMPLETED' AND cleanup_state IN ('PENDING','RETAINED')`, [id]);
-  const updated = row((await client.query(`UPDATE kcml.browser_session SET lifecycle='CLOSED',control_holder='NONE',control_expires_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND state_version=$2 AND lifecycle IN ('CLEANING','RECOVERING','RECONCILING','READY','PAUSED') RETURNING *`, [id, session.state_version])).rows as Row[], 'BROWSER_CLEANUP_STATE_INVALID', 'Browser session cannot close until cleanup is resumed');
+  const id = target(context); const session = row((await client.query(`SELECT * FROM kcml.browser_session WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'BROWSER_SESSION_NOT_FOUND', 'Browser session does not exist'); assertVersion(context, session);
+  await client.query(`UPDATE kcml.browser_upload_handle SET cleanup_at=coalesce(cleanup_at,clock_timestamp()),state_version=state_version+1,updated_at=clock_timestamp() WHERE session_id=$1 AND cleanup_at IS NULL AND (consumed_at IS NOT NULL OR expires_at<=clock_timestamp())`, [id]); await client.query(`UPDATE kcml.browser_download SET cleanup_state='CLEANED',state_version=state_version+1,updated_at=clock_timestamp() WHERE session_id=$1 AND state='COMPLETED' AND cleanup_state IN ('PENDING','RETAINED')`, [id]);
+  await client.query(`UPDATE kcml.browser_challenge SET status='CANCELLED',resolved_at=coalesce(resolved_at,clock_timestamp()),state_version=state_version+1,updated_at=clock_timestamp() WHERE session_id=$1 AND status='PENDING'`, [id]); await client.query(`UPDATE kcml.browser_automation_artifact SET cleanup_state=CASE WHEN retention_state='RETAINED' THEN 'RETAINED' ELSE 'REMOVED' END,deleted_at=CASE WHEN retention_state='RETAINED' THEN NULL ELSE clock_timestamp() END,state_version=state_version+1,updated_at=clock_timestamp() WHERE session_id=$1 AND cleanup_state NOT IN ('REMOVED','FAILED','RETAINED')`, [id]);
+  const pending = row((await client.query(`SELECT (SELECT count(*) FROM kcml.browser_upload_handle WHERE session_id=$1 AND consumed_at IS NULL AND expires_at>clock_timestamp()) AS uploads,(SELECT count(*) FROM kcml.browser_download WHERE session_id=$1 AND state IN ('STARTED','STREAMING')) AS downloads,(SELECT count(*) FROM kcml.browser_action_run WHERE session_id=$1 AND dispatch_phase NOT IN ('CONFIRMED_APPLIED','CONFIRMED_NOT_APPLIED','FAILED_FINAL')) AS actions,(SELECT count(*) FROM kcml.browser_challenge WHERE session_id=$1 AND status='PENDING') AS challenges,(SELECT count(*) FROM kcml.browser_automation_artifact WHERE session_id=$1 AND cleanup_state NOT IN ('REMOVED','FAILED','RETAINED')) AS artifacts`, [id])).rows as Row[], 'BROWSER_CLEANUP_STATE_INVALID', 'Browser cleanup inventory is unavailable');
+  const counts = Object.fromEntries(Object.entries(pending).map(([key, value]) => [key, Number(value)])); if (Object.values(counts).some(value => value > 0)) throw new DomainError('BROWSER_CLEANUP_INCOMPLETE', 'Browser session cannot close while owned resources remain pending', 409, 'RECONCILE_THEN_RETRY', { counts });
+  const updated = row((await client.query(`UPDATE kcml.browser_session SET lifecycle='CLOSED',control_holder='NONE',control_expires_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND state_version=$2 AND lifecycle='CLOSING' RETURNING *`, [id, session.state_version])).rows as Row[], 'BROWSER_CLEANUP_STATE_INVALID', 'Browser session cannot close until cleanup is resumed');
   await recordAudit(client, context, 'BROWSER_SESSION', id, { sessionId: id, lifecycle: 'CLOSED', cleanupResumed: true });
-  return result(context, 'browser_session', updated, updated.state_version, { closure: true });
+  return result(context, 'browser_session', updated, updated.state_version, { closure: true, counts });
 }
 
 async function handleBrowserControlAcquire(client: DatabaseClient, context: CanonicalHandlerContext): Promise<unknown> {
@@ -1225,8 +1225,8 @@ async function handleBrowserSessionClose(client: DatabaseClient, context: Canoni
   const id = target(context);
   const current = row((await client.query(`SELECT * FROM kcml.browser_session WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'BROWSER_SESSION_NOT_FOUND', 'Browser session does not exist');
   assertVersion(context, current);
-  const updated = row((await client.query(`UPDATE kcml.browser_session SET lifecycle='CLEANING',control_holder='NONE',control_expires_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND lifecycle IN ('READY','AI_CONTROLLED','OWNER_CONTROLLED','AUTOMATION_CONTROLLED','TAKEOVER','RECONCILING','RECOVERING') AND state_version=$2 RETURNING *`, [id, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Browser session changed while closing');
-  await recordAudit(client, context, 'BROWSER_SESSION', id, { sessionId: id, lifecycle: 'CLEANING' });
+  const updated = row((await client.query(`UPDATE kcml.browser_session SET lifecycle='CLOSING',control_holder='NONE',control_expires_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND lifecycle IN ('CREATING','READY','ACTIVE','CHALLENGE_REQUIRED','PAUSED','RECOVERING','CLOSING') AND state_version=$2 RETURNING *`, [id, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Browser session changed while closing');
+  await recordAudit(client, context, 'BROWSER_SESSION', id, { sessionId: id, lifecycle: 'CLOSING' });
   return result(context, 'browser_session', updated, updated.state_version, { cleanupRequired: true });
 }
 

@@ -13926,13 +13926,70 @@
           "unique": true
         },
         {
+          "name": "alert_open_fingerprint_uq",
+          "unique": true
+        },
+        {
+          "name": "operational_alert_source_episode_idx",
+          "unique": false
+        },
+        {
           "name": "operational_alert_source_episode_idx",
           "unique": false
         }
       ],
-      "constraints": [],
+      "constraints": [
+        {
+          "name": "operational_alert_canonical_digest_check",
+          "kind": "CHECK"
+        },
+        {
+          "name": "operational_alert_closed_timestamp_check",
+          "kind": "CHECK"
+        },
+        {
+          "name": "operational_alert_condition_digest_check",
+          "kind": "CHECK"
+        },
+        {
+          "name": "operational_alert_episode_id_key",
+          "kind": "UNIQUE"
+        },
+        {
+          "name": "operational_alert_latest_observation_digest_check",
+          "kind": "CHECK"
+        },
+        {
+          "name": "operational_alert_latest_source_sequence_check",
+          "kind": "CHECK"
+        },
+        {
+          "name": "operational_alert_occurrence_count_check",
+          "kind": "CHECK"
+        },
+        {
+          "name": "operational_alert_recovery_epoch_check",
+          "kind": "CHECK"
+        },
+        {
+          "name": "operational_alert_seen_interval_check",
+          "kind": "CHECK"
+        },
+        {
+          "name": "operational_alert_severity_check",
+          "kind": "CHECK"
+        },
+        {
+          "name": "operational_alert_source_activation_epoch_check",
+          "kind": "CHECK"
+        },
+        {
+          "name": "operational_alert_suppression_interval_check",
+          "kind": "CHECK"
+        }
+      ],
       "commentContractDigest": "sha256:caa4ceca8ccac15fd6c6ca9d3965a61b8253fa3daa5f238357d7d486876b4504",
-      "canonicalDigest": "sha256:f72471052d8d762dac173a9b813409164e0efa41305073985f1e04dffef24068"
+      "canonicalDigest": "sha256:4d9a7c8feb6e8ba726a3e555a27d1028c5467a0ca6a0e0db2d257d8be00921aa"
     },
     {
       "tableName": "alert_delivery",
@@ -14394,9 +14451,22 @@
           "unique": false
         }
       ],
-      "constraints": [],
+      "constraints": [
+        {
+          "name": "platform_worker_heartbeat_heartbeat_sequence_check",
+          "kind": "CHECK"
+        },
+        {
+          "name": "platform_worker_heartbeat_nonce_check",
+          "kind": "CHECK"
+        },
+        {
+          "name": "platform_worker_heartbeat_observation_window_check",
+          "kind": "CHECK"
+        }
+      ],
       "commentContractDigest": "sha256:7bf0d94676ef2803ed6d763491725f7ec98bcdf7c3646e993e2678ac7ebd435f",
-      "canonicalDigest": "sha256:a375f00b8bf8f619f8197d4b5cedbf560ccdd39413f933c8a8f0fb66046fed32"
+      "canonicalDigest": "sha256:0c040ac26a202a804f6577abb11ea0f1b6783960750de3f028294e7ef9353aa4"
     },
     {
       "tableName": "audit_event",
@@ -15709,9 +15779,22 @@
           "unique": false
         }
       ],
-      "constraints": [],
+      "constraints": [
+        {
+          "name": "generation_job_cancellation_version_check",
+          "kind": "CHECK"
+        },
+        {
+          "name": "generation_job_lifecycle_check",
+          "kind": "CHECK"
+        },
+        {
+          "name": "generation_job_recovery_state_check",
+          "kind": "CHECK"
+        }
+      ],
       "commentContractDigest": "sha256:c80f35874cba13e216c55bfd09c52c70dde7afdd13bf60e67516ca33ae0494c9",
-      "canonicalDigest": "sha256:128cb588093de9d5460d0057e4d2aef5467cbc9f68b759f27b85c14177f1866e"
+      "canonicalDigest": "sha256:3e490074ff29eebeb23261f68b4ced44a765e4c7c9b390cb6d5b923fbc6137fd"
     },
     {
       "tableName": "generation_source",
@@ -18446,13 +18529,17 @@
       ],
       "indexes": [
         {
+          "name": "generation_phase_recovery_idx",
+          "unique": false
+        },
+        {
           "name": "generation_phase_run_stable_key_uq",
           "unique": true
         }
       ],
       "constraints": [],
       "commentContractDigest": "sha256:d4eb317d01e0c41666ac8f98452977eb8505016f3445ac7ca78aa98eceea2454",
-      "canonicalDigest": "sha256:08b0382573e5e345b0c33a0beb9e95e3ef3590d853ded397409e5c69520a9606"
+      "canonicalDigest": "sha256:afc1937e8110699ece170008d48aa656663d742bda0b4070df06bb4bc6d6f9de"
     },
     {
       "tableName": "generation_checkpoint",
@@ -18548,10 +18635,20 @@
           "references": null
         }
       ],
-      "indexes": [],
-      "constraints": [],
+      "indexes": [
+        {
+          "name": "generation_checkpoint_job_sequence_idx",
+          "unique": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "generation_checkpoint_checkpoint_kind_check",
+          "kind": "CHECK"
+        }
+      ],
       "commentContractDigest": "sha256:b366d5e068ae1499ed5a2712c460f08f5797ad02c39ec674006831dedd4c8f71",
-      "canonicalDigest": "sha256:7b3af65da47ac4e90afd4d639f7407cd38bc88997d4a1ed1d1189de54a205271"
+      "canonicalDigest": "sha256:4192b3aba89620e2bd69f7ca47482d4ddaa6676452e364cf9d5fa684a4985c7d"
     },
     {
       "tableName": "generation_tool_event",
@@ -21792,13 +21889,17 @@
       ],
       "indexes": [
         {
+          "name": "openai_request_descriptor_idempotency_uq",
+          "unique": true
+        },
+        {
           "name": "openai_request_descriptor_stable_key_uq",
           "unique": true
         }
       ],
       "constraints": [],
       "commentContractDigest": "sha256:3509574e873fe06a3da3c7a0dd8cf32a92ee33a6ca269039ec21ded11df0a792",
-      "canonicalDigest": "sha256:1311946fecb2a6323f499531e57f9ddf209323a67cab81f076a50906f9869a7b"
+      "canonicalDigest": "sha256:79e0f2d966226c2b6d086357d7c846f4436bf51184ab4f9fc1e31027fe0bc6ca"
     },
     {
       "tableName": "ai_model_call",
@@ -22010,15 +22111,28 @@
           "references": null
         }
       ],
-      "indexes": [],
+      "indexes": [
+        {
+          "name": "ai_model_call_logical_attempt_uq",
+          "unique": true
+        },
+        {
+          "name": "ai_model_call_provider_response_id_uq",
+          "unique": true
+        }
+      ],
       "constraints": [
+        {
+          "name": "ai_model_call_local_state_check",
+          "kind": "CHECK"
+        },
         {
           "name": "ai_model_call_request_descriptor_fk",
           "kind": "FOREIGN_KEY"
         }
       ],
       "commentContractDigest": "sha256:d4f06f7f2bc44908c7efa7a9ce07dcff75f79878ff1cd7669efdbac6f775e884",
-      "canonicalDigest": "sha256:49f968e9b1a141d4e51ac8b3075bdb0e3cb1a8d46ffcdd8e6c7339bc322ff7e3"
+      "canonicalDigest": "sha256:a2c92aa0b0f12aece34939cc772016c5b8489cf6c28d2d1ef689b9e4d39e5a96"
     },
     {
       "tableName": "ai_model_event",
@@ -22197,13 +22311,17 @@
       ],
       "indexes": [
         {
+          "name": "ai_model_event_provider_sequence_uq",
+          "unique": true
+        },
+        {
           "name": "ai_model_event_stable_key_uq",
           "unique": true
         }
       ],
       "constraints": [],
       "commentContractDigest": "sha256:7c470c5ba69ba5cf1ddb12b33e4545254c10d23ebe625ba9f7901b29bc634bd2",
-      "canonicalDigest": "sha256:f08b93414e52c452ab5d86c52bde1e532dd5d5e2b3b2e29e8b1f51b1aca1ee0f"
+      "canonicalDigest": "sha256:15fcc30715d9422b5f807da78d34fbe8e0a2a7ad1c92a7687209cf4b3aef1e34"
     },
     {
       "tableName": "ai_model_output_item",
@@ -22410,13 +22528,21 @@
       ],
       "indexes": [
         {
+          "name": "ai_model_output_item_provider_index_uq",
+          "unique": true
+        },
+        {
+          "name": "ai_model_output_item_provider_item_uq",
+          "unique": true
+        },
+        {
           "name": "ai_model_output_item_stable_key_uq",
           "unique": true
         }
       ],
       "constraints": [],
       "commentContractDigest": "sha256:cdb438b936d95900f518d698cf2a644a0a31214c98d1f85cac09939e9885ef07",
-      "canonicalDigest": "sha256:7727481a80ac6c9b08e7f9449f0b08bb441e25c50d7c032d0da0cb8d064e9289"
+      "canonicalDigest": "sha256:671f66cc35ab5ff1f1e4ca514edf736ed092e63e45941ec1a77e2d551ef836eb"
     },
     {
       "tableName": "ai_model_output_content_part",
@@ -22885,13 +23011,17 @@
       ],
       "indexes": [
         {
+          "name": "ai_tool_dispatch_call_id_uq",
+          "unique": true
+        },
+        {
           "name": "ai_tool_dispatch_stable_key_uq",
           "unique": true
         }
       ],
       "constraints": [],
       "commentContractDigest": "sha256:96179860ebe44499aeed0a82f660c668bcc9760229ba6cba262dc8e30b5958fb",
-      "canonicalDigest": "sha256:8ac3c6c071afc4ac1934478b1e267bbb0aeeed13f767086ed74f017079b33a6f"
+      "canonicalDigest": "sha256:be5f3520f21417ff9c256e51334ce3c8a29cf552015e60fc8803189f6c114564"
     },
     {
       "tableName": "ai_model_continuation",
@@ -23126,13 +23256,17 @@
       ],
       "indexes": [
         {
+          "name": "ai_model_continuation_generation_uq",
+          "unique": true
+        },
+        {
           "name": "ai_model_continuation_stable_key_uq",
           "unique": true
         }
       ],
       "constraints": [],
       "commentContractDigest": "sha256:39b6065a94cad409cef5f618cb0226796e01c515108c36a7e1a59eaf38e7740b",
-      "canonicalDigest": "sha256:15658fb834ea8368771062a3e752805f03c90f95aeb73dc230b777a0122663d4"
+      "canonicalDigest": "sha256:291289dff3ab1b9daf5609a3eb76873c53b7cb4db575318cceb221fb3156eadd"
     },
     {
       "tableName": "ai_run_state_checkpoint",
@@ -29456,9 +29590,14 @@
         }
       ],
       "indexes": [],
-      "constraints": [],
+      "constraints": [
+        {
+          "name": "browser_session_lifecycle_contract_check",
+          "kind": "CHECK"
+        }
+      ],
       "commentContractDigest": "sha256:f028bb414b843be5dac4ad263dd61934073b3027ed25f824fe3cead7fe166d9c",
-      "canonicalDigest": "sha256:4557c9dea1c01fa218060537ee97f1a31e351ef39e5d105e4944d73358a71a9f"
+      "canonicalDigest": "sha256:09b3f0f3dfd8a6e1f1676f35f11a923b84c8d91324299d88b4af63cc550152ec"
     },
     {
       "tableName": "browser_session_binding",
@@ -33020,6 +33159,13 @@
       "immutable": false,
       "columns": [
         {
+          "name": "context_generation",
+          "dataType": "bigint",
+          "notNull": true,
+          "hasDefault": false,
+          "references": null
+        },
+        {
           "name": "created_at",
           "dataType": "timestamp with time zone",
           "notNull": true,
@@ -33041,8 +33187,22 @@
           "references": null
         },
         {
+          "name": "document_id",
+          "dataType": "uuid",
+          "notNull": true,
+          "hasDefault": false,
+          "references": null
+        },
+        {
           "name": "frame_id",
           "dataType": "uuid",
+          "notNull": true,
+          "hasDefault": false,
+          "references": null
+        },
+        {
+          "name": "frame_path",
+          "dataType": "jsonb",
           "notNull": true,
           "hasDefault": false,
           "references": null
@@ -33057,6 +33217,20 @@
         {
           "name": "locator_ast",
           "dataType": "jsonb",
+          "notNull": true,
+          "hasDefault": false,
+          "references": null
+        },
+        {
+          "name": "locator_schema_version",
+          "dataType": "text",
+          "notNull": true,
+          "hasDefault": true,
+          "references": null
+        },
+        {
+          "name": "page_generation",
+          "dataType": "bigint",
           "notNull": true,
           "hasDefault": false,
           "references": null
@@ -33093,10 +33267,20 @@
           "references": null
         }
       ],
-      "indexes": [],
-      "constraints": [],
+      "indexes": [
+        {
+          "name": "browser_target_reference_fence_idx",
+          "unique": false
+        }
+      ],
+      "constraints": [
+        {
+          "name": "browser_target_reference_version_check",
+          "kind": "CHECK"
+        }
+      ],
       "commentContractDigest": "sha256:da87ee3e2a7760e4bb7925679f4c049fe9822912ac7fcaf18422ca563a6070cb",
-      "canonicalDigest": "sha256:44f48e498929232859dc56f9b2449457a153fb14906eba3d4a72e627243e0d87"
+      "canonicalDigest": "sha256:8c15ada266ea60ddeb5fc3940094b544bc989b185b6e13b382c87e36a76ee1da"
     },
     {
       "tableName": "browser_action_run",
@@ -33269,6 +33453,13 @@
           "references": null
         },
         {
+          "name": "adapter_response_digest",
+          "dataType": "bytea",
+          "notNull": false,
+          "hasDefault": false,
+          "references": null
+        },
+        {
           "name": "application_deployment_epoch",
           "dataType": "bigint",
           "notNull": true,
@@ -33334,6 +33525,37 @@
         {
           "name": "dialog_outcome",
           "dataType": "jsonb",
+          "notNull": false,
+          "hasDefault": false,
+          "references": null
+        },
+        {
+          "name": "dispatch_lease_expires_at",
+          "dataType": "timestamp with time zone",
+          "notNull": false,
+          "hasDefault": false,
+          "references": null
+        },
+        {
+          "name": "dispatch_lease_fencing_token",
+          "dataType": "bigint",
+          "notNull": false,
+          "hasDefault": false,
+          "references": null
+        },
+        {
+          "name": "dispatch_lease_id",
+          "dataType": "uuid",
+          "notNull": false,
+          "hasDefault": false,
+          "references": [
+            "browser_session_dispatch_lease",
+            "id"
+          ]
+        },
+        {
+          "name": "dispatch_worker_id",
+          "dataType": "uuid",
           "notNull": false,
           "hasDefault": false,
           "references": null
@@ -33423,6 +33645,13 @@
           "references": null
         },
         {
+          "name": "mutation_trigger_observed_at",
+          "dataType": "timestamp with time zone",
+          "notNull": false,
+          "hasDefault": false,
+          "references": null
+        },
+        {
           "name": "navigation_outcome",
           "dataType": "jsonb",
           "notNull": false,
@@ -33507,6 +33736,20 @@
           "references": null
         },
         {
+          "name": "t1_committed_at",
+          "dataType": "timestamp with time zone",
+          "notNull": false,
+          "hasDefault": false,
+          "references": null
+        },
+        {
+          "name": "t2_committed_at",
+          "dataType": "timestamp with time zone",
+          "notNull": false,
+          "hasDefault": false,
+          "references": null
+        },
+        {
           "name": "trial_evidence",
           "dataType": "jsonb",
           "notNull": false,
@@ -33527,6 +33770,10 @@
           "unique": true
         },
         {
+          "name": "browser_action_attempt_dispatch_fence_uq",
+          "unique": true
+        },
+        {
           "name": "browser_action_attempt_number_uq",
           "unique": true
         },
@@ -33535,9 +33782,22 @@
           "unique": true
         }
       ],
-      "constraints": [],
+      "constraints": [
+        {
+          "name": "browser_action_attempt_dispatch_lease_check",
+          "kind": "CHECK"
+        },
+        {
+          "name": "browser_action_attempt_mutation_checkpoint_check",
+          "kind": "CHECK"
+        },
+        {
+          "name": "browser_action_attempt_t2_check",
+          "kind": "CHECK"
+        }
+      ],
       "commentContractDigest": "sha256:deae1488f8312c57100c3b3305380ce3d004ca6731c95e6223232235187008e1",
-      "canonicalDigest": "sha256:020225aa82ad3b3ed30178c6daa21977fa39386996f90e61a9573b1b3c6082ff"
+      "canonicalDigest": "sha256:20cbb12691991a97854850487d90e04a1589bb99c35f5229d1e9863251d5257d"
     },
     {
       "tableName": "browser_action_dispatch_event",
@@ -33705,6 +33965,10 @@
       ],
       "indexes": [
         {
+          "name": "browser_action_dispatch_event_identity_uq",
+          "unique": true
+        },
+        {
           "name": "browser_action_dispatch_event_stable_key_uq",
           "unique": true
         },
@@ -33713,9 +33977,14 @@
           "unique": true
         }
       ],
-      "constraints": [],
+      "constraints": [
+        {
+          "name": "browser_action_dispatch_phase_contract_check",
+          "kind": "CHECK"
+        }
+      ],
       "commentContractDigest": "sha256:68a1fcdfa0375f5e2515e65816df81b465ae5221dd97ce4d767f256727ba0c5c",
-      "canonicalDigest": "sha256:35cebf079321a4d69021e0d7e75fd339500237e47b589d824c386d3b7a6f6db4"
+      "canonicalDigest": "sha256:bf19ace80fdc1e9b83037dca23eee0df49026e16bd88940f5b1638e4208cf89b"
     },
     {
       "tableName": "browser_operation_scope",
@@ -36580,11 +36849,20 @@
         {
           "name": "browser_upload_handle_stable_key_uq",
           "unique": true
+        },
+        {
+          "name": "browser_upload_recovery_idx",
+          "unique": false
         }
       ],
-      "constraints": [],
+      "constraints": [
+        {
+          "name": "browser_upload_handle_safe_name_check",
+          "kind": "CHECK"
+        }
+      ],
       "commentContractDigest": "sha256:0e0c8dcc2d8b878c304a2b2fa71f0f8641cc65df48a858c75363834767d8159e",
-      "canonicalDigest": "sha256:48cedd3d02cd415c82cf6ba773539a6d9743b3b8a821f3c1afa1ab57bcb96f7d"
+      "canonicalDigest": "sha256:d49b4638a838a7d95cdf39b22d3fa2726b3750665522ca4196fa29f1539970c7"
     },
     {
       "tableName": "browser_download",
@@ -36833,13 +37111,22 @@
       ],
       "indexes": [
         {
+          "name": "browser_download_recovery_idx",
+          "unique": false
+        },
+        {
           "name": "browser_download_stable_key_uq",
           "unique": true
         }
       ],
-      "constraints": [],
+      "constraints": [
+        {
+          "name": "browser_download_completed_contract_check",
+          "kind": "CHECK"
+        }
+      ],
       "commentContractDigest": "sha256:728ebdb29befd619ac8b113cabf182a7dc5f4104f3d9b04856cc874ee7302045",
-      "canonicalDigest": "sha256:8c4a26a2f8a2e2356ad0d6938a85fff7a515bd448ea209ff1a8ebb5266d68416"
+      "canonicalDigest": "sha256:229fcff22f4a472b4fc87a2b200ba89748da196424ef3c3a5c0790cfbbd94d6b"
     },
     {
       "tableName": "browser_teaching_run",
@@ -41255,9 +41542,14 @@
         }
       ],
       "indexes": [],
-      "constraints": [],
+      "constraints": [
+        {
+          "name": "side_effect_attempt_request_digest_length",
+          "kind": "CHECK"
+        }
+      ],
       "commentContractDigest": "sha256:49fa54da416b3ea4182ce14cc66c0e7b1e231564b15336aef197a0820efc5514",
-      "canonicalDigest": "sha256:26c55f22f4aa970f4fc64d005c2b9a24343359184024a77cecd98b9e7b8cdbe4"
+      "canonicalDigest": "sha256:85edf2136b05ba9460320003e3b62e87581940931f1e2d4bc87cfffc7db59e73"
     },
     {
       "tableName": "side_effect_attempt_state",
@@ -41391,9 +41683,14 @@
         }
       ],
       "indexes": [],
-      "constraints": [],
+      "constraints": [
+        {
+          "name": "side_effect_attempt_evidence_digest_length",
+          "kind": "CHECK"
+        }
+      ],
       "commentContractDigest": "sha256:c89af772d7c28c23d1c10f447fa98f2dd4b9b23d01248b8254f08c655aefb2c1",
-      "canonicalDigest": "sha256:1b4ec1b1615e0a4afa5fd499603b99085d088342c667ba2890f6f176868e732a"
+      "canonicalDigest": "sha256:00abb0149d9859c15f7f9984cc88554728a123cec6e2141e5302dca13ba6a6db"
     },
     {
       "tableName": "transactional_outbox",
@@ -41550,11 +41847,24 @@
         {
           "name": "outbox_pending_idx",
           "unique": false
+        },
+        {
+          "name": "transactional_outbox_side_effect_attempt_uq",
+          "unique": true
         }
       ],
-      "constraints": [],
+      "constraints": [
+        {
+          "name": "transactional_outbox_authority_shape",
+          "kind": "CHECK"
+        },
+        {
+          "name": "transactional_outbox_payload_digest_length",
+          "kind": "CHECK"
+        }
+      ],
       "commentContractDigest": "sha256:13f85ab106a6ba5a4e5ef71fd94c7baf48e70f122b4fe83f0c7837613a97d785",
-      "canonicalDigest": "sha256:69363bf32708acc392244d59371bcbffa13f899e4a75619a258a21b5259742cc"
+      "canonicalDigest": "sha256:5ac06da786272021389226fdc8478f69dcdadc345c7efbb3ec4c336e34a65cf2"
     },
     {
       "tableName": "transactional_inbox",
@@ -41775,16 +42085,24 @@
         {
           "name": "queue_command_active_uq",
           "unique": true
+        },
+        {
+          "name": "queue_logical_command_active_uq",
+          "unique": true
         }
       ],
       "constraints": [
+        {
+          "name": "queue_item_claim_fields_consistent",
+          "kind": "CHECK"
+        },
         {
           "name": "queue_item_concurrency_claim_fk",
           "kind": "FOREIGN_KEY"
         }
       ],
       "commentContractDigest": "sha256:469c87ab4175a759315fcd971985ffc7c3022ded5bfd524291bfed35d3d2ff8c",
-      "canonicalDigest": "sha256:fd919fb088f52ca747c45d500a11e185a3749ab949d15e7d9d4ed7890b77fbed"
+      "canonicalDigest": "sha256:a2e04bef2c54ad8b2ac7edf4dcd226c90b1b368f6bcd1a8d37347f5456ac60c6"
     },
     {
       "tableName": "concurrency_claim",
@@ -41904,9 +42222,14 @@
           "unique": true
         }
       ],
-      "constraints": [],
+      "constraints": [
+        {
+          "name": "concurrency_claim_expiry_after_acquire",
+          "kind": "CHECK"
+        }
+      ],
       "commentContractDigest": "sha256:13644a06f6e2391eeb27d034ef85ddc51767660fe95019d0b0fd0cc984a17761",
-      "canonicalDigest": "sha256:9bee4b534e40d3903e554baf5b94e7903bf9112567a1b6c3bfe67ed65214f0f0"
+      "canonicalDigest": "sha256:2d87a7f5a906da345f701cb3ba4d111e723c5b2ad2a2289c5cdea630647bcb9f"
     },
     {
       "tableName": "binding_set",

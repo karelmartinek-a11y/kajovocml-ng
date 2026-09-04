@@ -17,4 +17,13 @@ describe('PostgreSQL physical schema projection', () => {
     const baseline = await readFile('database/baseline/00000000000001_ssot_surface.sql', 'utf8');
     expect(baseline).not.toMatch(/\bdocument\s+jsonb\s+NOT\s+NULL\s+DEFAULT\s+'\{\}'::jsonb/iu);
   });
+
+  it('includes forward-migration columns in the effective physical contract', async () => {
+    const contracts = JSON.parse(await readFile('contracts/ssot-surface/postgres-schema-contracts.json', 'utf8')) as {
+      records: Array<{ tableName: string; columns: Array<{ name: string; notNull: boolean }> }>;
+    };
+    const byTable = new Map(contracts.records.map((record) => [record.tableName, new Map(record.columns.map((column) => [column.name, column]))]));
+    expect(byTable.get('browser_target_reference')?.get('document_id')).toMatchObject({ notNull: true });
+    expect(byTable.get('browser_action_attempt')?.has('t2_committed_at')).toBe(true);
+  });
 });

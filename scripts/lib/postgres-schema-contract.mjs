@@ -127,6 +127,34 @@ export function compilePostgresSchemaContracts(sql, entities) {
     });
   }
 
+  // Forward-only migrations may extend an SSOT entity after its greenfield
+  // CREATE TABLE statement. Those columns are part of the effective physical
+  // contract too; ignoring them makes the PostgreSQL gate reject legitimate
+  // migrations as undeclared drift.
+  const alterTablePattern = /ALTER\s+TABLE\s+(?:kcml\.)?"?([a-z][a-z0-9_]*)"?\s+([\s\S]*?);/giu;
+  for (const match of sql.matchAll(alterTablePattern)) {
+    const record = records.get(match[1]);
+    if (!record) continue;
+    for (const clause of splitTopLevel(match[2])) {
+      const added = /^ADD\s+COLUMN(?:\s+IF\s+NOT\s+EXISTS)?\s+([\s\S]+)$/iu.exec(clause);
+      if (added) {
+        const column = parseColumn(added[1]);
+        if (!column) continue;
+        const existing = record.columns.find((candidate) => candidate.name === column.name);
+        // ADD COLUMN IF NOT EXISTS preserves the greenfield definition when the
+        // column is already present; the baseline contract therefore wins.
+        if (!existing) record.columns.push(column);
+        continue;
+      }
+      const setNotNull = /^ALTER\s+COLUMN\s+"?([a-z][a-z0-9_]*)"?\s+SET\s+NOT\s+NULL$/iu.exec(clause);
+      if (setNotNull) {
+        const column = record.columns.find((candidate) => candidate.name === setNotNull[1]);
+        if (!column) throw new Error(`ALTERED_SCHEMA_CONTRACT_COLUMN_MISSING:${match[1]}.${setNotNull[1]}`);
+        column.notNull = true;
+      }
+    }
+  }
+
   const indexPattern = /CREATE\s+(UNIQUE\s+)?INDEX(?:\s+IF\s+NOT\s+EXISTS)?\s+"?([a-z][a-z0-9_]*)"?\s+ON\s+(?:kcml\.)?"?([a-z][a-z0-9_]*)"?/giu;
   for (const match of sql.matchAll(indexPattern)) {
     const record = records.get(match[3]);

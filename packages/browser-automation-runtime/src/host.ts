@@ -93,6 +93,7 @@ export class BrowserHostProtocolServer {
       if(request.initialUrl)await page.goto(request.initialUrl,{waitUntil:'domcontentloaded',timeout:30_000});return {attached:true,url:page.url()};
     }
     if(request.kind==='SYNCHRONIZE'){const managed=this.#contexts.get(request.identity.sessionId);if(!managed)throw new Error('BROWSER_HOST_CONTEXT_MISSING');if(managed.lease.fencingToken>request.lease.fencingToken)throw new Error('BROWSER_HOST_LEASE_STALE');managed.identity=request.identity;managed.lease=request.lease;return {synchronized:true};}
+    if(request.kind==='CLOSE'&&!this.#contexts.has(request.identity.sessionId))return {closed:true,alreadyClosed:true};
     const managed=this.current(request);
     if(request.kind==='CLOSE'){await managed.context.close();this.#contexts.delete(request.identity.sessionId);return {closed:true};}
     if(request.kind==='OBSERVE')return this.observe(managed,randomUUID(),managed.lastActionFence+1n);

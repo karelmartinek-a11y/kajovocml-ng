@@ -414,13 +414,13 @@ async function browserMutation(_client: DatabaseClient, context: CanonicalHandle
     await _client.query(`UPDATE kcml.browser_upload_handle SET lifecycle='CLEANED',cleanup_at=coalesce(cleanup_at,clock_timestamp()),state_version=state_version+1,updated_at=clock_timestamp() WHERE session_id=$1 AND cleanup_at IS NULL AND (consumed_at IS NOT NULL OR expires_at<=clock_timestamp())`, [id]);
     await _client.query(`UPDATE kcml.browser_download SET cleanup_state='CLEANED',state_version=state_version+1,updated_at=clock_timestamp() WHERE session_id=$1 AND state='COMPLETED' AND cleanup_state IN ('PENDING','RETAINED')`, [id]);
     await _client.query(`UPDATE kcml.browser_challenge SET status='CANCELLED',resolved_at=coalesce(resolved_at,clock_timestamp()),state_version=state_version+1,updated_at=clock_timestamp() WHERE session_id=$1 AND status='PENDING'`, [id]);
-    await _client.query(`UPDATE kcml.browser_automation_artifact SET cleanup_state='REMOVED',deleted_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp() WHERE session_id=$1 AND cleanup_state NOT IN ('REMOVED','FAILED')`, [id]);
+    await _client.query(`UPDATE kcml.browser_automation_artifact SET cleanup_state=CASE WHEN retention_state='RETAINED' THEN 'RETAINED' ELSE 'REMOVED' END,deleted_at=CASE WHEN retention_state='RETAINED' THEN NULL ELSE clock_timestamp() END,state_version=state_version+1,updated_at=clock_timestamp() WHERE session_id=$1 AND cleanup_state NOT IN ('REMOVED','FAILED','RETAINED')`, [id]);
     const pending = (await _client.query(`SELECT
       (SELECT count(*) FROM kcml.browser_upload_handle WHERE session_id=$1 AND consumed_at IS NULL AND expires_at>clock_timestamp()) AS uploads,
       (SELECT count(*) FROM kcml.browser_download WHERE session_id=$1 AND state IN ('STARTED','STREAMING')) AS downloads,
       (SELECT count(*) FROM kcml.browser_action_run WHERE session_id=$1 AND dispatch_phase NOT IN ('CONFIRMED_APPLIED','CONFIRMED_NOT_APPLIED','FAILED_FINAL')) AS actions,
       (SELECT count(*) FROM kcml.browser_challenge WHERE session_id=$1 AND status='PENDING') AS challenges,
-      (SELECT count(*) FROM kcml.browser_automation_artifact WHERE session_id=$1 AND cleanup_state NOT IN ('REMOVED','FAILED')) AS artifacts`, [id])).rows[0];
+      (SELECT count(*) FROM kcml.browser_automation_artifact WHERE session_id=$1 AND cleanup_state NOT IN ('REMOVED','FAILED','RETAINED')) AS artifacts`, [id])).rows[0];
     const counts = Object.fromEntries(Object.entries(pending ?? {}).map(([key, value]) => [key, Number(value)]));
     const pendingCount = Object.values(counts).reduce((sum, value) => sum + value, 0);
     if (pendingCount > 0) throw new DomainError('BROWSER_CLEANUP_INCOMPLETE', 'Browser session cannot close while owned resources remain pending', 409, 'RECONCILE_THEN_RETRY', { counts });
