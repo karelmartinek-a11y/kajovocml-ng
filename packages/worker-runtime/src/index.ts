@@ -5,6 +5,10 @@ import { createDatabasePool, inTransaction, type DatabaseClient } from '@kcml/da
 import { CanonicalCommandWorker, CanonicalOperationService, CanonicalRetryScheduler, EnvelopeCipher, OperationCatalogService, SecretManager } from '@kcml/domain';
 import { StructuredLogger } from '@kcml/observability';
 import { createCapabilityServer, type CapabilityRequest, type CapabilityResponse } from '@kcml/runtime-capability-ipc';
+import { assertRuntimeLocalStateKey, assertStateDocumentWithinLimits, assertStateValueWithinLimits, loadRuntimeExecutionLineage, runtimeStateNamespace, type RuntimeExecutionLineage } from './broker-authority.js';
+
+export { assertRuntimeLocalStateKey, assertStateDocumentWithinLimits, assertStateValueWithinLimits, loadRuntimeExecutionLineage, runtimeLineageDigest, runtimeStateNamespace } from './broker-authority.js';
+export type { RuntimeExecutionLineage } from './broker-authority.js';
 
 function requiredSourceSha(): string {
   const value = process.env.KCML_SOURCE_SHA;
@@ -84,10 +88,6 @@ function sha256(value: unknown): string {
   return createHash('sha256').update(canonicalJson(jsonSafe(value))).digest('hex');
 }
 
-function runtimeStateKey(executionId: string): string {
-  return `runtime-state:${executionId}`;
-}
-
 async function appendBrokerAudit(client: DatabaseClient, eventType: string, executionId: string, aggregateType: string, aggregateId: string | null, payload: JsonObject): Promise<void> {
   const correlationId = typeof payload.correlationId === 'string' && /^[0-9a-f-]{36}$/iu.test(payload.correlationId) ? payload.correlationId : randomUUID();
   const bytes = Buffer.from(canonicalJson(jsonSafe(payload)));
@@ -102,15 +102,15 @@ async function appendBrokerAudit(client: DatabaseClient, eventType: string, exec
   ]);
 }
 
-async function stateRead(pool: ReturnType<typeof createDatabasePool>, executionId: string, payload: JsonObject): Promise<unknown> {
-  const key = String(payload.key ?? '');
-  if (!key || key.length > 512) throw new Error('RUNTIME_STATE_KEY_INVALID');
+async function stateRead(pool: ReturnType<typeof createDatabasePool>, lineage: RuntimeExecutionLineage, payload: JsonObject): Promise<unknown> {
+  const key = assertRuntimeLocalStateKey(payload.key);
   const result = await pool.query(`SELECT id,persistent_state,state_version,activation_epoch,application_deployment_epoch
     FROM kcml.component_runtime_target
-    WHERE stable_key=$1 AND lifecycle='ACTIVE' AND deleted_at IS NULL`, [runtimeStateKey(executionId)]);
+    WHERE stable_key=$1 AND lifecycle='ACTIVE' AND deleted_at IS NULL`, [runtimeStateNamespace(lineage)]);
   const row = result.rows[0];
   if (!row) return null;
   const document = (row.persistent_state ?? {}) as JsonObject;
+  if (document.lineageDigest !== lineage.lineageDigest) throw new Error('RUNTIME_STATE_LINEAGE_MISMATCH');
   const values = (document.values ?? {}) as JsonObject;
   const record = values[key] as JsonObject | undefined;
   if (!record || record.deleted === true) return null;
@@ -125,26 +125,33 @@ async function stateRead(pool: ReturnType<typeof createDatabasePool>, executionI
   };
 }
 
-async function stateWrite(pool: ReturnType<typeof createDatabasePool>, executionId: string, payload: JsonObject): Promise<unknown> {
+async function stateWrite(pool: ReturnType<typeof createDatabasePool>, lineage: RuntimeExecutionLineage, payload: JsonObject): Promise<unknown> {
   const operation = String(payload.operation ?? 'put').toLowerCase();
   if (!['put', 'create', 'delete'].includes(operation)) throw new Error('RUNTIME_STATE_OPERATION_UNSUPPORTED');
-  const key = String(payload.key ?? '');
-  if (!key || key.length > 512) throw new Error('RUNTIME_STATE_KEY_INVALID');
+  const key = assertRuntimeLocalStateKey(payload.key);
+  const schemaVersion = Number(payload.schemaVersion ?? 1);
+  if (!Number.isSafeInteger(schemaVersion) || schemaVersion < 1) throw new Error('RUNTIME_STATE_SCHEMA_VERSION_INVALID');
+  if (operation !== 'delete') assertStateValueWithinLimits(payload.value);
   const expected = payload.expectedStateVersion === undefined || payload.expectedStateVersion === null ? null : BigInt(String(payload.expectedStateVersion));
 
   return inTransaction(pool, 'SERIALIZABLE', async (client) => {
+    const currentLineage = await loadRuntimeExecutionLineage(client, lineage.executionId, true);
+    if (currentLineage.lineageDigest !== lineage.lineageDigest) throw new Error('RUNTIME_STATE_FENCING_TOKEN_STALE');
     const heads = (await client.query(`SELECT p.platform_incarnation_id,d.current_epoch,a.current_epoch AS activation_epoch
       FROM kcml.platform_incarnation p CROSS JOIN kcml.application_deployment_head d CROSS JOIN kcml.activation_head a
       WHERE p.singleton_key=1 AND d.singleton_key=1 AND a.singleton_key=1 FOR SHARE OF p,d,a`)).rows[0];
-    const stableKey = runtimeStateKey(executionId);
+    const stableKey = runtimeStateNamespace(currentLineage);
     let row = (await client.query(`SELECT * FROM kcml.component_runtime_target WHERE stable_key=$1 FOR UPDATE`, [stableKey])).rows[0];
     if (!row) {
       if (operation !== 'create' && operation !== 'put') throw new Error('RUNTIME_STATE_NOT_FOUND');
-      row = (await client.query(`INSERT INTO kcml.component_runtime_target(stable_key,display_name,lifecycle,transport,execution_mode,readiness_mode,persistent_state,activation_epoch,platform_incarnation_id,application_deployment_epoch)
-        VALUES($1,$2,'ACTIVE','RUNTIME_GATEWAY_UDS','PERSISTENT_STATE','HEALTHCHECK',$3,$4,$5,$6) RETURNING *`, [
+      const initialDocument = { lineage: currentLineage, lineageDigest: currentLineage.lineageDigest, persistentState: true, namespaceVersion: 1, values: {} };
+      const initialBytes = Buffer.from(canonicalJson(jsonSafe(initialDocument)));
+      row = (await client.query(`INSERT INTO kcml.component_runtime_target(stable_key,display_name,lifecycle,transport,execution_mode,readiness_mode,persistent_state,canonical_digest,activation_epoch,platform_incarnation_id,application_deployment_epoch)
+        VALUES($1,$2,'ACTIVE','RUNTIME_GATEWAY_UDS','PERSISTENT_STATE','HEALTHCHECK',$3,kcml.canonical_digest($4),$5,$6,$7) RETURNING *`, [
         stableKey,
-        `Persistent state ${executionId}`,
-        { executionId, persistentState: true, namespaceVersion: 1, values: {} },
+        `Persistent state ${currentLineage.lineageDigest.slice(0, 23)}`,
+        initialDocument,
+        initialBytes,
         heads.activation_epoch,
         heads.platform_incarnation_id,
         heads.current_epoch
@@ -152,6 +159,7 @@ async function stateWrite(pool: ReturnType<typeof createDatabasePool>, execution
     }
 
     const document = { ...((row.persistent_state ?? {}) as JsonObject) };
+    if (document.lineageDigest !== currentLineage.lineageDigest) throw new Error('RUNTIME_STATE_LINEAGE_MISMATCH');
     const values = { ...((document.values ?? {}) as JsonObject) };
     const current = values[key] as JsonObject | undefined;
     const currentVersion = current ? BigInt(String(current.stateVersion ?? 0)) : 0n;
@@ -163,25 +171,27 @@ async function stateWrite(pool: ReturnType<typeof createDatabasePool>, execution
     values[key] = {
       value,
       valueDigest: sha256(value),
-      schemaVersion: Number(payload.schemaVersion ?? current?.schemaVersion ?? 1),
+      schemaVersion,
       stateVersion: nextVersion.toString(),
       deleted: operation === 'delete',
       updatedAt: new Date().toISOString(),
-      executionId
+      lineageDigest: currentLineage.lineageDigest
     };
+    assertStateDocumentWithinLimits(values);
     document.values = values;
     document.namespaceVersion = (BigInt(row.state_version) + 1n).toString();
     document.lastCorrelationId = typeof payload.correlationId === 'string' ? payload.correlationId : null;
+    const documentBytes = Buffer.from(canonicalJson(jsonSafe(document)));
     const updated = (await client.query(`UPDATE kcml.component_runtime_target AS t
-      SET persistent_state=$2,state_version=t.state_version+1,activation_epoch=$3,application_deployment_epoch=$4,updated_at=clock_timestamp()
-      WHERE t.id=$1 RETURNING *`, [row.id, document, heads.activation_epoch, heads.current_epoch])).rows[0];
-    await appendBrokerAudit(client, `runtime.state.${operation}`, executionId, 'COMPONENT_RUNTIME_TARGET', row.id, { key, stateVersion: nextVersion.toString(), valueDigest: sha256(value), correlationId: payload.correlationId ?? null });
+      SET persistent_state=$2,canonical_digest=kcml.canonical_digest($3),state_version=t.state_version+1,activation_epoch=$4,application_deployment_epoch=$5,updated_at=clock_timestamp()
+      WHERE t.id=$1 RETURNING *`, [row.id, document, documentBytes, heads.activation_epoch, heads.current_epoch])).rows[0];
+    await appendBrokerAudit(client, `runtime.state.${operation}`, currentLineage.executionId, 'COMPONENT_RUNTIME_TARGET', row.id, { key, stateVersion: nextVersion.toString(), valueDigest: sha256(value), lineageDigest: currentLineage.lineageDigest, correlationId: payload.correlationId ?? null });
     return {
       id: row.id,
       key,
       value,
       valueDigest: sha256(value),
-      schemaVersion: Number(payload.schemaVersion ?? current?.schemaVersion ?? 1),
+      schemaVersion,
       stateVersion: nextVersion.toString(),
       namespaceVersion: updated.state_version,
       deleted: operation === 'delete'
@@ -223,6 +233,7 @@ async function egressRequest(pool: ReturnType<typeof createDatabasePool>, execut
 async function handleBrokerRequest(pool: ReturnType<typeof createDatabasePool>, secrets: SecretManager, broker: NonNullable<ServiceOptions['broker']>, request: CapabilityRequest): Promise<CapabilityResponse> {
   try {
     const payload = request.payload as JsonObject;
+    const lineage = await loadRuntimeExecutionLineage(pool, request.executionId);
     let responsePayload: unknown;
     if (broker === 'secret') {
       if (request.capability !== 'SECRET_USE') throw new Error('CAPABILITY_MISMATCH');
@@ -230,7 +241,7 @@ async function handleBrokerRequest(pool: ReturnType<typeof createDatabasePool>, 
       responsePayload = { value: revealed.value, fingerprint: revealed.fingerprint };
     } else if (broker === 'state') {
       if (!['STATE_READ', 'STATE_WRITE'].includes(request.capability)) throw new Error('CAPABILITY_MISMATCH');
-      responsePayload = request.capability === 'STATE_READ' ? await stateRead(pool, request.executionId, payload) : await stateWrite(pool, request.executionId, payload);
+      responsePayload = request.capability === 'STATE_READ' ? await stateRead(pool, lineage, payload) : await stateWrite(pool, lineage, payload);
     } else {
       if (request.capability !== 'EGRESS_REQUEST') throw new Error('CAPABILITY_MISMATCH');
       responsePayload = await egressRequest(pool, request.executionId, payload);

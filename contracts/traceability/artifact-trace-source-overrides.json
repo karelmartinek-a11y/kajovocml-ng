@@ -2946,6 +2946,23 @@
           "snippetDigest": "sha256:4c6b821f6e176e500b86362ade0490a0ca2ee73e95aa5e310919b347343f4623"
         }
       ]
+    },
+    {
+      "repositoryPath": "packages/worker-runtime/src/broker-authority.ts",
+      "requirementIds": [
+        "KCML-REQ-POSTGRES-bb725f8f2e4caad0470aa6305573d766c6eb8856d53d389cd0cb233016e94e55"
+      ],
+      "operationIds": [],
+      "registryRecordIds": [],
+      "testIds": [],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-POSTGRES-bb725f8f2e4caad0470aa6305573d766c6eb8856d53d389cd0cb233016e94e55",
+          "locator": "packages/worker-runtime/src/broker-authority.ts:1",
+          "symbol": "file-start",
+          "snippetDigest": "sha256:9d196a1875159c508cfac6bfb2060ff64a56d5d38cb28623767e3b75870fba67"
+        }
+      ]
     }
   ]
 }

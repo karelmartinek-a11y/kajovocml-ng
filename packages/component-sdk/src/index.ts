@@ -22,7 +22,7 @@ export class ComponentContext {
 
   public state = {
     read: (key: string) => this.invoke('STATE_READ', 'state.read', { key }),
-    write: (key: string, value: unknown, expectedStateVersion: bigint) => this.invoke('STATE_WRITE', 'state.write', { key, value, expectedStateVersion: expectedStateVersion.toString() })
+    write: (key: string, value: unknown, expectedStateVersion: bigint, schemaVersion = 1) => this.invoke('STATE_WRITE', 'state.write', { key, value, schemaVersion, expectedStateVersion: expectedStateVersion.toString() })
   };
 
   public secret = {

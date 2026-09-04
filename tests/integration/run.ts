@@ -17,6 +17,7 @@ const { canonicalDigest } = await import('@kcml/schemas');
 const { compileAuthorityLineage } = await import('../../packages/agentic-authority/src/index.js');
 const { GenerationOrchestrator } = await import('../../packages/generation-orchestrator/src/index.js');
 const { ResponsesRuntime } = await import('../../packages/openai-runtime/src/index.js');
+const { loadRuntimeExecutionLineage, runtimeStateNamespace } = await import('../../packages/worker-runtime/src/index.js');
 
 const pool = createDatabasePool({ applicationName: 'domain-integration' });
 try {
@@ -260,6 +261,8 @@ try {
     started_at,state,context_digest,canonical_digest,activation_epoch,platform_incarnation_id,application_deployment_epoch)
     VALUES($1,'COMPONENT','COMPONENT',$2,$3,$4,$5,$6,'RUNTIME_GATEWAY',$7,$8,$9,$10,clock_timestamp(),'ACTIVE',$6,$6,$11,$12,$13)`,
     [runtimeExecutionContextId,mcpComponentId,mcpRevision.id,crypto.randomUUID(),bindingRevision.id,schemaDigest,runtimeUnit,{unit:runtimeUnit,invocationId:runtimeInvocationId},runtimeSocket,{uid:995,gid:995,pid:43121,bootId:runtimeBootId,startTicks:987654},heads.activation_epoch,heads.platform_incarnation_id,heads.current_epoch]);
+  const runtimeLineage=await loadRuntimeExecutionLineage(pool,runtimeExecutionContextId);if(runtimeLineage.sourceObjectId!==mcpComponentId||runtimeLineage.sourceRevisionId!==mcpRevision.id||runtimeLineage.bindingSetRevisionId!==bindingRevision.id||runtimeLineage.runtimeGeneration!=='1'||!runtimeStateNamespace(runtimeLineage).startsWith('runtime-state:'))throw new Error('RUNTIME_EXECUTION_LINEAGE_NOT_DERIVED');
+  await pool.query(`UPDATE kcml.activation_head SET current_epoch=current_epoch+1,state_version=state_version+1 WHERE singleton_key=1`);const staleLineageRejected=await loadRuntimeExecutionLineage(pool,runtimeExecutionContextId).then(()=>false).catch((error)=>error instanceof Error&&error.message==='RUNTIME_EXECUTION_AUTHORITY_STALE');if(!staleLineageRejected)throw new Error('RUNTIME_STALE_ACTIVATION_LINEAGE_ACCEPTED');await pool.query(`UPDATE kcml.activation_head SET current_epoch=$1,state_version=state_version+1 WHERE singleton_key=1`,[heads.activation_epoch]);
   await pool.query(`INSERT INTO kcml.runtime_ipc_call(connection_id,parent_execution_context_id,request_id,sequence,operation,capability_alias,resolved_target,revision_id,release_id,runtime_generation,binding_revision,input_digest,input_bytes,deadline_at,state,cleanup_state,started_at,canonical_digest,activation_epoch,platform_incarnation_id,application_deployment_epoch)
     VALUES($1,$2,'integration-runtime-call-1',1,'component.state.query','state.query',$3,$4,$5,1,1,$6,128,clock_timestamp()+interval '1 minute','DISPATCHED','PENDING',clock_timestamp(),$6,$7,$8,$9)`,
     [runtimeConnectionId,runtimeExecutionContextId,{componentId:mcpComponentId},mcpRevision.id,mcpRelease.id,schemaDigest,heads.activation_epoch,heads.platform_incarnation_id,heads.current_epoch]);
