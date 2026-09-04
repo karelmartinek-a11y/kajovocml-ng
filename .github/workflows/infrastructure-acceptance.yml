@@ -9,5 +9,5 @@ jobs:
       - uses: actions/checkout@v4
       - run: install -d -m 0700 ~/.ssh && install -m 0600 /dev/null ~/.ssh/id_ed25519 && printf '%s\n' "$KEY" > ~/.ssh/id_ed25519 && install -m 0600 /dev/null ~/.ssh/known_hosts && printf '%s\n' "$KNOWN" > ~/.ssh/known_hosts
         env: { KEY: '${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}', KNOWN: '${{ secrets.PROD_SSH_KNOWN_HOSTS }}' }
-      - run: ssh "${USER}@${HOST}" 'sudo /opt/kajovocml-ng/current/deploy/scripts/verify-production-prerequisites.sh && sudo systemctl is-active kcml.target nginx postgresql'
-        env: { HOST: '${{ vars.PROD_HOST }}', USER: '${{ vars.PROD_DEPLOY_USER }}' }
+      - run: printf '%s\n' "$PASS" | ssh "${USER}@${HOST}" "sudo -S -p '' bash -c '/opt/kajovocml-ng/current/deploy/scripts/verify-production-prerequisites.sh && systemctl is-active kcml.target nginx postgresql'"
+        env: { HOST: '${{ vars.PROD_HOST }}', USER: '${{ vars.PROD_DEPLOY_USER }}', PASS: '${{ secrets.PASS }}' }

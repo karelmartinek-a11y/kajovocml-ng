@@ -74,6 +74,8 @@ describe('production acceptance contract', () => {
     const workflow = await readFile('.github/workflows/infrastructure-acceptance.yml', 'utf8');
     const installer = await readFile('deploy/scripts/install-systemd.sh', 'utf8');
     expect(workflow).toContain(`printf '%s\\n' "$KEY" > ~/.ssh/id_ed25519`);
+    expect(workflow).toContain(`printf '%s\\n' "$PASS" | ssh`);
+    expect(workflow).toContain(`sudo -S -p '' bash -c`);
     expect(installer).toContain('systemctl disable --now kcml-canonical-tls-renew.timer');
     expect(installer).toContain('systemctl reset-failed kcml-canonical-tls-renew.service');
   });
