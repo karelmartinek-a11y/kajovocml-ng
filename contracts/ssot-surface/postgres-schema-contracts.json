@@ -29519,6 +29519,20 @@
           "references": null
         },
         {
+          "name": "next_action_fence",
+          "dataType": "bigint",
+          "notNull": true,
+          "hasDefault": true,
+          "references": null
+        },
+        {
+          "name": "next_dispatch_lease_fence",
+          "dataType": "bigint",
+          "notNull": true,
+          "hasDefault": true,
+          "references": null
+        },
+        {
           "name": "observation_revision",
           "dataType": "bigint",
           "notNull": true,
@@ -29597,7 +29611,7 @@
         }
       ],
       "commentContractDigest": "sha256:f028bb414b843be5dac4ad263dd61934073b3027ed25f824fe3cead7fe166d9c",
-      "canonicalDigest": "sha256:09b3f0f3dfd8a6e1f1676f35f11a923b84c8d91324299d88b4af63cc550152ec"
+      "canonicalDigest": "sha256:16a6eaf592f61162547b84bd3971a8444bb24d4e912193107ae3b1232fbb51b4"
     },
     {
       "tableName": "browser_session_binding",
@@ -30556,6 +30570,13 @@
           "references": null
         },
         {
+          "name": "next_navigation_sequence",
+          "dataType": "bigint",
+          "notNull": true,
+          "hasDefault": true,
+          "references": null
+        },
+        {
           "name": "opener_page_generation",
           "dataType": "bigint",
           "notNull": false,
@@ -30699,7 +30720,7 @@
         }
       ],
       "commentContractDigest": "sha256:60fafa41219f47d1a8370b53c5f8b7300e5a7ccc1400ae2c6edadab4f5ca06ff",
-      "canonicalDigest": "sha256:15024888c1e057e8c135e65aebcb76334a9669ac0c8d7fb5c2b3e914329890af"
+      "canonicalDigest": "sha256:84748fe1244867c7bcf818a9b8dd1a91e9f7418d5556438603847d405383dc4b"
     },
     {
       "tableName": "browser_frame",
@@ -33352,6 +33373,13 @@
           "references": null
         },
         {
+          "name": "next_attempt",
+          "dataType": "bigint",
+          "notNull": true,
+          "hasDefault": true,
+          "references": null
+        },
+        {
           "name": "outcome",
           "dataType": "jsonb",
           "notNull": false,
@@ -33413,7 +33441,7 @@
       "indexes": [],
       "constraints": [],
       "commentContractDigest": "sha256:ac70c339f38599132977a8d624d12f0841d1f0e0c103a890a69040a14abafd88",
-      "canonicalDigest": "sha256:a29ee8a53680fe5fece5c72de5f77d4247a4c25ff9f4aafb6fe12d40ec55c502"
+      "canonicalDigest": "sha256:c6b2f966f1363bcabb57ff62ff40613aec62e7b1d139ec3cee6b005d06c58398"
     },
     {
       "tableName": "browser_action_attempt",

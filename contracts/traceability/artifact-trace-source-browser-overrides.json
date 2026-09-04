@@ -289,6 +289,20 @@
       "registryRecordIds": ["ORACLE-SIDE-EFFECT"],
       "testIds": [],
       "traceAnchors": []
+    },
+    {
+      "repositoryPath": "database/migrations/20260904000112_browser_monotonic_allocators.sql",
+      "requirementIds": [
+        "KCML-REQ-BROWSER-72483539e45b935a706ca17abb5d0cf882233faad05e38cfa4fe9e877d4d5a50",
+        "KCML-REQ-BROWSER-ef10f5b0934585a9fa18647f9fe12ac897ddf897aeb0c53f36f66b107b220e2d",
+        "KCML-REQ-POSTGRES-411cdb134e7b3683a1ff61e21f5eb2c7906ac66e3c6bf713bb37e8742a358044",
+        "KCML-REQ-POSTGRES-a39d6dc4a6b3f5b60ecfdf499c5fc45cecaa48f694e3894327bcbe0633c2296e"
+      ],
+      "operationIds": ["OP-BROWSER-ACTION-DISPATCHPHASE", "OP-BROWSER-SESSION-ATTACH"],
+      "stateMachineIds": ["SM-BROWSER_SESSION"],
+      "registryRecordIds": [],
+      "testIds": [],
+      "traceAnchors": []
     }
   ]
 }
