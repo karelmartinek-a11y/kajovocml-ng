@@ -9,11 +9,11 @@ const steps=[
   ['operation-integration-evidence','pnpm',['test:integration'],'KCML_FINAL_INTEGRATION_DATABASE_URL'],
   ['property-tests','pnpm',['test:property'],'KCML_FINAL_PROPERTY_DATABASE_URL'],
   ['model-fast-chaos','pnpm',['test:chaos'],'KCML_FINAL_CHAOS_DATABASE_URL'],
-  ['systemd-contracts','pnpm',['test:systemd'],null],
+  ['systemd-contracts','bash',['tests/systemd/run.sh'],null,'KCML_FINAL_SYSTEMD_USER'],
   ['repository-consistency','bash',['scripts/repository-consistency.sh'],null],
   ['forensic-audit',process.execPath,['scripts/forensic-ssot-audit.mjs'],null],
   ['deep-forensic-audit',process.execPath,['scripts/deep-forensic-audit.mjs'],null]
 ];
 const result=[];let failed=false;
-for(const [name,command,args,databaseEnvironment] of steps){const env={...process.env};if(databaseEnvironment==='NONE')delete env.DATABASE_URL;else if(databaseEnvironment){env.DATABASE_URL=process.env[databaseEnvironment]??process.env.DATABASE_URL??'';}const run=spawnSync(command,args,{stdio:'pipe',encoding:'utf8',env});const stdout=(run.stdout??'').trim();const stderr=(run.stderr??'').trim();const environmental=/NOT_EXECUTED_ENVIRONMENTAL/u.test(`${stdout}\n${stderr}`);const status=run.status!==0?'FAIL':environmental?'NOT_EXECUTED_ENVIRONMENTAL':'PASS';result.push({name,status,exitCode:run.status,stdout:stdout.slice(-4000),stderr:stderr.slice(-4000)});if(run.status!==0||environmental)failed=true;}
+for(const [name,command,args,databaseEnvironment,executionUserEnvironment] of steps){const env={...process.env};if(databaseEnvironment==='NONE')delete env.DATABASE_URL;else if(databaseEnvironment){env.DATABASE_URL=process.env[databaseEnvironment]??process.env.DATABASE_URL??'';}const executionUser=executionUserEnvironment?process.env[executionUserEnvironment]:null;const run=executionUser&&process.getuid?.()===0?spawnSync('runuser',['-u',executionUser,'--',command,...args],{stdio:'pipe',encoding:'utf8',env}):spawnSync(command,args,{stdio:'pipe',encoding:'utf8',env});const stdout=(run.stdout??'').trim();const stderr=(run.stderr??'').trim();const environmental=/NOT_EXECUTED_ENVIRONMENTAL/u.test(`${stdout}\n${stderr}`);const status=run.status!==0?'FAIL':environmental?'NOT_EXECUTED_ENVIRONMENTAL':'PASS';result.push({name,status,exitCode:run.status,stdout:stdout.slice(-4000),stderr:stderr.slice(-4000)});if(run.status!==0||environmental)failed=true;}
 process.stdout.write(`${JSON.stringify({status:failed?'FAIL':'PASS',steps:result},null,2)}\n`);if(failed)process.exitCode=1;
