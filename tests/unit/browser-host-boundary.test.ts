@@ -20,4 +20,9 @@ describe('browser host capability boundary',()=>{
     expect(entry).not.toMatch(/@kcml\/database|createDatabasePool|\.query\s*\(/u);
     expect(entry).toContain('@kcml/browser-automation-runtime/host');
   });
+
+  it('does not expose the retired database-writing host implementation',()=>{
+    const runtime=readFileSync('packages/browser-automation-runtime/src/index.ts','utf8');
+    expect(runtime).not.toMatch(/ManagedBrowserHost|@kcml\/database|\.query\s*\(|INSERT\s+INTO|UPDATE\s+kcml\./u);
+  });
 });
