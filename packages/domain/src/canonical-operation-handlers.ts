@@ -258,7 +258,7 @@ export function validateCanonicalOperationCommand(operation: OperationContract, 
       if (args.evidence === undefined || typeof args.evidence !== 'object' || args.evidence === null) throw new DomainError('BROWSER_CHALLENGE_REQUIRED', 'Every browser dispatch phase requires typed adapter evidence', 422, 'DO_NOT_RETRY');
     }
     if (['browser.action.reconcile', 'browser.action.resolveOutcome'].includes(name)) {
-      if (!['CONFIRMED_APPLIED', 'CONFIRMED_NOT_APPLIED', 'UNKNOWN'].includes(String(args.outcome))) throw new DomainError('BROWSER_RECONCILIATION_REQUIRED', 'Reconciliation outcome must be independently classified', 422, 'DO_NOT_RETRY');
+      if (name === 'browser.action.resolveOutcome' && !['CONFIRMED_APPLIED', 'CONFIRMED_NOT_APPLIED', 'UNKNOWN'].includes(String(args.outcome))) throw new DomainError('BROWSER_RECONCILIATION_REQUIRED', 'Reconciliation outcome must be independently classified', 422, 'DO_NOT_RETRY');
       if (!args.readBack || typeof args.readBack !== 'object' || args.readBack === null) throw new DomainError('BROWSER_RECONCILIATION_REQUIRED', 'Independent read-back evidence is required before resolving a browser action', 422, 'DO_NOT_RETRY');
     }
   }

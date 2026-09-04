@@ -33603,6 +33603,13 @@
           "references": null
         },
         {
+          "name": "effect_commands_admitted_at",
+          "dataType": "timestamp with time zone",
+          "notNull": false,
+          "hasDefault": false,
+          "references": null
+        },
+        {
           "name": "ended_at",
           "dataType": "timestamp with time zone",
           "notNull": false,
@@ -33825,7 +33832,7 @@
         }
       ],
       "commentContractDigest": "sha256:deae1488f8312c57100c3b3305380ce3d004ca6731c95e6223232235187008e1",
-      "canonicalDigest": "sha256:20cbb12691991a97854850487d90e04a1589bb99c35f5229d1e9863251d5257d"
+      "canonicalDigest": "sha256:386561f1f77aa7a750d5a7c58571f1806cc7c901d7b040fbd00fc924e2ac5d63"
     },
     {
       "tableName": "browser_action_dispatch_event",

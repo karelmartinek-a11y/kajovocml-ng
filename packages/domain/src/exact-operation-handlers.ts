@@ -709,8 +709,10 @@ async function handleBrowserActionReconcile(client: DatabaseClient, context: Can
   let outcome = 'UNKNOWN';
   if (readBack.oracle === 'INDEPENDENT_HOST_OBSERVE' && digestValid && identityCurrent && current.action === 'NAVIGATE' && typeof (current.payload as Row)?.url === 'string' && typeof evidence.url === 'string' && new URL(String((current.payload as Row).url)).href === new URL(String(evidence.url)).href) outcome = 'CONFIRMED_APPLIED';
   if (readBack.oracle === 'INDEPENDENT_HOST_OBSERVE' && digestValid && identityCurrent && current.action === 'OBSERVE') outcome = 'CONFIRMED_NOT_APPLIED';
-  const requested = context.arguments.outcome === undefined ? outcome : String(context.arguments.outcome);
-  if (requested !== outcome) throw new DomainError('BROWSER_RECONCILIATION_REQUIRED', 'Caller-supplied outcome differs from the independently derived browser outcome', 409, 'RECONCILE_THEN_RETRY');
+  if (readBack.oracle === 'INDEPENDENT_HOST_OBSERVE' && digestValid && identityCurrent && current.action === 'UPLOAD' && typeof (current.payload as Row)?.uploadHandleId === 'string') { const upload=(await client.query(`SELECT consumed_at FROM kcml.browser_upload_handle WHERE id=$1 AND session_id=$2`,[(current.payload as Row).uploadHandleId,current.session_id])).rows[0] as Row|undefined;if(upload?.consumed_at)outcome='CONFIRMED_APPLIED'; }
+  if (readBack.oracle === 'INDEPENDENT_HOST_OBSERVE' && digestValid && identityCurrent && current.action === 'DOWNLOAD') { const download=(await client.query(`SELECT d.state,d.content_verification,a.storage_reference FROM kcml.browser_download d JOIN kcml.browser_automation_artifact a ON a.id=d.artifact_id WHERE d.action_id=$1 AND d.session_id=$2`,[id,current.session_id])).rows[0] as Row|undefined;if(download?.state==='COMPLETED'&&(download.content_verification as Row|undefined)?.verified===true&&typeof download.storage_reference==='string')outcome='CONFIRMED_APPLIED'; }
+  if (readBack.oracle === 'INDEPENDENT_HOST_OBSERVE' && digestValid && identityCurrent && ['CHALLENGE','DIALOG','PERMISSION'].includes(String(current.action))) { const challenge=(await client.query(`SELECT id FROM kcml.browser_challenge WHERE session_id=$1 AND status='PENDING' AND created_at>=$2 ORDER BY created_at LIMIT 1`,[current.session_id,current.created_at])).rows[0];if(challenge)outcome='CONFIRMED_NOT_APPLIED'; }
+  if (context.arguments.outcome !== undefined) throw new DomainError('BROWSER_RECONCILIATION_REQUIRED', 'Browser reconciliation outcome is derived only from independent readback', 422, 'DO_NOT_RETRY');
   const updated = row((await client.query(`UPDATE kcml.browser_action_run SET dispatch_phase=$2,outcome=$3,updated_at=clock_timestamp(),state_version=state_version+1 WHERE id=$1 AND dispatch_phase IN ('RECONCILING','POSSIBLE_EFFECT','OUTCOME_OBSERVED','UNKNOWN') AND state_version=$4 RETURNING *`, [id, outcome, { readBack, derived: true }, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Browser action changed while reconciling');
   await client.query(`UPDATE kcml.browser_action_attempt SET postcondition=$2,readback=$3,ended_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp() WHERE action_run_id=$1 AND attempt=(SELECT max(attempt) FROM kcml.browser_action_attempt WHERE action_run_id=$1)`, [id, { classification: outcome, independentlyDerived: true }, readBack]);
   await recordAudit(client, context, 'BROWSER_ACTION_RUN', id, { actionId: id, reconciliation: { outcome, evidenceDigest, identityCurrent } });
@@ -866,7 +868,7 @@ async function handleBrowserChallengeRequired(client: DatabaseClient, context: C
     VALUES($1,$2,$3,$4,$5,'PENDING',$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24) RETURNING *`, [
     id, sessionId, context.arguments.automationRunId ?? null, context.arguments.stepId ?? null, textArg(context, 'challengeType', 'OTP'), context.arguments.pageId ?? null, context.arguments.frameId ?? null, context.arguments.documentId ?? null, context.arguments.origin ?? null, context.arguments.relyingParty ?? null, context.arguments.accountBindingId ?? null, digestArgument(context, 'pendingActionDigest', {}), context.arguments.authEpoch ?? null, numberArg(context, 'controlEpoch', 0), futureArg(context, 'deadlineAt', 60), textArg(context, 'safePrompt', 'Owner action required'), listArg(context, 'allowedResolutionMethods'), futureArg(context, 'expiresAt', 300), digest({ id, sessionId, challengeType: context.arguments.challengeType }), context.logicalOperationId, context.correlationId, context.activationEpoch.toString(), context.platformIncarnationId, context.applicationDeploymentEpoch.toString()
   ])).rows as Row[], 'BROWSER_CHALLENGE_NOT_CREATED', 'Browser challenge was not persisted');
-  await client.query(`UPDATE kcml.browser_session SET lifecycle='WAITING_CHALLENGE',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND lifecycle NOT IN ('CLOSED','FAILED_FINAL','MANUAL_REVIEW')`, [sessionId]);
+  await client.query(`UPDATE kcml.browser_session SET lifecycle='CHALLENGE_REQUIRED',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND lifecycle IN ('READY','ACTIVE','PAUSED','RECOVERING')`, [sessionId]);
   await recordAudit(client, context, 'BROWSER_CHALLENGE', id, { challengeId: id, sessionId, status: 'PENDING' });
   return result(context, 'browser_challenge', challenge, challenge.state_version, { sessionId, status: 'PENDING' });
 }
@@ -878,7 +880,7 @@ async function handleBrowserChallengeResolve(client: DatabaseClient, context: Ca
   if (current.status !== 'PENDING') throw new DomainError('TERMINAL_STATE_IMMUTABLE', 'Only a pending browser challenge can be resolved', 409, 'DO_NOT_RETRY');
   const responseDigest = digestArgument(context, 'responseDigest', context.arguments.response ?? null);
   const updated = row((await client.query(`UPDATE kcml.browser_challenge SET status='RESOLVED',owner_response_id=$2,bridge_response_id=$3,resolved_at=clock_timestamp(),consume_digest=$4,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND status='PENDING' AND state_version=$5 RETURNING *`, [id, context.arguments.ownerResponseId ?? null, context.arguments.bridgeResponseId ?? null, responseDigest, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Browser challenge changed while resolving');
-  await client.query(`UPDATE kcml.browser_session SET lifecycle='RECONCILING',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND lifecycle='WAITING_CHALLENGE'`, [current.session_id]);
+  await client.query(`UPDATE kcml.browser_session SET lifecycle='RECOVERING',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND lifecycle='CHALLENGE_REQUIRED'`, [current.session_id]);
   await recordAudit(client, context, 'BROWSER_CHALLENGE', id, { challengeId: id, status: 'RESOLVED', responseDigest: `sha256:${responseDigest.toString('hex')}` });
   return result(context, 'browser_challenge', updated, updated.state_version, { status: 'RESOLVED', requiresFreshObservation: true });
 }
@@ -933,7 +935,7 @@ async function handleBrowserControlTransfer(client: DatabaseClient, context: Can
   const session = row((await client.query(`SELECT * FROM kcml.browser_session WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'BROWSER_SESSION_NOT_FOUND', 'Browser session does not exist');
   assertVersion(context, session);
   const holder = textArg(context, 'holder', 'AI');
-  const updated = row((await client.query(`UPDATE kcml.browser_session SET lifecycle=CASE WHEN $2='OWNER' THEN 'OWNER_CONTROLLED' WHEN $2='AUTOMATION' THEN 'AUTOMATION_CONTROLLED' ELSE 'AI_CONTROLLED' END,control_holder=$2,control_epoch=control_epoch+1,control_fence=control_fence+1,control_expires_at=$3,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND control_holder<>$2 AND state_version=$4 RETURNING *`, [id, holder, futureArg(context, 'expiresAt', 60), session.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Browser session changed while transferring control');
+  const updated = row((await client.query(`UPDATE kcml.browser_session SET lifecycle=CASE WHEN lifecycle='READY' THEN 'ACTIVE' ELSE lifecycle END,control_holder=$2,control_epoch=control_epoch+1,control_fence=control_fence+1,control_expires_at=$3,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND lifecycle IN ('READY','ACTIVE') AND control_holder<>$2 AND state_version=$4 RETURNING *`, [id, holder, futureArg(context, 'expiresAt', 60), session.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Browser session changed while transferring control');
   await recordAudit(client, context, 'BROWSER_SESSION', id, { sessionId: id, holder, controlEpoch: updated.control_epoch });
   return result(context, 'browser_session', updated, updated.state_version, { holder, controlEpoch: updated.control_epoch });
 }
@@ -977,9 +979,9 @@ async function handleBrowserDocumentChanged(client: DatabaseClient, context: Can
 async function handleBrowserDownloadStarted(client: DatabaseClient, context: CanonicalHandlerContext): Promise<unknown> {
   const sessionId = browserSessionId(context);
   const id = uuidArg(context, 'downloadId', context.targetId ?? undefined);
-  const download = row((await client.query(`INSERT INTO kcml.browser_download(id,session_id,run_id,step_id,action_id,source_origin,source_url,url_kind,event_sequence,suggested_name,state,cleanup_state,canonical_digest,logical_operation_id,correlation_id,activation_epoch,platform_incarnation_id,application_deployment_epoch)
-    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'STARTED','PENDING',$11,$12,$13,$14,$15,$16) RETURNING *`, [
-    id, sessionId, context.arguments.runId ?? null, context.arguments.stepId ?? null, context.arguments.actionId ?? null, context.arguments.sourceOrigin ?? null, context.arguments.sourceUrl ?? null, textArg(context, 'urlKind', 'HTTP'), numberArg(context, 'eventSequence', 0), context.arguments.suggestedName ?? null, digest({ id, sessionId, sourceUrl: context.arguments.sourceUrl ?? null }), context.logicalOperationId, context.correlationId, context.activationEpoch.toString(), context.platformIncarnationId, context.applicationDeploymentEpoch.toString()
+  const download = row((await client.query(`INSERT INTO kcml.browser_download(id,session_id,run_id,step_id,action_id,source_origin,source_url,url_kind,event_sequence,suggested_name,artifact_id,mime_type,expected_size_bytes,state,cleanup_state,canonical_digest,logical_operation_id,correlation_id,activation_epoch,platform_incarnation_id,application_deployment_epoch)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'STARTED','PENDING',$14,$15,$16,$17,$18,$19) RETURNING *`, [
+    id, sessionId, context.arguments.runId ?? null, context.arguments.stepId ?? null, context.arguments.actionId ?? null, context.arguments.sourceOrigin ?? null, context.arguments.sourceUrl ?? null, textArg(context, 'urlKind', 'HTTP'), numberArg(context, 'eventSequence', 0), context.arguments.suggestedName ?? null, context.arguments.artifactId ?? null, context.arguments.mimeType ?? null, context.arguments.expectedSizeBytes ?? null, digest({ id, sessionId, sourceUrl: context.arguments.sourceUrl ?? null }), context.logicalOperationId, context.correlationId, context.activationEpoch.toString(), context.platformIncarnationId, context.applicationDeploymentEpoch.toString()
   ])).rows as Row[], 'BROWSER_DOWNLOAD_NOT_CREATED', 'Browser download was not persisted');
   await recordAudit(client, context, 'BROWSER_DOWNLOAD', id, { downloadId: id, sessionId, state: 'STARTED' });
   return result(context, 'browser_download', download, download.state_version, { state: 'STARTED' });
@@ -1216,7 +1218,7 @@ async function handleBrowserSessionAttach(client: DatabaseClient, context: Canon
   const id = target(context);
   const current = row((await client.query(`SELECT * FROM kcml.browser_session WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'BROWSER_SESSION_NOT_FOUND', 'Browser session does not exist');
   assertVersion(context, current);
-  const updated = row((await client.query(`UPDATE kcml.browser_session SET host_or_bridge_id=$2,lifecycle='READY',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND lifecycle IN ('CREATING','RECOVERING','READY') AND state_version=$3 RETURNING *`, [id, context.arguments.hostOrBridgeId ?? null, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Browser session changed while attaching');
+  const updated = row((await client.query(`UPDATE kcml.browser_session SET host_or_bridge_id=$2,lifecycle='READY',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND lifecycle IN ('CREATING','RECOVERING') AND state_version=$3 RETURNING *`, [id, context.arguments.hostOrBridgeId ?? null, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Browser session changed while attaching');
   await recordAudit(client, context, 'BROWSER_SESSION', id, { sessionId: id, lifecycle: 'READY' });
   return result(context, 'browser_session', updated, updated.state_version, { lifecycle: 'READY' });
 }
@@ -1225,7 +1227,7 @@ async function handleBrowserSessionClose(client: DatabaseClient, context: Canoni
   const id = target(context);
   const current = row((await client.query(`SELECT * FROM kcml.browser_session WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'BROWSER_SESSION_NOT_FOUND', 'Browser session does not exist');
   assertVersion(context, current);
-  const updated = row((await client.query(`UPDATE kcml.browser_session SET lifecycle='CLOSING',control_holder='NONE',control_expires_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND lifecycle IN ('CREATING','READY','ACTIVE','CHALLENGE_REQUIRED','PAUSED','RECOVERING','CLOSING') AND state_version=$2 RETURNING *`, [id, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Browser session changed while closing');
+  const updated = row((await client.query(`UPDATE kcml.browser_session SET lifecycle='CLOSING',control_holder='NONE',control_expires_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND lifecycle IN ('CREATING','READY','ACTIVE','CHALLENGE_REQUIRED','PAUSED','RECOVERING') AND state_version=$2 RETURNING *`, [id, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Browser session changed while closing');
   await recordAudit(client, context, 'BROWSER_SESSION', id, { sessionId: id, lifecycle: 'CLOSING' });
   return result(context, 'browser_session', updated, updated.state_version, { cleanupRequired: true });
 }
@@ -1234,16 +1236,16 @@ async function handleBrowserSessionPause(client: DatabaseClient, context: Canoni
   const id = target(context);
   const current = row((await client.query(`SELECT * FROM kcml.browser_session WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'BROWSER_SESSION_NOT_FOUND', 'Browser session does not exist');
   assertVersion(context, current);
-  const updated = row((await client.query(`UPDATE kcml.browser_session SET lifecycle='RECONCILING',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND lifecycle IN ('READY','AI_CONTROLLED','OWNER_CONTROLLED','AUTOMATION_CONTROLLED') AND state_version=$2 RETURNING *`, [id, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Browser session changed while pausing');
-  await recordAudit(client, context, 'BROWSER_SESSION', id, { sessionId: id, lifecycle: 'RECONCILING' });
-  return result(context, 'browser_session', updated, updated.state_version, { lifecycle: 'RECONCILING' });
+  const updated = row((await client.query(`UPDATE kcml.browser_session SET lifecycle='PAUSED',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND lifecycle IN ('READY','ACTIVE','CHALLENGE_REQUIRED') AND state_version=$2 RETURNING *`, [id, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Browser session changed while pausing');
+  await recordAudit(client, context, 'BROWSER_SESSION', id, { sessionId: id, lifecycle: 'PAUSED' });
+  return result(context, 'browser_session', updated, updated.state_version, { lifecycle: 'PAUSED' });
 }
 
 async function handleBrowserSessionRecover(client: DatabaseClient, context: CanonicalHandlerContext): Promise<unknown> {
   const id = target(context);
   const current = row((await client.query(`SELECT * FROM kcml.browser_session WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'BROWSER_SESSION_NOT_FOUND', 'Browser session does not exist');
   assertVersion(context, current);
-  const updated = row((await client.query(`UPDATE kcml.browser_session SET lifecycle='RECOVERING',context_generation=context_generation+1,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND lifecycle IN ('RECONCILING','RECOVERING','FAILED_FINAL','MANUAL_REVIEW') AND state_version=$2 RETURNING *`, [id, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Browser session changed while recovering');
+  const updated = row((await client.query(`UPDATE kcml.browser_session SET lifecycle='RECOVERING',context_generation=context_generation+1,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND lifecycle IN ('READY','ACTIVE','CHALLENGE_REQUIRED','PAUSED') AND state_version=$2 RETURNING *`, [id, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Browser session changed while recovering');
   await recordAudit(client, context, 'BROWSER_SESSION', id, { sessionId: id, lifecycle: 'RECOVERING', contextGeneration: updated.context_generation });
   return result(context, 'browser_session', updated, updated.state_version, { lifecycle: 'RECOVERING' });
 }
@@ -1252,9 +1254,9 @@ async function handleBrowserSessionResume(client: DatabaseClient, context: Canon
   const id = target(context);
   const current = row((await client.query(`SELECT * FROM kcml.browser_session WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'BROWSER_SESSION_NOT_FOUND', 'Browser session does not exist');
   assertVersion(context, current);
-  const updated = row((await client.query(`UPDATE kcml.browser_session SET lifecycle='AI_CONTROLLED',control_holder='AI',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND lifecycle IN ('RECONCILING','RECOVERING','PAUSED','READY') AND state_version=$2 RETURNING *`, [id, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Browser session changed while resuming');
-  await recordAudit(client, context, 'BROWSER_SESSION', id, { sessionId: id, lifecycle: 'AI_CONTROLLED' });
-  return result(context, 'browser_session', updated, updated.state_version, { lifecycle: 'AI_CONTROLLED' });
+  const updated = row((await client.query(`UPDATE kcml.browser_session SET lifecycle='ACTIVE',control_holder='AI',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND lifecycle IN ('READY','RECOVERING','PAUSED','CHALLENGE_REQUIRED') AND state_version=$2 RETURNING *`, [id, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Browser session changed while resuming');
+  await recordAudit(client, context, 'BROWSER_SESSION', id, { sessionId: id, lifecycle: 'ACTIVE' });
+  return result(context, 'browser_session', updated, updated.state_version, { lifecycle: 'ACTIVE' });
 }
 
 async function handleBrowserSessionState(client: DatabaseClient, context: CanonicalHandlerContext): Promise<unknown> {
@@ -1262,6 +1264,18 @@ async function handleBrowserSessionState(client: DatabaseClient, context: Canoni
   const current = row((await client.query(`SELECT * FROM kcml.browser_session WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'BROWSER_SESSION_NOT_FOUND', 'Browser session does not exist');
   assertVersion(context, current);
   const lifecycle = textArg(context, 'lifecycle');
+  const transitions: Record<string, readonly string[]> = {
+    CREATING: ['READY', 'RECOVERING', 'CLOSING', 'FAILED', 'EXPIRED'],
+    READY: ['ACTIVE', 'PAUSED', 'RECOVERING', 'CLOSING', 'FAILED', 'EXPIRED'],
+    ACTIVE: ['CHALLENGE_REQUIRED', 'PAUSED', 'RECOVERING', 'CLOSING', 'FAILED', 'EXPIRED'],
+    CHALLENGE_REQUIRED: ['ACTIVE', 'PAUSED', 'RECOVERING', 'CLOSING', 'FAILED', 'EXPIRED'],
+    PAUSED: ['ACTIVE', 'RECOVERING', 'CLOSING', 'FAILED', 'EXPIRED'],
+    RECOVERING: ['READY', 'ACTIVE', 'CHALLENGE_REQUIRED', 'CLOSING', 'FAILED', 'EXPIRED'],
+    CLOSING: ['CLOSED', 'FAILED']
+  };
+  if (!transitions[String(current.lifecycle)]?.includes(lifecycle)) {
+    throw new DomainError('TERMINAL_STATE_IMMUTABLE', `Browser session transition ${String(current.lifecycle)} -> ${lifecycle} is not allowed`, 409, 'DO_NOT_RETRY');
+  }
   const updated = row((await client.query(`UPDATE kcml.browser_session SET lifecycle=$2,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND state_version=$3 RETURNING *`, [id, lifecycle, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Browser session changed while changing state');
   await recordAudit(client, context, 'BROWSER_SESSION', id, { sessionId: id, lifecycle });
   return result(context, 'browser_session', updated, updated.state_version, { lifecycle });
