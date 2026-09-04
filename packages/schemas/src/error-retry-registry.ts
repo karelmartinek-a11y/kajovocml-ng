@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import type { ErrorCode } from './error-codes.generated.js';
 
 export const stableRetryDirectives = [
   'DO_NOT_RETRY',
@@ -73,7 +74,7 @@ export interface StableErrorRecord {
 }
 
 export interface CanonicalErrorView {
-  code: string;
+  code: ErrorCode;
   classification: StableErrorClassification;
   canonicalMeaning: string;
   sideEffectPoint: StableErrorSideEffectPoint;
@@ -173,7 +174,7 @@ export function resolveRetryDirective(record: StableErrorRecord, observedEffect:
 export function canonicalErrorView(code: string, observedEffect: 'CONFIRMED_NOT_APPLIED' | 'CONFIRMED_APPLIED' | 'POSSIBLE_EFFECT' | 'UNKNOWN' = 'UNKNOWN'): CanonicalErrorView {
   const record = getStableErrorRecord(code);
   return {
-    code: record.code,
+    code: record.code as ErrorCode,
     classification: record.classification,
     canonicalMeaning: record.canonicalMeaning,
     sideEffectPoint: record.sideEffectPoint,

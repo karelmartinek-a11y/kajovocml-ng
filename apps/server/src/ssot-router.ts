@@ -87,14 +87,14 @@ function expectedStateVersion(request: FastifyRequest): bigint | null {
   const value = body.expectedStateVersion ?? request.headers['if-match'];
   if (value === undefined || value === null || value === '') return null;
   const text = String(value).replace(/^W\//u, '').replace(/^"|"$/gu, '');
-  try { return BigInt(text); } catch { throw new DomainError('EXPECTED_STATE_VERSION_INVALID', 'expectedStateVersion/If-Match must be an integer', 400, 'DO_NOT_RETRY'); }
+  try { return BigInt(text); } catch { throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID', 'expectedStateVersion/If-Match must be an integer', 400, 'DO_NOT_RETRY'); }
 }
 
 function expectedActivationEpoch(request: FastifyRequest): bigint | null {
   const body = bodyOf(request);
   const value = body.expectedActivationEpoch;
   if (value === undefined || value === null || value === '') return null;
-  try { return BigInt(String(value)); } catch { throw new DomainError('EXPECTED_ACTIVATION_EPOCH_INVALID', 'expectedActivationEpoch must be an integer', 400, 'DO_NOT_RETRY'); }
+  try { return BigInt(String(value)); } catch { throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID', 'expectedActivationEpoch must be an integer', 400, 'DO_NOT_RETRY'); }
 }
 
 function callerFingerprint(request: FastifyRequest): string {
@@ -146,7 +146,7 @@ export function registerCompiledSsotRoutes(dependencies: CompiledRouteDependenci
           const operationName = route.operation === '__DYNAMIC_OPERATION__'
             ? String((request.params as Record<string, unknown>).operationKey ?? '')
             : route.operation;
-          if (!operationName) throw new DomainError('OPERATION_KEY_REQUIRED', 'operationKey is required', 400, 'DO_NOT_RETRY');
+          if (!operationName) throw new DomainError('OPERATION_CONTRACT_INCOMPLETE', 'operationKey is required', 400, 'DO_NOT_RETRY');
           return operations.execute(operationName, commandInput(route, request), {
             callerFingerprint: callerFingerprint(request),
             actorId: ownerId(request),

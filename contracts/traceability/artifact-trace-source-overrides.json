@@ -2579,6 +2579,166 @@
           "snippetDigest": "sha256:c39fec4d03186185421365eb5bdbc38c91a7858048d8d8854b65c360f55b273b"
         }
       ]
+    },
+    {
+      "repositoryPath": "FORENSIC_SOURCE_PRODUCTION_AUDIT_2026-09-04.md",
+      "requirementIds": [
+        "KCML-REQ-TESTING-50a7a8e3624daf3cb6a33323939171d7698e91dc6a9aea47bab0a35ad053645f"
+      ],
+      "operationIds": [],
+      "stateMachineIds": [],
+      "registryRecordIds": [],
+      "testIds": [],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-TESTING-50a7a8e3624daf3cb6a33323939171d7698e91dc6a9aea47bab0a35ad053645f",
+          "locator": "FORENSIC_SOURCE_PRODUCTION_AUDIT_2026-09-04.md:1",
+          "symbol": "FORENSIC_SOURCE_PRODUCTION_AUDIT_2026-09-04",
+          "snippetDigest": "sha256:9715202b0d5f50a80d90297dda12deeedfe160bd4497e42d24c6f4805f8ab896"
+        }
+      ]
+    },
+    {
+      "repositoryPath": "apps/owner-ui/src/App.tsx",
+      "requirementIds": [
+        "KCML-REQ-POSTGRES-fd1075be0d94875d7f98bc603d0d1a45c9100a219e295aa3a4b1b654302c8c50"
+      ],
+      "operationIds": [],
+      "stateMachineIds": [],
+      "registryRecordIds": [],
+      "testIds": [],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-POSTGRES-fd1075be0d94875d7f98bc603d0d1a45c9100a219e295aa3a4b1b654302c8c50",
+          "locator": "apps/owner-ui/src/App.tsx:1",
+          "symbol": "file-start",
+          "snippetDigest": "sha256:e0cbdab303939db3db5ed1394f8cc7d9c814984d13f730431eb0cabd77c9e204"
+        }
+      ]
+    },
+    {
+      "repositoryPath": "packages/domain/src/errors.ts",
+      "requirementIds": [
+        "KCML-REQ-CORE-ee584d0f3a5ffa618cc738004cdb9892168001fd86efefb6758215be2823f43e",
+        "KCML-REQ-OPENAI-c1787fe6ea4e68bf44102706b7c012de7c542dbed2f63c885a061d18917a60ef"
+      ],
+      "operationIds": [],
+      "stateMachineIds": [],
+      "registryRecordIds": [],
+      "testIds": [],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-CORE-ee584d0f3a5ffa618cc738004cdb9892168001fd86efefb6758215be2823f43e",
+          "locator": "packages/domain/src/errors.ts:1",
+          "symbol": "file-start",
+          "snippetDigest": "sha256:bdb3d79529884de4277c325a80d2eab9b8013e6bf432064465ce00da9119d260"
+        },
+        {
+          "requirementId": "KCML-REQ-OPENAI-c1787fe6ea4e68bf44102706b7c012de7c542dbed2f63c885a061d18917a60ef",
+          "locator": "packages/domain/src/errors.ts:1",
+          "symbol": "DomainError-ErrorCode",
+          "snippetDigest": "sha256:bdb3d79529884de4277c325a80d2eab9b8013e6bf432064465ce00da9119d260"
+        }
+      ]
+    },
+    {
+      "repositoryPath": "packages/schemas/src/error-codes.generated.ts",
+      "requirementIds": [
+        "KCML-REQ-OPENAI-c1787fe6ea4e68bf44102706b7c012de7c542dbed2f63c885a061d18917a60ef"
+      ],
+      "operationIds": [],
+      "stateMachineIds": [],
+      "registryRecordIds": [],
+      "testIds": [],
+      "generatedFrom": ["contracts/registries/errors/errors.json"],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-OPENAI-c1787fe6ea4e68bf44102706b7c012de7c542dbed2f63c885a061d18917a60ef",
+          "locator": "packages/schemas/src/error-codes.generated.ts:1",
+          "symbol": "ErrorCode",
+          "snippetDigest": "sha256:fcdfa083f6fa1d69004ba9f4570add7ffffcf0b4a322d687c16631a45aa47075"
+        }
+      ]
+    },
+    {
+      "repositoryPath": "tests/browser/preview-ws.test.ts",
+      "requirementIds": [
+        "KCML-REQ-BROWSER-00060a8b236eba1fcbf12862e7402699fb9ff3d570d51fde2dbdd72540486a8a",
+        "KCML-REQ-BROWSER-4ade61ff412039791ff6e87a1e89edc006a662e2855dd0ff3c1f951cc0d99a77"
+      ],
+      "operationIds": ["OP-BROWSER-PREVIEW-VIEWER-CONNECTED"],
+      "stateMachineIds": [],
+      "registryRecordIds": ["ORACLE-SIDE-EFFECT"],
+      "testIds": ["TEST-BROWSER-PREVIEW-WEBSOCKET-BOUNDARY"],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-BROWSER-00060a8b236eba1fcbf12862e7402699fb9ff3d570d51fde2dbdd72540486a8a",
+          "locator": "tests/browser/preview-ws.test.ts:1",
+          "symbol": "TEST-BROWSER-PREVIEW-WEBSOCKET-BOUNDARY",
+          "snippetDigest": "sha256:39ab0ae6e0660d411db061d130fc0293b918eb1e04c450bc00cd0bfb8a1b6117"
+        }
+      ]
+    },
+    {
+      "repositoryPath": "apps/owner-ui/src/styles.css",
+      "requirementIds": [
+        "KCML-REQ-POSTGRES-fd1075be0d94875d7f98bc603d0d1a45c9100a219e295aa3a4b1b654302c8c50"
+      ],
+      "operationIds": [],
+      "stateMachineIds": [],
+      "registryRecordIds": [],
+      "testIds": [],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-POSTGRES-fd1075be0d94875d7f98bc603d0d1a45c9100a219e295aa3a4b1b654302c8c50",
+          "locator": "apps/owner-ui/src/styles.css:1",
+          "symbol": "file-start",
+          "snippetDigest": "sha256:06458dce37480d085b2f17be032dfc2edf348215ee7cd6122f84a3a741ec9bc1"
+        }
+      ]
+    },
+    {
+      "repositoryPath": "tests/runtime-boundary/ipc-multiplex.test.ts",
+      "requirementIds": [
+        "KCML-REQ-CORE-8900425ff943c4a1d90e8209a752eed6533b7145f9904ce091fb9433da47f439",
+        "KCML-REQ-CORE-d9e4b301bd0f45ea5e722a3e8d3806722b0733943314affc5bc3c221bb13de1a"
+      ],
+      "operationIds": [],
+      "stateMachineIds": [],
+      "registryRecordIds": [],
+      "testIds": ["TEST-RUNTIME-IPC-MULTIPLEX"],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-CORE-8900425ff943c4a1d90e8209a752eed6533b7145f9904ce091fb9433da47f439",
+          "locator": "tests/runtime-boundary/ipc-multiplex.test.ts:1",
+          "symbol": "TEST-RUNTIME-IPC-MULTIPLEX",
+          "snippetDigest": "sha256:293a28da84dc28f24ccb1e15288c95e05231baceb9739ac7e8b6e720ea30cc15"
+        },
+        {
+          "requirementId": "KCML-REQ-CORE-d9e4b301bd0f45ea5e722a3e8d3806722b0733943314affc5bc3c221bb13de1a",
+          "locator": "tests/runtime-boundary/ipc-multiplex.test.ts:1",
+          "symbol": "TEST-RUNTIME-SOCKETPAIR",
+          "snippetDigest": "sha256:293a28da84dc28f24ccb1e15288c95e05231baceb9739ac7e8b6e720ea30cc15"
+        }
+      ]
+    },
+    {
+      "repositoryPath": "scripts/verify-error-codes.mjs",
+      "requirementIds": [
+        "KCML-REQ-OPENAI-c1787fe6ea4e68bf44102706b7c012de7c542dbed2f63c885a061d18917a60ef"
+      ],
+      "operationIds": [],
+      "stateMachineIds": [],
+      "registryRecordIds": [],
+      "testIds": ["TEST-ERROR-CODE-AST-SQL-COVERAGE"],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-OPENAI-c1787fe6ea4e68bf44102706b7c012de7c542dbed2f63c885a061d18917a60ef",
+          "locator": "scripts/verify-error-codes.mjs:1",
+          "symbol": "TEST-ERROR-CODE-AST-SQL-COVERAGE",
+          "snippetDigest": "sha256:4949218de757741f2174599ad06408d4f369e2da90bbe7f4b32313bd792d7393"
+        }
+      ]
     }
   ]
 }

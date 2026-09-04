@@ -23,20 +23,20 @@ function digest(value: unknown): Buffer {
   return Buffer.from(canonicalDigest(json(value)).slice('sha256:'.length), 'hex');
 }
 
-function target(context: CanonicalHandlerContext, code = 'OPERATION_TARGET_REQUIRED'): string {
-  if (!context.targetId || !UUID.test(context.targetId)) throw new DomainError(code, `${context.operation.operationName} requires an exact UUID target`, 422, 'DO_NOT_RETRY');
+function target(context: CanonicalHandlerContext, reason = 'OPERATION_TARGET_REQUIRED'): string {
+  if (!context.targetId || !UUID.test(context.targetId)) throw new DomainError('OPERATION_CONTRACT_INCOMPLETE', `${context.operation.operationName} requires an exact UUID target`, 422, 'DO_NOT_RETRY', { reason });
   return context.targetId;
 }
 
 function uuidArg(context: ArgumentContext, key: string, fallback?: string): string {
   const value = context.arguments[key] ?? fallback;
-  if (typeof value !== 'string' || !UUID.test(value)) throw new DomainError('OPERATION_ARGUMENT_INVALID', `${key} must be a UUID`, 422, 'DO_NOT_RETRY', { key });
+  if (typeof value !== 'string' || !UUID.test(value)) throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID', `${key} must be a UUID`, 422, 'DO_NOT_RETRY', { key });
   return value;
 }
 
 function textArg(context: ArgumentContext, key: string, fallback?: string): string {
   const value = context.arguments[key] ?? fallback;
-  if (typeof value !== 'string' || value.length === 0) throw new DomainError('OPERATION_ARGUMENT_REQUIRED', `${key} is required for ${context.operation.operationName}`, 422, 'DO_NOT_RETRY', { key });
+  if (typeof value !== 'string' || value.length === 0) throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID', `${key} is required for ${context.operation.operationName}`, 422, 'DO_NOT_RETRY', { key });
   return value;
 }
 
@@ -55,20 +55,20 @@ function listArg(context: ArgumentContext, key: string): string[] {
 function numberArg(context: ArgumentContext, key: string, fallback = 1): number {
   const value = context.arguments[key] ?? fallback;
   const result = Number(value);
-  if (!Number.isSafeInteger(result) || result < 0) throw new DomainError('OPERATION_ARGUMENT_INVALID', `${key} must be a non-negative integer`, 422, 'DO_NOT_RETRY', { key });
+  if (!Number.isSafeInteger(result) || result < 0) throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID', `${key} must be a non-negative integer`, 422, 'DO_NOT_RETRY', { key });
   return result;
 }
 
 function futureArg(context: ArgumentContext, key: string, seconds: number): string {
   const supplied = context.arguments[key];
   const value = supplied === undefined ? new Date(Date.now() + seconds * 1000).toISOString() : textArg(context, key);
-  if (!Number.isFinite(new Date(value).getTime()) || new Date(value).getTime() <= Date.now()) throw new DomainError('OPERATION_ARGUMENT_INVALID', `${key} must be a future timestamp`, 422, 'DO_NOT_RETRY', { key });
+  if (!Number.isFinite(new Date(value).getTime()) || new Date(value).getTime() <= Date.now()) throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID', `${key} must be a future timestamp`, 422, 'DO_NOT_RETRY', { key });
   return new Date(value).toISOString();
 }
 
-function row(result: { rows: Row[] } | Row[], code: string, message: string): Row {
+function row(result: { rows: Row[] } | Row[], reason: string, message: string): Row {
   const value = (Array.isArray(result) ? result : result.rows)[0];
-  if (!value) throw new DomainError(code, message, 404, 'DO_NOT_RETRY');
+  if (!value) throw new DomainError('KCIP_TARGET_NOT_FOUND', message, 404, 'DO_NOT_RETRY', { reason });
   return value;
 }
 
@@ -105,7 +105,7 @@ async function nextSequence(client: DatabaseClient, namespace: string, parentId:
 }
 
 async function sideEffectIntent(client: DatabaseClient, context: CanonicalHandlerContext, targetBinding: string, request: JsonObject): Promise<Row> {
-  if (!context.commandId || !UUID.test(context.commandId)) throw new DomainError('COMMAND_ID_REQUIRED', `${context.operation.operationName} must execute in a command transaction`, 409, 'RETRY_SAME_OPERATION');
+  if (!context.commandId || !UUID.test(context.commandId)) throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID', `${context.operation.operationName} must execute in a command transaction`, 409, 'RETRY_SAME_OPERATION');
   const requestDigest = digest(request);
   const operation = row((await client.query(`INSERT INTO kcml.side_effect_operation(command_id,step_key,target_binding,request,request_digest,idempotency_key,side_effect_class,retry_class,reconciliation_contract,platform_incarnation_id,application_deployment_epoch,recovery_epoch)
     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT(command_id,step_key) DO UPDATE SET updated_at=clock_timestamp() RETURNING *`, [
@@ -140,7 +140,7 @@ async function appendAuditEvent(client: DatabaseClient, context: CanonicalHandle
     payload,
     Buffer.from(canonicalJson(json(payload)))
   ])).rows[0] as Row | undefined;
-  if (!audit) throw new DomainError('AUDIT_APPEND_FAILED', 'The audit append function returned no event', 500, 'RETRY_SAME_OPERATION');
+  if (!audit) throw new DomainError('CLOSURE_PREDICATE_INCOMPLETE', 'The audit append function returned no event', 500, 'RETRY_SAME_OPERATION');
   return audit;
 }
 
@@ -170,7 +170,7 @@ async function handleAgentApprovalApprove(client: DatabaseClient, context: Canon
   const id = target(context);
   const current = row((await client.query(`SELECT * FROM kcml.agent_approval_request WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'AGENT_APPROVAL_NOT_FOUND', 'Approval request does not exist');
   assertVersion(context, current);
-  if (current.status !== 'PENDING') throw new DomainError('AGENT_APPROVAL_ALREADY_DECIDED', 'Only a pending approval can be approved', 409, 'DO_NOT_RETRY');
+  if (current.status !== 'PENDING') throw new DomainError('TERMINAL_STATE_IMMUTABLE', 'Only a pending approval can be approved', 409, 'DO_NOT_RETRY');
   const decision = { decision: 'APPROVED', message: context.arguments.message ?? null, decidedBy: 'KRMAR78' };
   const updated = row((await client.query(`UPDATE kcml.agent_approval_request SET status='APPROVED',owner_decision=$2,decided_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp(),logical_operation_id=$3,correlation_id=$4 WHERE id=$1 AND status='PENDING' AND state_version=$5 RETURNING *`, [id, decision, context.logicalOperationId, context.correlationId, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Approval request changed while being approved');
   await client.query(`UPDATE kcml.agent_run SET status='RUNNING',state_version=state_version+1,updated_at=clock_timestamp(),correlation_id=$2 WHERE id=$1 AND status='WAITING_FOR_OWNER'`, [current.root_agent_run_id, context.correlationId]);
@@ -182,7 +182,7 @@ async function handleAgentApprovalReject(client: DatabaseClient, context: Canoni
   const id = target(context);
   const current = row((await client.query(`SELECT * FROM kcml.agent_approval_request WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'AGENT_APPROVAL_NOT_FOUND', 'Approval request does not exist');
   assertVersion(context, current);
-  if (current.status !== 'PENDING') throw new DomainError('AGENT_APPROVAL_ALREADY_DECIDED', 'Only a pending approval can be rejected', 409, 'DO_NOT_RETRY');
+  if (current.status !== 'PENDING') throw new DomainError('TERMINAL_STATE_IMMUTABLE', 'Only a pending approval can be rejected', 409, 'DO_NOT_RETRY');
   const decision = { decision: 'REJECTED', message: context.arguments.message ?? 'Rejected by owner', decidedBy: 'KRMAR78' };
   const updated = row((await client.query(`UPDATE kcml.agent_approval_request SET status='REJECTED',owner_decision=$2,decided_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp(),logical_operation_id=$3,correlation_id=$4 WHERE id=$1 AND status='PENDING' AND state_version=$5 RETURNING *`, [id, decision, context.logicalOperationId, context.correlationId, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Approval request changed while being rejected');
   await client.query(`UPDATE kcml.agent_run SET status='FAILED',error=$2,completed_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp(),correlation_id=$3 WHERE id=$1 AND status='WAITING_FOR_OWNER'`, [current.root_agent_run_id, { code: 'OWNER_APPROVAL_REJECTED', approvalRequestId: id }, context.correlationId]);
@@ -225,7 +225,7 @@ async function handleAgentDelegateResult(client: DatabaseClient, context: Canoni
   const current = row((await client.query(`SELECT * FROM kcml.agent_handoff_run WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'AGENT_HANDOFF_NOT_FOUND', 'Agent handoff does not exist');
   assertVersion(context, current);
   const status = textArg(context, 'status', context.arguments.error ? 'FAILED' : 'SUCCEEDED');
-  if (!['SUCCEEDED', 'FAILED', 'CANCELLED', 'MANUAL_REVIEW'].includes(status)) throw new DomainError('AGENT_HANDOFF_STATUS_INVALID', 'Handoff result has an invalid terminal status', 422, 'DO_NOT_RETRY');
+  if (!['SUCCEEDED', 'FAILED', 'CANCELLED', 'MANUAL_REVIEW'].includes(status)) throw new DomainError('AGENT_RUN_STATE_UNRESUMABLE', 'Handoff result has an invalid terminal status', 422, 'DO_NOT_RETRY');
   const output = objectArg(context, 'output');
   const updated = row((await client.query(`UPDATE kcml.agent_handoff_run SET status=$2,output=$3,output_digest=$4,error=$5,completed_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp(),logical_operation_id=$6,correlation_id=$7 WHERE id=$1 AND status IN ('RESERVED','RUNNING','WAITING_FOR_APPROVAL') AND state_version=$8 RETURNING *`, [id, status, output, digest(output), context.arguments.error ?? null, context.logicalOperationId, context.correlationId, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Handoff changed while recording result');
   await client.query(`UPDATE kcml.agent_run SET status=CASE WHEN $2='SUCCEEDED' THEN 'RUNNING' ELSE 'MANUAL_REVIEW' END,state_version=state_version+1,updated_at=clock_timestamp(),correlation_id=$3 WHERE id=$1 AND status='WAITING_FOR_AGENT'`, [current.root_agent_run_id, status, context.correlationId]);
@@ -250,7 +250,7 @@ async function handleAgentEvalResult(client: DatabaseClient, context: CanonicalH
   const current = row((await client.query(`SELECT * FROM kcml.agent_eval_run WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'AGENT_EVAL_NOT_FOUND', 'Evaluation run does not exist');
   assertVersion(context, current);
   const state = textArg(context, 'state', context.arguments.error ? 'FAILED' : 'SUCCEEDED');
-  if (!['SUCCEEDED', 'FAILED', 'CANCELLED', 'MANUAL_REVIEW'].includes(state)) throw new DomainError('AGENT_EVAL_STATE_INVALID', 'Evaluation result has an invalid terminal state', 422, 'DO_NOT_RETRY');
+  if (!['SUCCEEDED', 'FAILED', 'CANCELLED', 'MANUAL_REVIEW'].includes(state)) throw new DomainError('AGENT_EVAL_FAILED', 'Evaluation result has an invalid terminal state', 422, 'DO_NOT_RETRY');
   const metrics = objectArg(context, 'summaryMetrics');
   const updated = row((await client.query(`UPDATE kcml.agent_eval_run SET state=$2,summary_metrics=$3,evidence_digest=$4,completed_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp(),logical_operation_id=$5,correlation_id=$6 WHERE id=$1 AND state IN ('QUEUED','RUNNING') AND state_version=$7 RETURNING *`, [id, state, metrics, digest(metrics), context.logicalOperationId, context.correlationId, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Evaluation run changed while recording result');
   await recordAudit(client, context, 'AGENT_EVAL_RUN', id, { evalRunId: id, state, metricsDigest: canonicalDigest(json(metrics)) });
@@ -383,7 +383,7 @@ async function handleAgentSessionCompact(client: DatabaseClient, context: Canoni
   const id = target(context);
   const session = row((await client.query(`SELECT * FROM kcml.agent_session WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'AGENT_SESSION_NOT_FOUND', 'Agent session does not exist');
   assertVersion(context, session);
-  if (session.state !== 'OPEN') throw new DomainError('AGENT_SESSION_STATE_INVALID', `Cannot compact agent session from ${String(session.state)}`, 409, 'RECONCILE_THEN_RETRY');
+  if (session.state !== 'OPEN') throw new DomainError('AGENTIC_OPERATION_CONTEXT_INVALID', `Cannot compact agent session from ${String(session.state)}`, 409, 'RECONCILE_THEN_RETRY');
   const compacted = objectArg(context, 'compactedItems');
   const compaction = row((await client.query(`INSERT INTO kcml.agent_session_compaction(session_id,source_session_version,source_first_item_sequence,source_last_item_sequence,source_aggregate_digest,mode,model_id,sdk_version,adapter_version,compacted_items,compacted_items_digest,validation_evidence,equivalence_evidence,state,canonical_digest,logical_operation_id,correlation_id,activation_epoch,platform_incarnation_id,application_deployment_epoch)
     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'CANDIDATE',$14,$15,$16,$17,$18,$19) RETURNING *`, [
@@ -692,7 +692,7 @@ async function handleBrowserActionResolveOutcome(client: DatabaseClient, context
   const current = row((await client.query(`SELECT * FROM kcml.browser_action_run WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'BROWSER_ACTION_NOT_FOUND', 'Browser action does not exist');
   assertVersion(context, current);
   const outcome = textArg(context, 'outcome');
-  if (!['CONFIRMED_APPLIED', 'CONFIRMED_NOT_APPLIED', 'UNKNOWN'].includes(outcome)) throw new DomainError('BROWSER_RECONCILIATION_OUTCOME_INVALID', 'Browser action outcome is not independently classified', 422, 'DO_NOT_RETRY');
+  if (!['CONFIRMED_APPLIED', 'CONFIRMED_NOT_APPLIED', 'UNKNOWN'].includes(outcome)) throw new DomainError('BROWSER_RECONCILIATION_REQUIRED', 'Browser action outcome is not independently classified', 422, 'DO_NOT_RETRY');
   const updated = row((await client.query(`UPDATE kcml.browser_action_run SET dispatch_phase=$2,outcome=$3,updated_at=clock_timestamp(),state_version=state_version+1 WHERE id=$1 AND dispatch_phase IN ('RECONCILING','POSSIBLE_EFFECT','OUTCOME_OBSERVED','UNKNOWN') AND state_version=$4 RETURNING *`, [id, outcome, { readBack: objectArg(context, 'readBack'), evidence: objectArg(context, 'evidence') }, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Browser action changed while resolving outcome');
   await recordAudit(client, context, 'BROWSER_ACTION_RUN', id, { actionId: id, outcome });
   return result(context, 'browser_action_run', updated, updated.state_version, { outcome });
@@ -845,7 +845,7 @@ async function handleBrowserChallengeResolve(client: DatabaseClient, context: Ca
   const id = target(context);
   const current = row((await client.query(`SELECT * FROM kcml.browser_challenge WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'BROWSER_CHALLENGE_NOT_FOUND', 'Browser challenge does not exist');
   assertVersion(context, current);
-  if (current.status !== 'PENDING') throw new DomainError('BROWSER_CHALLENGE_ALREADY_RESOLVED', 'Only a pending browser challenge can be resolved', 409, 'DO_NOT_RETRY');
+  if (current.status !== 'PENDING') throw new DomainError('TERMINAL_STATE_IMMUTABLE', 'Only a pending browser challenge can be resolved', 409, 'DO_NOT_RETRY');
   const responseDigest = digestArgument(context, 'responseDigest', context.arguments.response ?? null);
   const updated = row((await client.query(`UPDATE kcml.browser_challenge SET status='RESOLVED',owner_response_id=$2,bridge_response_id=$3,resolved_at=clock_timestamp(),consume_digest=$4,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND status='PENDING' AND state_version=$5 RETURNING *`, [id, context.arguments.ownerResponseId ?? null, context.arguments.bridgeResponseId ?? null, responseDigest, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Browser challenge changed while resolving');
   await client.query(`UPDATE kcml.browser_session SET lifecycle='RECONCILING',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND lifecycle='WAITING_CHALLENGE'`, [current.session_id]);
@@ -1160,7 +1160,7 @@ async function handleBrowserRunManualReview(client: DatabaseClient, context: Can
 async function handleBrowserRuntimeBuildRegister(client: DatabaseClient, context: CanonicalHandlerContext): Promise<unknown> {
   const id = randomUUID();
   const sourceCommit = textArg(context, 'sourceCommit', process.env.KCML_SOURCE_SHA ?? '0000000000000000000000000000000000000000');
-  if (!/^[0-9a-f]{40}$/iu.test(sourceCommit)) throw new DomainError('BROWSER_RUNTIME_BUILD_COMMIT_INVALID', 'sourceCommit must be a full commit SHA', 422, 'DO_NOT_RETRY');
+  if (!/^[0-9a-f]{40}$/iu.test(sourceCommit)) throw new DomainError('BROWSER_ACTIONABILITY_FAILED', 'sourceCommit must be a full commit SHA', 422, 'DO_NOT_RETRY');
   const manifest = objectArg(context, 'manifest');
   const build = row((await client.query(`INSERT INTO kcml.browser_runtime_build_manifest(id,application_release_id,source_commit,node_version,playwright_version,locator_compiler_version,preview_adapter_version,automation_interpreter_version,state_serializer_version,browser_engine,browser_channel,browser_revision,executable_digest,dependency_digest,os_image,os_release,architecture,runtime_libraries_digest,fonts_digest,locale_timezone_digest,sandbox_profile_digest,launch_mode,launch_arguments,environment_allowlist_digest,capability_map,state_bundle_compatibility,automation_compatibility,host_generation_compatibility,manifest_payload,manifest_digest,validation_state,verification_state,evidence,canonical_digest,logical_operation_id,correlation_id,activation_epoch,platform_incarnation_id,application_deployment_epoch)
     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39) RETURNING *`, [
@@ -1485,7 +1485,7 @@ async function handleComponentRollback(client: DatabaseClient, context: Canonica
 async function handleGenerationActivationPrepare(client: DatabaseClient, context: CanonicalHandlerContext): Promise<unknown> {
   const id = target(context);
   const current = row((await client.query(`SELECT * FROM kcml.generation_activation_set WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'GENERATION_ACTIVATION_SET_NOT_FOUND', 'Generation activation set does not exist');
-  if (current.state !== 'DRAFT' && current.state !== 'READY') throw new DomainError('GENERATION_ACTIVATION_STATE_INVALID', 'Activation preparation requires a draft or ready set', 409, 'RECONCILE_THEN_RETRY');
+  if (current.state !== 'DRAFT' && current.state !== 'READY') throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', 'Activation preparation requires a draft or ready set', 409, 'RECONCILE_THEN_RETRY');
   const updated = row((await client.query(`UPDATE kcml.generation_activation_set SET state='READY',candidate_snapshot=$2,updated_at=clock_timestamp(),state_version=state_version+1 WHERE id=$1 AND state_version=$3 RETURNING *`, [id, objectArg(context, 'candidateSnapshot', objectArg(current, 'candidate_snapshot')), current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Activation set changed while preparing');
   await recordAudit(client, context, 'GENERATION_ACTIVATION_SET', id, { activationSetId: id, state: 'READY' });
   return result(context, 'generation_activation_set', updated, updated.state_version, { state: 'READY' });
@@ -1494,7 +1494,7 @@ async function handleGenerationActivationPrepare(client: DatabaseClient, context
 async function handleGenerationActivationRollback(client: DatabaseClient, context: CanonicalHandlerContext): Promise<unknown> {
   const id = target(context);
   const current = row((await client.query(`SELECT * FROM kcml.generation_activation_set WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'GENERATION_ACTIVATION_SET_NOT_FOUND', 'Generation activation set does not exist');
-  if (!['ACTIVE', 'SWITCHING', 'VERIFYING', 'FAILED', 'MANUAL_REVIEW'].includes(String(current.state))) throw new DomainError('GENERATION_ACTIVATION_STATE_INVALID', 'Activation rollback is not allowed from the current state', 409, 'RECONCILE_THEN_RETRY');
+  if (!['ACTIVE', 'SWITCHING', 'VERIFYING', 'FAILED', 'MANUAL_REVIEW'].includes(String(current.state))) throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', 'Activation rollback is not allowed from the current state', 409, 'RECONCILE_THEN_RETRY');
   const updated = row((await client.query(`UPDATE kcml.generation_activation_set SET state='ROLLING_BACK',candidate_snapshot=$2,rollback_plan=$3,updated_at=clock_timestamp(),state_version=state_version+1 WHERE id=$1 AND state_version=$4 RETURNING *`, [id, objectArg(context, 'previousSnapshot', objectArg(current, 'previous_snapshot')), objectArg(context, 'rollbackPlan'), current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Activation set changed while rolling back');
   await recordAudit(client, context, 'GENERATION_ACTIVATION_SET', id, { activationSetId: id, state: 'ROLLING_BACK' });
   return result(context, 'generation_activation_set', updated, updated.state_version, { state: 'ROLLING_BACK' });
@@ -1503,7 +1503,7 @@ async function handleGenerationActivationRollback(client: DatabaseClient, contex
 async function handleGenerationActivationSwitch(client: DatabaseClient, context: CanonicalHandlerContext): Promise<unknown> {
   const id = target(context);
   const current = row((await client.query(`SELECT * FROM kcml.generation_activation_set WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'GENERATION_ACTIVATION_SET_NOT_FOUND', 'Generation activation set does not exist');
-  if (current.state !== 'READY') throw new DomainError('GENERATION_ACTIVATION_STATE_INVALID', 'Only a ready activation set can switch', 409, 'RECONCILE_THEN_RETRY');
+  if (current.state !== 'READY') throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', 'Only a ready activation set can switch', 409, 'RECONCILE_THEN_RETRY');
   const updated = row((await client.query(`UPDATE kcml.generation_activation_set SET state='SWITCHING',activation_epoch=$2,updated_at=clock_timestamp(),state_version=state_version+1 WHERE id=$1 AND state='READY' AND state_version=$3 RETURNING *`, [id, context.activationEpoch.toString(), current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Activation set changed while switching');
   await recordAudit(client, context, 'GENERATION_ACTIVATION_SET', id, { activationSetId: id, state: 'SWITCHING', activationEpoch: context.activationEpoch.toString() });
   return result(context, 'generation_activation_set', updated, updated.state_version, { state: 'SWITCHING' });
@@ -1834,7 +1834,7 @@ async function handleMcpRequestReserveId(client: DatabaseClient, context: Canoni
   const current = await mcpCall(client, context);
   assertVersion(context, current);
   const requestId = context.arguments.requestId === undefined ? String(current.request_event_id) : String(context.arguments.requestId);
-  if (requestId.length === 0) throw new DomainError('MCP_REQUEST_ID_INVALID', 'MCP request id must not be empty', 422, 'DO_NOT_RETRY');
+  if (requestId.length === 0) throw new DomainError('MCP_INVALID_REQUEST', 'MCP request id must not be empty', 422, 'DO_NOT_RETRY');
   const updated = row((await client.query(`UPDATE kcml.mcp_call_run SET binding_decision=jsonb_set(coalesce(binding_decision,'{}'::jsonb),'{reservedRequestId}',to_jsonb($2::text),true),state='CLAIMED',state_version=state_version+1 WHERE id=$1 AND state IN ('RECEIVED','CLAIMED') AND state_version=$3 RETURNING *`, [current.id, requestId, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'MCP call changed while reserving request id');
   await recordAudit(client, context, 'MCP_CALL_RUN', String(current.id), { callRunId: current.id, requestId });
   return result(context, 'mcp_call_run', updated, updated.state_version, { requestId });
@@ -1844,7 +1844,7 @@ async function handleMcpRequestFinalize(client: DatabaseClient, context: Canonic
   const current = await mcpCall(client, context);
   assertVersion(context, current);
   const state = textArg(context, 'state', context.arguments.error ? 'FAILED' : 'SUCCEEDED');
-  if (!['SUCCEEDED', 'FAILED', 'CANCELLED'].includes(state)) throw new DomainError('MCP_FINAL_STATE_INVALID', 'MCP request final state is invalid', 422, 'DO_NOT_RETRY');
+  if (!['SUCCEEDED', 'FAILED', 'CANCELLED'].includes(state)) throw new DomainError('MCP_REQUEST_STATE_INVALID', 'MCP request final state is invalid', 422, 'DO_NOT_RETRY');
   const response = context.arguments.response ?? null;
   const updated = row((await client.query(`UPDATE kcml.mcp_call_run SET state=$2,structured_result=$3,result_digest=$4,jsonrpc_error=$5,completed_at=clock_timestamp(),response_delivery_state='DELIVERED',state_version=state_version+1 WHERE id=$1 AND state NOT IN ('SUCCEEDED','FAILED','CANCELLED') AND state_version=$6 RETURNING *`, [current.id, state, response, digest(response), context.arguments.error ?? null, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'MCP call changed while finalizing');
   await recordAudit(client, context, 'MCP_CALL_RUN', String(current.id), { callRunId: current.id, state });
@@ -2020,7 +2020,7 @@ async function handleMcpToolsReconcile(client: DatabaseClient, context: Canonica
   const current = await mcpCall(client, context);
   assertVersion(context, current);
   const outcome = textArg(context, 'outcome');
-  if (!['CONFIRMED_APPLIED', 'CONFIRMED_NOT_APPLIED', 'UNKNOWN'].includes(outcome)) throw new DomainError('MCP_RECONCILIATION_OUTCOME_INVALID', 'MCP reconciliation outcome is invalid', 422, 'DO_NOT_RETRY');
+  if (!['CONFIRMED_APPLIED', 'CONFIRMED_NOT_APPLIED', 'UNKNOWN'].includes(outcome)) throw new DomainError('MCP_OUTCOME_UNKNOWN', 'MCP reconciliation outcome is invalid', 422, 'DO_NOT_RETRY');
   const updated = row((await client.query(`UPDATE kcml.mcp_call_run SET reconciliation_outcome=$2,state=CASE WHEN $3='CONFIRMED_APPLIED' THEN 'SUCCEEDED' WHEN $3='CONFIRMED_NOT_APPLIED' THEN 'FAILED' ELSE 'MANUAL_REVIEW' END,completed_at=CASE WHEN $3='UNKNOWN' THEN NULL ELSE clock_timestamp() END,result_digest=$4,state_version=state_version+1 WHERE id=$1 AND state IN ('RECONCILING','EXECUTING','WAITING_FOR_TASK') AND state_version=$5 RETURNING *`, [current.id, { outcome, readBack: objectArg(context, 'readBack') }, outcome, digest({ id: current.id, outcome }), current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'MCP call changed while reconciling');
   await recordAudit(client, context, 'MCP_CALL_RUN', String(current.id), { callRunId: current.id, outcome });
   return result(context, 'mcp_call_run', updated, updated.state_version, { outcome });
@@ -2045,7 +2045,7 @@ async function handleMonitorProbeResult(client: DatabaseClient, context: Canonic
 }
 
 async function handleMonitorRepairEnqueue(client: DatabaseClient, context: CanonicalHandlerContext): Promise<unknown> {
-  if (!context.commandId || !UUID.test(context.commandId)) throw new DomainError('COMMAND_ID_REQUIRED', 'Monitor repair enqueue must execute in a command transaction', 409, 'RETRY_SAME_OPERATION');
+  if (!context.commandId || !UUID.test(context.commandId)) throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID', 'Monitor repair enqueue must execute in a command transaction', 409, 'RETRY_SAME_OPERATION');
   const queue = row((await client.query(`INSERT INTO kcml.queue_item(queue_name,partition_key,command_id,payload,platform_incarnation_id,application_deployment_epoch,recovery_epoch) VALUES('kcml-monitor',$1,$2,$3,$4,$5,$6) RETURNING *`, [
     textArg(context, 'partitionKey', context.targetId ?? 'monitor'), context.commandId, { repair: context.operation.operationName, targetId: context.targetId, request: objectArg(context, 'repair') }, context.platformIncarnationId, context.applicationDeploymentEpoch.toString(), context.recoveryEpoch.toString()
   ])).rows as Row[], 'MONITOR_REPAIR_NOT_ENQUEUED', 'Monitor repair was not enqueued');
@@ -2153,7 +2153,7 @@ async function handleRuntimeHeartbeat(client: DatabaseClient, context: Canonical
   const id = target(context);
   const current = row((await client.query(`SELECT * FROM kcml.runtime_instance WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'RUNTIME_INSTANCE_NOT_FOUND', 'Runtime instance does not exist');
   const sequence = numberArg(context, 'heartbeatSequence', Number(current.heartbeat_sequence ?? 0) + 1);
-  if (sequence <= Number(current.heartbeat_sequence ?? 0)) throw new DomainError('RUNTIME_HEARTBEAT_SEQUENCE_STALE', 'Runtime heartbeat sequence must increase', 409, 'DO_NOT_RETRY');
+  if (sequence <= Number(current.heartbeat_sequence ?? 0)) throw new DomainError('RUNTIME_PROCESS_STALE', 'Runtime heartbeat sequence must increase', 409, 'DO_NOT_RETRY');
   const updated = row((await client.query(`UPDATE kcml.runtime_instance SET heartbeat_sequence=$2,heartbeat_at=clock_timestamp(),state_version=state_version+1,correlation_id=$3 WHERE id=$1 AND heartbeat_sequence<$2 RETURNING *`, [id, sequence, context.correlationId])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Runtime heartbeat was superseded');
   await recordAudit(client, context, 'RUNTIME_INSTANCE', id, { runtimeInstanceId: id, heartbeatSequence: sequence });
   return result(context, 'runtime_instance', updated, updated.state_version, { heartbeatSequence: sequence });
@@ -2205,7 +2205,7 @@ async function handleRuntimePrepare(client: DatabaseClient, context: CanonicalHa
   const current = row((await client.query(`SELECT * FROM kcml.runtime_instance WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'RUNTIME_INSTANCE_NOT_FOUND', 'Runtime instance does not exist');
   assertVersion(context, current);
   if (!['STOPPED', 'FAILED', 'UNKNOWN', 'ABSENT', 'STARTING'].includes(String(current.effective_state))) {
-    throw new DomainError('RUNTIME_STATE_INVALID', `Cannot prepare runtime from ${String(current.effective_state)}`, 409, 'RECONCILE_THEN_RETRY');
+    throw new DomainError('RUNTIME_STATE_BOUNDARY_VIOLATION', `Cannot prepare runtime from ${String(current.effective_state)}`, 409, 'RECONCILE_THEN_RETRY');
   }
   const updated = row((await client.query(`UPDATE kcml.runtime_instance SET desired_state='STARTING',effective_state='STARTING',effective_at=NULL,state_version=state_version+1,correlation_id=$2 WHERE id=$1 AND effective_state IN ('STOPPED','FAILED','UNKNOWN','ABSENT') AND state_version=$3 RETURNING *`, [id, context.correlationId, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Runtime instance changed while preparing');
   await recordAudit(client, context, 'RUNTIME_INSTANCE', id, { runtimeInstanceId: id, effectiveState: 'STARTING' });
@@ -2319,14 +2319,14 @@ async function handleSelfTestRunCleanup(client: DatabaseClient, context: Canonic
   const id = target(context);
   const current = row((await client.query(`SELECT * FROM kcml.self_test_run WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'SELF_TEST_RUN_NOT_FOUND', 'Self-test run does not exist');
   assertVersion(context, current);
-  if (!['PASS', 'FAIL', 'CANCELLED', 'NOT_EXECUTED_ENVIRONMENTAL'].includes(String(current.status))) throw new DomainError('SELF_TEST_CLEANUP_STATE_INVALID', 'Self-test cleanup requires a terminal run', 409, 'RECONCILE_THEN_RETRY');
+  if (!['PASS', 'FAIL', 'CANCELLED', 'NOT_EXECUTED_ENVIRONMENTAL'].includes(String(current.status))) throw new DomainError('OPERATION_CONTRACT_INCOMPLETE', 'Self-test cleanup requires a terminal run', 409, 'RECONCILE_THEN_RETRY');
   const evidence = { closed: true, status: current.status, cleanup: objectArg(context, 'cleanup') };
   await recordAudit(client, context, 'SELF_TEST_RUN', id, { testRunId: id, cleanup: evidence });
   return result(context, 'self_test_run', current, current.state_version, evidence);
 }
 
 function queryId(context: Pick<CanonicalHandlerContext, 'operation' | 'targetId' | 'arguments'>): string {
-  if (!context.targetId || !UUID.test(context.targetId)) throw new DomainError('OPERATION_TARGET_REQUIRED', `${context.operation.operationName} requires an exact UUID target`, 422, 'DO_NOT_RETRY');
+  if (!context.targetId || !UUID.test(context.targetId)) throw new DomainError('AGENTIC_DYNAMIC_TARGET_UNBOUND', `${context.operation.operationName} requires an exact UUID target`, 422, 'DO_NOT_RETRY');
   return context.targetId;
 }
 
@@ -2337,7 +2337,7 @@ function queryResult(context: Pick<CanonicalHandlerContext, 'operation' | 'targe
 export async function handleAgentMemoryRead(pool: DatabasePool, context: Pick<CanonicalHandlerContext, 'operation' | 'targetId' | 'arguments'>): Promise<unknown> {
   const id = queryId(context);
   const rows = (await pool.query(`SELECT * FROM kcml.agent_memory_item WHERE id=$1 AND deleted_at IS NULL`, [id])).rows as Row[];
-  if (!rows[0]) throw new DomainError('AGENT_MEMORY_NOT_FOUND', 'Memory item does not exist', 404, 'DO_NOT_RETRY');
+  if (!rows[0]) throw new DomainError('AGENT_RUN_STATE_UNRESUMABLE', 'Memory item does not exist', 404, 'DO_NOT_RETRY');
   return queryResult(context, 'memory', rows[0], { contentDigest: rows[0].content_digest });
 }
 

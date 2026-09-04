@@ -105,7 +105,7 @@ const jsonValue = (value: unknown): CanonicalJsonValue => JSON.parse(JSON.string
 const sameJson = (left: unknown, right: unknown): boolean => canonicalJson(jsonValue(left)) === canonicalJson(jsonValue(right));
 
 function reject(code: string, message: string, details: Record<string, unknown>): never {
-  throw new DomainError(code, `${code}: ${message}`, 409, 'REFRESH_AND_RETRY_NEW_COMMAND', details);
+  throw new DomainError('BINDING_REVISION_STALE', `${code}: ${message}`, 409, 'REFRESH_AND_RETRY_NEW_COMMAND', { ...details, bindingReason: code });
 }
 
 function requireEqual(field: string, actual: unknown, expected: unknown): void {
@@ -193,7 +193,7 @@ export class BindingRegistry {
 
   public get(bindingId: string): ExactBindingRecord {
     const record = this.#records.get(bindingId);
-    if (!record) throw new DomainError('BINDING_NOT_FOUND', 'Exact binding is not present in the active registry', 404, 'DO_NOT_RETRY', { bindingId });
+    if (!record) throw new DomainError('KCIP_BINDING_NOT_ACTIVE', 'Exact binding is not present in the active registry', 404, 'DO_NOT_RETRY', { bindingId });
     return record;
   }
 

@@ -59,6 +59,9 @@ importers:
 
   .:
     devDependencies:
+      '@babel/parser':
+        specifier: 7.29.8
+        version: 7.29.8
       '@kcml/agent-sdk':
         specifier: workspace:*
         version: link:packages/agent-sdk

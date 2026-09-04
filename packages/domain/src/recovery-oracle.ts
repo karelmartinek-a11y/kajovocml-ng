@@ -133,7 +133,7 @@ export class RecoveryOracleRegistry {
 
   public get(recoveryOracleId: string): RecoveryOracleRecord {
     const record = this.#records.get(recoveryOracleId);
-    if (!record) throw new DomainError('RECOVERY_ORACLE_NOT_FOUND', `Unknown recovery oracle ${recoveryOracleId}`, 404, 'DO_NOT_RETRY');
+    if (!record) throw new DomainError('CLOSURE_PREDICATE_INCOMPLETE', `Unknown recovery oracle ${recoveryOracleId}`, 404, 'DO_NOT_RETRY');
     return record;
   }
 
@@ -184,26 +184,26 @@ function ruleMatches(rule: RecoveryRule, evidence: RecoveryEvidence): boolean {
 
 function assertEvidenceShape(evidence: RecoveryEvidence): void {
   if (!evidence.root || evidence.root.version === undefined || !evidence.idempotency || !evidence.lineage || !evidence.dispatch || !evidence.external || !evidence.cleanup || !evidence.pointerRuntime) {
-    throw new DomainError('RECOVERY_EVIDENCE_INCOMPLETE', 'Recovery requires the complete persisted evidence contract', 409, 'MANUAL_REVIEW');
+    throw new DomainError('SIDE_EFFECT_RECONCILIATION_UNKNOWN', 'Recovery requires the complete persisted evidence contract', 409, 'MANUAL_REVIEW');
   }
   if (evidence.untrusted && Object.values(evidence.untrusted).some((value) => value !== undefined)) {
-    throw new DomainError('RECOVERY_UNTRUSTED_EVIDENCE', 'Process memory, logs, transport failures and exception text are not authoritative recovery evidence', 409, 'MANUAL_REVIEW');
+    throw new DomainError('RECOVERY_ORACLE_CONFLICT', 'Process memory, logs, transport failures and exception text are not authoritative recovery evidence', 409, 'MANUAL_REVIEW');
   }
   if (!evidence.lineage.fenceCurrent) {
-    throw new DomainError('RECOVERY_FENCE_LOST', 'Recovery evidence is stale and cannot authorize a mutation', 409, 'RECONCILE_THEN_RETRY');
+    throw new DomainError('FENCING_TOKEN_STALE', 'Recovery evidence is stale and cannot authorize a mutation', 409, 'RECONCILE_THEN_RETRY');
   }
 }
 
 function validateRules(record: RecoveryOracleRecord): void {
   if (record.defaultOutcome !== 'MANUAL_REVIEW') {
-    throw new DomainError('RECOVERY_ORACLE_SCHEMA_INVALID', 'Oracle default must fail closed to MANUAL_REVIEW', 500, 'DO_NOT_RETRY');
+    throw new DomainError('CLOSURE_PREDICATE_INCOMPLETE', 'Oracle default must fail closed to MANUAL_REVIEW', 500, 'DO_NOT_RETRY');
   }
   const priorities = new Set<number>();
   for (const rule of record.rules) {
     if (priorities.has(rule.priority)) throw new DomainError('RECOVERY_ORACLE_CONFLICT', `Duplicate oracle priority ${rule.priority}`, 500, 'MANUAL_REVIEW');
     priorities.add(rule.priority);
-    if (!RECOVERY_ORACLE_PREDICATES.includes(rule.predicate as typeof RECOVERY_ORACLE_PREDICATES[number])) throw new DomainError('RECOVERY_ORACLE_SCHEMA_INVALID', `Unknown recovery predicate ${rule.predicate}`, 500, 'DO_NOT_RETRY');
-    if (!automaticActions.has(rule.allowedAction) && rule.canonicalOutcome !== 'UNKNOWN') throw new DomainError('RECOVERY_ORACLE_SCHEMA_INVALID', 'Manual-review rule must have UNKNOWN outcome', 500, 'DO_NOT_RETRY');
+    if (!RECOVERY_ORACLE_PREDICATES.includes(rule.predicate as typeof RECOVERY_ORACLE_PREDICATES[number])) throw new DomainError('CLOSURE_PREDICATE_INCOMPLETE', `Unknown recovery predicate ${rule.predicate}`, 500, 'DO_NOT_RETRY');
+    if (!automaticActions.has(rule.allowedAction) && rule.canonicalOutcome !== 'UNKNOWN') throw new DomainError('CLOSURE_PREDICATE_INCOMPLETE', 'Manual-review rule must have UNKNOWN outcome', 500, 'DO_NOT_RETRY');
   }
 }
 
@@ -248,8 +248,8 @@ export function validateRecoveryOracleCoverage(record: RecoveryOracleRecord): vo
   validateRules(record);
   const predicates = new Set(record.rules.map((rule) => rule.predicate));
   const missing = RECOVERY_ORACLE_PREDICATES.filter((predicate) => !predicates.has(predicate));
-  if (missing.length > 0) throw new DomainError('RECOVERY_ORACLE_COVERAGE_GAP', `Recovery oracle is missing predicates: ${missing.join(',')}`, 500, 'DO_NOT_RETRY', { missing });
-  if (record.defaultOutcome !== 'MANUAL_REVIEW') throw new DomainError('RECOVERY_ORACLE_DEFAULT_NOT_FAIL_CLOSED', 'An uncovered observed state must enter UNKNOWN/MANUAL_REVIEW', 500, 'DO_NOT_RETRY');
+  if (missing.length > 0) throw new DomainError('CLOSURE_PREDICATE_INCOMPLETE', `Recovery oracle is missing predicates: ${missing.join(',')}`, 500, 'DO_NOT_RETRY', { missing });
+  if (record.defaultOutcome !== 'MANUAL_REVIEW') throw new DomainError('CLOSURE_PREDICATE_INCOMPLETE', 'An uncovered observed state must enter UNKNOWN/MANUAL_REVIEW', 500, 'DO_NOT_RETRY');
 }
 
 export interface RecoveryFence { recoveryEpoch: bigint; fencingToken: bigint; }
@@ -273,7 +273,7 @@ export class RecoveryActionExecutor {
   public async execute(decision: RecoveryDecision, operationName: string, targetId: string | null, arguments_: Record<string, unknown>, context: RecoveryActionContext): Promise<OperationResult | RecoveryDecision> {
     if (decision.action === 'MANUAL_REVIEW') return decision;
     if (decision.canonicalOperationName && operationName !== decision.canonicalOperationName) {
-      throw new DomainError('RECOVERY_CANONICAL_OPERATION_MISMATCH', 'Recovery action must execute through the operation named by its oracle rule', 409, 'MANUAL_REVIEW', { expected: decision.canonicalOperationName, received: operationName });
+      throw new DomainError('RECOVERY_ORACLE_CONFLICT', 'Recovery action must execute through the operation named by its oracle rule', 409, 'MANUAL_REVIEW', { expected: decision.canonicalOperationName, received: operationName });
     }
     const fence = await this.freshFence();
     return this.operationService.execute(operationName, {

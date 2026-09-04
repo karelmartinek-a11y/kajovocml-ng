@@ -36,7 +36,7 @@ export class OwnerAuthenticationService {
   public constructor(private readonly pool: DatabasePool, private readonly cipher: EnvelopeCipher) {}
 
   public async synchronizeDeploymentPassword(password: string): Promise<void> {
-    if (Buffer.byteLength(password, 'utf8') === 0) throw new DomainError('PASSWORD_EMPTY', 'PASS must not be empty', 422);
+    if (Buffer.byteLength(password, 'utf8') === 0) throw new DomainError('AGENTIC_OPERATION_CONTEXT_INVALID', 'PASS must not be empty', 422);
     const hash = await argon2.hash(password, { type: argon2.argon2id, memoryCost: 65_536, timeCost: 3, parallelism: 1, hashLength: 32 });
     await inTransaction(this.pool, 'SERIALIZABLE', async (client) => {
       const headResult = await client.query(`SELECT * FROM kcml.owner_identity WHERE singleton_key=1 FOR UPDATE`);
@@ -56,7 +56,7 @@ export class OwnerAuthenticationService {
     const throttleKey = tokenDigest(`OWNER_LOGIN/1\u0000${remoteAddress ?? 'unknown'}`);
     const throttle = await this.pool.query(`SELECT failure_count,locked_until FROM kcml.owner_login_throttle WHERE attempt_key_digest=$1`, [throttleKey]);
     const lockedUntil = throttle.rows[0]?.locked_until ? new Date(throttle.rows[0].locked_until) : null;
-    if (lockedUntil && lockedUntil.getTime() > Date.now()) throw new DomainError('LOGIN_RATE_LIMITED', 'Too many authentication attempts', 429, 'RETRY_SAME_OPERATION');
+    if (lockedUntil && lockedUntil.getTime() > Date.now()) throw new DomainError('PROVIDER_RATE_LIMITED', 'Too many authentication attempts', 429, 'RETRY_SAME_OPERATION');
 
     const result = await this.pool.query(`SELECT * FROM kcml.owner_identity WHERE singleton_key=1`);
     const owner = result.rows[0];
@@ -68,7 +68,7 @@ export class OwnerAuthenticationService {
       await this.recordLoginFailure(throttleKey);
       const payload = { accepted: false, remoteAddress, reasonCode: 'INVALID_CREDENTIALS' };
       if (owner?.id) await this.pool.query(`SELECT * FROM kcml.append_audit_event('owner.login.rejected','OWNER_LOGIN','anonymous','OWNER',$1,$2,NULL,$3,$4)`, [owner.id, correlationId, payload, Buffer.from(canonicalJson(payload as CanonicalJsonValue))]);
-      throw new DomainError('INVALID_CREDENTIALS', 'Invalid credentials', 401);
+      throw new DomainError('AGENTIC_OPERATION_CONTEXT_INVALID', 'Invalid credentials', 401);
     }
     await this.pool.query(`DELETE FROM kcml.owner_login_throttle WHERE attempt_key_digest=$1`, [throttleKey]);
     // Interactive password login never satisfies MFA. A fresh installation must
@@ -101,7 +101,7 @@ export class OwnerAuthenticationService {
   public async createApiKeySession(remoteAddress: string | null, userAgent: string | null): Promise<LoginResult> {
     const result = await this.pool.query(`SELECT * FROM kcml.owner_identity WHERE singleton_key=1`);
     const owner = result.rows[0];
-    if (!owner) throw new DomainError('OWNER_IDENTITY_MISSING', 'OWNER identity is not initialized', 503);
+    if (!owner) throw new DomainError('AGENTIC_OWNER_INTENT_MISSING', 'OWNER identity is not initialized', 503);
     return this.createSession(owner, remoteAddress, userAgent, true);
   }
 
@@ -110,14 +110,14 @@ export class OwnerAuthenticationService {
     const result = await this.pool.query(`SELECT s.*,o.username,o.session_epoch AS current_session_epoch FROM kcml.owner_session s JOIN kcml.owner_identity o ON o.id=s.owner_identity_id
       WHERE s.lookup_digest=$1 AND s.revoked_at IS NULL AND s.expires_at>clock_timestamp()`, [lookupDigest]);
     const row = result.rows[0];
-    if (!row || !equalDigest(row.session_hash as Buffer | undefined, sessionHash(sessionToken)) || BigInt(row.session_epoch) !== BigInt(row.current_session_epoch)) throw new DomainError('SESSION_INVALID', 'Session is invalid or expired', 401);
-    if (requireMfa && !row.mfa_verified) throw new DomainError('MFA_REQUIRED', 'MFA verification is required', 401);
+    if (!row || !equalDigest(row.session_hash as Buffer | undefined, sessionHash(sessionToken)) || BigInt(row.session_epoch) !== BigInt(row.current_session_epoch)) throw new DomainError('AGENTIC_OPERATION_CONTEXT_INVALID', 'Session is invalid or expired', 401);
+    if (requireMfa && !row.mfa_verified) throw new DomainError('AGENTIC_OWNER_INTENT_MISSING', 'MFA verification is required', 401);
     return { ownerId: row.owner_identity_id, username: 'KRMAR78', sessionId: row.id, csrfTokenDigest: row.csrf_digest, mfaVerified: row.mfa_verified, sessionEpoch: BigInt(row.session_epoch), expiresAt: new Date(row.expires_at) };
   }
 
   public verifyCsrf(principal: SessionPrincipal, token: string): void {
     const actual = tokenDigest(token);
-    if (!equalDigest(principal.csrfTokenDigest, actual)) throw new DomainError('CSRF_INVALID', 'CSRF token is invalid', 403);
+    if (!equalDigest(principal.csrfTokenDigest, actual)) throw new DomainError('AGENTIC_OPERATION_CONTEXT_INVALID', 'CSRF token is invalid', 403);
   }
 
   public async beginMfaEnrollment(sessionToken: string): Promise<{ secret: string; otpauthUri: string; expiresAt: string }> {
@@ -139,9 +139,9 @@ export class OwnerAuthenticationService {
     return inTransaction(this.pool, 'SERIALIZABLE', async (client) => {
       const enrollmentResult = await client.query(`SELECT * FROM kcml.owner_mfa_enrollment WHERE owner_identity_id=$1 AND verified_at IS NULL AND expires_at>clock_timestamp() ORDER BY created_at DESC LIMIT 1 FOR UPDATE`, [principal.ownerId]);
       const enrollment = enrollmentResult.rows[0];
-      if (!enrollment) throw new DomainError('MFA_ENROLLMENT_NOT_STARTED', 'Start MFA enrollment first', 409);
+      if (!enrollment) throw new DomainError('AGENTIC_OPERATION_CONTEXT_INVALID', 'Start MFA enrollment first', 409);
       const secret = this.cipher.decrypt({ authTag: enrollment.seed_auth_tag, ciphertext: enrollment.seed_ciphertext, nonce: enrollment.seed_nonce }, `owner-mfa-enrollment:${principal.ownerId}`);
-      if (!verifyTotp(secret, code)) throw new DomainError('MFA_CODE_INVALID', 'Verification code is invalid', 422);
+      if (!verifyTotp(secret, code)) throw new DomainError('AGENTIC_OPERATION_CONTEXT_INVALID', 'Verification code is invalid', 422);
       const activeEnvelope = this.cipher.encrypt(secret, `owner-mfa:${principal.ownerId}`);
       const recoveryCodes = Array.from({ length: 10 }, () => `${randomToken(6).toUpperCase()}-${randomToken(6).toUpperCase()}`);
       await client.query(`DELETE FROM kcml.owner_recovery_code WHERE owner_identity_id=$1`, [principal.ownerId]);
@@ -168,7 +168,7 @@ export class OwnerAuthenticationService {
         const recovery = await client.query(`UPDATE kcml.owner_recovery_code SET consumed_at=clock_timestamp() WHERE owner_identity_id=$1 AND code_hash=$2 AND consumed_at IS NULL RETURNING id`, [principal.ownerId, tokenDigest(code)]);
         accepted = recovery.rowCount === 1;
       }
-      if (!accepted) throw new DomainError('MFA_CODE_INVALID', 'Verification code is invalid', 422);
+      if (!accepted) throw new DomainError('AGENTIC_OPERATION_CONTEXT_INVALID', 'Verification code is invalid', 422);
       await client.query(`UPDATE kcml.owner_session SET mfa_verified=true,reauthenticated_at=clock_timestamp(),state_version=state_version+1 WHERE id=$1`, [principal.sessionId]);
       await client.query(`UPDATE kcml.owner_identity SET last_login_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`, [principal.ownerId]);
     });
@@ -178,9 +178,9 @@ export class OwnerAuthenticationService {
     const principal = await this.authenticate(sessionToken, false);
     const ownerResult = await this.pool.query(`SELECT * FROM kcml.owner_identity WHERE id=$1`, [principal.ownerId]);
     const owner = ownerResult.rows[0];
-    if (!owner?.password_hash || !(await argon2.verify(owner.password_hash, password).catch(() => false))) throw new DomainError('INVALID_CREDENTIALS', 'Invalid credentials', 401);
+    if (!owner?.password_hash || !(await argon2.verify(owner.password_hash, password).catch(() => false))) throw new DomainError('AGENTIC_OPERATION_CONTEXT_INVALID', 'Invalid credentials', 401);
     if (owner.mfa_enabled) {
-      if (!mfaCode) throw new DomainError('MFA_REQUIRED', 'MFA verification is required', 401);
+      if (!mfaCode) throw new DomainError('AGENTIC_OWNER_INTENT_MISSING', 'MFA verification is required', 401);
       await this.verifyMfa(sessionToken, mfaCode);
     }
     await this.pool.query(`UPDATE kcml.owner_session SET reauthenticated_at=clock_timestamp(),state_version=state_version+1 WHERE id=$1`, [principal.sessionId]);
@@ -197,7 +197,7 @@ export class OwnerAuthenticationService {
 
   public async revokeSession(ownerId: string, sessionId: string): Promise<void> {
     const result = await this.pool.query(`UPDATE kcml.owner_session SET revoked_at=clock_timestamp(),state_version=state_version+1 WHERE owner_identity_id=$1 AND id=$2 AND revoked_at IS NULL`, [ownerId, sessionId]);
-    if (result.rowCount !== 1) throw new DomainError('SESSION_NOT_FOUND', 'Session does not exist', 404);
+    if (result.rowCount !== 1) throw new DomainError('AGENTIC_OWNER_INTENT_MISSING', 'Session does not exist', 404);
   }
 
   public async revokeOtherSessions(ownerId: string, currentSessionId: string): Promise<number> {

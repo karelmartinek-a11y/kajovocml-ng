@@ -54,7 +54,7 @@ async function reserveConcurrencyClaim(client:DatabaseClient,operation:Operation
   await lockAdvisory(client,'CONCURRENCY_CLAIM',domainKey);
   const scopeKeyDigest=createHash('sha256').update(domainKey).digest();
   const current=(await client.query(`SELECT * FROM kcml.concurrency_claim WHERE scope_kind=$1 AND scope_key_digest=$2 FOR UPDATE`,[operation.concurrencyScope,scopeKeyDigest])).rows[0];
-  if(current&&!current.released_at)throw new DomainError(new Date(current.expires_at).getTime()>Date.now()?'CONCURRENCY_CLAIM_BUSY':'CONCURRENCY_CLAIM_RECOVERY_REQUIRED','A nonterminal concurrency claim cannot be stolen by a new logical operation',409,'RECONCILE_THEN_RETRY',{scope:operation.concurrencyScope,domainKey,ownerLogicalOperationId:current.logical_operation_id,expiresAt:current.expires_at,fencingToken:String(current.fencing_token)});
+  if(current&&!current.released_at)throw new DomainError(new Date(current.expires_at).getTime()>Date.now()?'CONCURRENCY_KEY_HELD':'LEASE_EXPIRED','A nonterminal concurrency claim cannot be stolen by a new logical operation',409,'DO_NOT_RETRY',{scope:operation.concurrencyScope,domainKey,ownerLogicalOperationId:current.logical_operation_id,expiresAt:current.expires_at,fencingToken:String(current.fencing_token)});
   const fencingToken=BigInt(current?.fencing_token??0)+1n;
   const id=current?.id??randomUUID();
   if(current)await client.query(`UPDATE kcml.concurrency_claim SET scope_key=$2,logical_operation_id=$3,owner_instance_id=$4,fencing_token=$5,acquired_at=clock_timestamp(),heartbeat_at=clock_timestamp(),expires_at=clock_timestamp()+interval '5 minutes',released_at=NULL,state_version=state_version+1,platform_incarnation_id=$4,application_deployment_epoch=$6,recovery_epoch=$7 WHERE id=$1`,[id,domainKey,logicalOperationId,ownerInstanceId,fencingToken.toString(),applicationDeploymentEpoch.toString(),recoveryEpoch.toString()]);
@@ -70,28 +70,28 @@ async function terminalizeCommandGuards(client:DatabaseClient,commandId:string,l
 }
 
 const SAFE_ENTITY = /^[a-z][a-z0-9_]*$/u;
-function entityTable(entity:string):string{if(!SAFE_ENTITY.test(entity))throw new DomainError('OPERATION_ENTITY_INVALID',`Invalid handler entity ${entity}`,500);return `"${entity}"`;}
-async function entityColumns(client:DatabaseClient|DatabasePool,entity:string):Promise<Set<string>>{const result=await client.query(`SELECT a.attname AS name FROM pg_attribute a JOIN pg_class c ON c.oid=a.attrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='kcml' AND c.relname=$1 AND a.attnum>0 AND NOT a.attisdropped`,[entity]);if(!result.rows.length)throw new DomainError('OPERATION_ENTITY_STORAGE_MISSING',`Physical SSOT table kcml.${entity} is missing`,503,'DO_NOT_RETRY');return new Set(result.rows.map(row=>String(row.name)));}
-async function entityRowForUpdate(client:DatabaseClient,entity:string,targetId:string):Promise<Record<string,unknown>|null>{const table=entityTable(entity);const columns=await entityColumns(client,entity);const predicate=columns.has('id')?'t.id::text=$1':columns.has('stable_key')?'t.stable_key=$1':null;if(!predicate)throw new DomainError('OPERATION_ENTITY_NOT_ADDRESSABLE',`${entity} has no addressable identity`,500,'DO_NOT_RETRY');const result=await client.query(`SELECT to_jsonb(t) AS row FROM kcml.${table} t WHERE ${predicate} FOR UPDATE`,[targetId]);return result.rows[0]?.row??null;}
+function entityTable(entity:string):string{if(!SAFE_ENTITY.test(entity))throw new DomainError('OPERATION_CONTRACT_INCOMPLETE',`Invalid handler entity ${entity}`,500);return `"${entity}"`;}
+async function entityColumns(client:DatabaseClient|DatabasePool,entity:string):Promise<Set<string>>{const result=await client.query(`SELECT a.attname AS name FROM pg_attribute a JOIN pg_class c ON c.oid=a.attrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='kcml' AND c.relname=$1 AND a.attnum>0 AND NOT a.attisdropped`,[entity]);if(!result.rows.length)throw new DomainError('OPERATION_CONTRACT_INCOMPLETE',`Physical SSOT table kcml.${entity} is missing`,503,'DO_NOT_RETRY');return new Set(result.rows.map(row=>String(row.name)));}
+async function entityRowForUpdate(client:DatabaseClient,entity:string,targetId:string):Promise<Record<string,unknown>|null>{const table=entityTable(entity);const columns=await entityColumns(client,entity);const predicate=columns.has('id')?'t.id::text=$1':columns.has('stable_key')?'t.stable_key=$1':null;if(!predicate)throw new DomainError('OPERATION_CONTRACT_INCOMPLETE',`${entity} has no addressable identity`,500,'DO_NOT_RETRY');const result=await client.query(`SELECT to_jsonb(t) AS row FROM kcml.${table} t WHERE ${predicate} FOR UPDATE`,[targetId]);return result.rows[0]?.row??null;}
 function workerAggregateEntity(operationName:string):string{const handler=operationHandlerFor(operationName);return operationName==='component.revision.publish'?'component':handler.entity;}
 async function lockWorkerAggregate(client:DatabaseClient,row:any):Promise<void>{
   if(!row.target_id)return;
   const entity=workerAggregateEntity(String(row.operation_name));
   const aggregate=await entityRowForUpdate(client,entity,String(row.target_id));
-  if(!aggregate)throw new DomainError('TARGET_NOT_FOUND',`${entity} target does not exist`,404,'DO_NOT_RETRY');
+  if(!aggregate)throw new DomainError('KCIP_TARGET_NOT_FOUND',`${entity} target does not exist`,404,'DO_NOT_RETRY');
 }
 async function verifyWorkerClaimAndAdmission(client:DatabaseClient,row:any,allowedAdmissionStates:readonly string[]=['ADMITTED'],heartbeatClaim=true):Promise<void>{
   const admissionIdentity=(await client.query(`SELECT id,activation_domain_id,pinned_activation_epoch,state FROM kcml.domain_command_activation_domain WHERE domain_command_id=$1`,[row.command_id])).rows[0];
-  if(!admissionIdentity)throw new DomainError('ACTIVATION_DOMAIN_ADMISSION_MISSING','Command has no activation-domain admission',409,'RECONCILE_THEN_RETRY');
+  if(!admissionIdentity)throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID','Command has no activation-domain admission',409,'RECONCILE_THEN_RETRY');
   const head=(await client.query(`SELECT * FROM kcml.activation_domain_head WHERE id=$1 FOR UPDATE`,[admissionIdentity.activation_domain_id])).rows[0];
-  if(!head)throw new DomainError('ACTIVATION_DOMAIN_HEAD_MISSING','Command activation-domain head is missing',409,'RECONCILE_THEN_RETRY');
+  if(!head)throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID','Command activation-domain head is missing',409,'RECONCILE_THEN_RETRY');
   await lockWorkerAggregate(client,row);
   const claim=(await client.query(`SELECT * FROM kcml.concurrency_claim WHERE id=$1 FOR UPDATE`,[row.concurrency_claim_id])).rows[0];
   const claimLineageCurrent=claim&&String(claim.platform_incarnation_id)===String(row.platform_incarnation_id)&&BigInt(claim.application_deployment_epoch)===BigInt(row.application_deployment_epoch)&&BigInt(claim.recovery_epoch)===BigInt(row.recovery_epoch);
-  if(!claim||claim.released_at||!claimLineageCurrent||String(claim.logical_operation_id)!==String(row.logical_operation_id)||BigInt(claim.fencing_token)!==BigInt(row.concurrency_fencing_token))throw new DomainError('CONCURRENCY_FENCE_LOST','Worker no longer owns the current aggregate concurrency fence and lineage',409,'RECONCILE_THEN_RETRY');
+  if(!claim||claim.released_at||!claimLineageCurrent||String(claim.logical_operation_id)!==String(row.logical_operation_id)||BigInt(claim.fencing_token)!==BigInt(row.concurrency_fencing_token))throw new DomainError('FENCING_TOKEN_STALE','Worker no longer owns the current aggregate concurrency fence and lineage',409,'RECONCILE_THEN_RETRY');
   const admission=(await client.query(`SELECT * FROM kcml.domain_command_activation_domain WHERE id=$1 FOR UPDATE`,[admissionIdentity.id])).rows[0];
   const activationCurrent=admission&&BigInt(admission.pinned_activation_epoch)===BigInt(head.current_activation_epoch)&&BigInt(admission.pinned_activation_epoch)===BigInt(row.activation_epoch);
-  if(!admission||!allowedAdmissionStates.includes(String(admission.state))||!activationCurrent)throw new DomainError('ACTIVATION_DOMAIN_ADMISSION_STALE','Command activation-domain admission or pinned activation epoch is not current',409,'RECONCILE_THEN_RETRY',{state:admission?.state??null,allowedAdmissionStates,pinnedActivationEpoch:admission?.pinned_activation_epoch??null,currentActivationEpoch:head.current_activation_epoch});
+  if(!admission||!allowedAdmissionStates.includes(String(admission.state))||!activationCurrent)throw new DomainError('STATE_VERSION_CONFLICT','Command activation-domain admission or pinned activation epoch is not current',409,'RECONCILE_THEN_RETRY',{state:admission?.state??null,allowedAdmissionStates,pinnedActivationEpoch:admission?.pinned_activation_epoch??null,currentActivationEpoch:head.current_activation_epoch});
   if(heartbeatClaim)await client.query(`UPDATE kcml.concurrency_claim SET heartbeat_at=clock_timestamp(),expires_at=clock_timestamp()+interval '5 minutes',state_version=state_version+1 WHERE id=$1 AND fencing_token=$2 AND recovery_epoch=$3`,[claim.id,claim.fencing_token,claim.recovery_epoch]);
 }
 async function checkpointRecoveryAuthorized(client:DatabaseClient,row:any,checkpoint:any):Promise<boolean>{
@@ -108,7 +108,7 @@ export class OperationCatalogService {
   readonly #byName = new Map<string, OperationContract>();
   private constructor(readonly operations: readonly OperationContract[], readonly authorities: readonly AuthorityOwnershipRecord[]) { for(const operation of operations)this.#byName.set(operation.operationName,operation); }
   public static async load(repositoryRoot=process.cwd()):Promise<OperationCatalogService>{const [catalog,authorityRegistry,stateMachineRegistry,exposureRegistry]=await Promise.all([loadOperationCatalog(repositoryRoot),loadAuthorityOwnershipRegistry(repositoryRoot),loadRegistry<StateMachineContract>('STATE_MACHINE_REGISTRY',repositoryRoot),loadRegistry<ExposureParityContract>('EXPOSURE_PARITY_REGISTRY',repositoryRoot)]);assertOperationHandlerCoverage(catalog.records);validateAuthorityOwnership(catalog.records,authorityRegistry.records,stateMachineRegistry.records);validateExposureParity(catalog.records,exposureRegistry.records);return new OperationCatalogService(catalog.records,authorityRegistry.records);}
-  public get(name:string):OperationContract{const operation=this.#byName.get(name);if(!operation)throw new DomainError('OPERATION_NOT_FOUND',`Unknown operation ${name}`,404);return operation;}
+  public get(name:string):OperationContract{const operation=this.#byName.get(name);if(!operation)throw new DomainError('KCIP_TARGET_NOT_FOUND',`Unknown operation ${name}`,404);return operation;}
   public authorityFor(operation:OperationContract):AuthorityOwnershipRecord{return authorityForOperation(operation.operationId,this.authorities);}
   public publicView():unknown[]{return this.operations.map(({operationName,operationId,operationRevision,operationFamily,exposureClass,sideEffectClass,retryClass,canonicalDigest,expectedStateVersionPolicy,idempotencyKeySource})=>({operationName,operationId,operationRevision,operationFamily,exposureClass,sideEffectClass,retryClass,canonicalDigest,expectedStateVersionPolicy,idempotencyKeySource}));}
 }
@@ -121,9 +121,9 @@ export class CanonicalOperationService {
     this.catalog.authorityFor(operation);
     const command=operationCommandSchema.parse({...((commandInput??{}) as object),operation:operationName});
     validateCanonicalOperationCommand(operation, command.targetId, command.arguments);
-    if(command.deadlineAt&&new Date(command.deadlineAt)<=new Date())throw new DomainError('DEADLINE_EXCEEDED','The absolute command deadline has elapsed',408);
+    if(command.deadlineAt&&new Date(command.deadlineAt)<=new Date())throw new DomainError('RUNTIME_DEADLINE_EXCEEDED','The absolute command deadline has elapsed',408);
     if(operation.sideEffectClass==='READ_ONLY'||operation.exposureClass==='OWNER_QUERY')return this.executeQuery(operation,command.targetId,command.arguments,context);
-    if(!context.idempotencyKey)throw new DomainError('IDEMPOTENCY_KEY_REQUIRED','Idempotency-Key is required for mutating operations',400);
+    if(!context.idempotencyKey)throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID','Idempotency-Key is required for mutating operations',422);
     const safeCommand=jsonSafe({...command,expectedStateVersion:command.expectedStateVersion?.toString()??null,expectedActivationEpoch:command.expectedActivationEpoch?.toString()??null});
     const requestBytes=Buffer.from(canonicalJson(safeCommand));
     const requestDigest=digestBytes(sha256(requestBytes));
@@ -136,36 +136,36 @@ export class CanonicalOperationService {
     return inTransactionProfile(this.pool,'ONLINE_MUTATION',async(client)=>{
       await lockAdvisory(client,'IDEMPOTENCY_SCOPE',`${scopeDigest.toString('hex')}:${keyDigest.toString('hex')}`);
       const recoveryHead=await lockAndVerifyPlatformRecovery(client);
-      if(context.recoveryFence && (context.recoveryFence.recoveryEpoch!==BigInt(recoveryHead.recovery_epoch)||context.recoveryFence.fencingToken!==BigInt(recoveryHead.recovery_fencing_token)))throw new DomainError('RECOVERY_FENCE_LOST','Recovery action was not admitted with the current recovery fence',409,'RECONCILE_THEN_RETRY');
+      if(context.recoveryFence && (context.recoveryFence.recoveryEpoch!==BigInt(recoveryHead.recovery_epoch)||context.recoveryFence.fencingToken!==BigInt(recoveryHead.recovery_fencing_token)))throw new DomainError('FENCING_TOKEN_STALE','Recovery action was not admitted with the current recovery fence',409,'RECONCILE_THEN_RETRY');
       const activationResult=await client.query(`SELECT current_epoch AS activation_epoch FROM kcml.activation_head WHERE singleton_key=1 FOR SHARE`);
       const heads={...recoveryHead,activation_epoch:activationResult.rows[0]?.activation_epoch};
-      if(heads.activation_epoch===undefined)throw new DomainError('AUTHORITY_HEADS_MISSING','Activation authority head is missing',503,'RETRY_SAME_OPERATION');
+      if(heads.activation_epoch===undefined)throw new DomainError('CLOSURE_PREDICATE_INCOMPLETE','Activation authority head is missing',503,'RETRY_SAME_OPERATION');
 
       const claimed=await client.query(`INSERT INTO kcml.domain_idempotency_record(scope_digest,key_digest,canonical_key,request_digest,logical_operation_id,command_id,lifecycle,expires_at)
         VALUES($1,$2,$3,$4,$5,$6,'RESERVED',clock_timestamp()+interval '30 days')
         ON CONFLICT (scope_digest,key_digest) DO NOTHING RETURNING id`,[scopeDigest,keyDigest,context.idempotencyKey,requestDigest,logicalOperationId,commandId]);
       const replay=await client.query(`SELECT * FROM kcml.domain_idempotency_record WHERE scope_digest=$1 AND key_digest=$2 FOR UPDATE`,[scopeDigest,keyDigest]);
       const idempotency=replay.rows[0];
-      if(!idempotency)throw new DomainError('IDEMPOTENCY_CLAIM_FAILED','Idempotency claim could not be locked',500);
+      if(!idempotency)throw new DomainError('IDEMPOTENCY_CONFLICT','Idempotency claim could not be locked',500);
       if(!Buffer.from(idempotency.request_digest).equals(requestDigest))throw new DomainError('IDEMPOTENCY_CONFLICT','Idempotency key was used with a different request',409,'DO_NOT_RETRY');
       if(claimed.rowCount===0){
         if(idempotency.response_body)return {...idempotency.response_body,metadata:{...idempotency.response_body.metadata,idempotencyReplay:true}} as OperationResult;
         return this.acceptedResult(String(idempotency.command_id),String(idempotency.logical_operation_id),context.correlationId,0n,0n,BigInt(heads.activation_epoch),true,{commandId:idempotency.command_id,status:'ACCEPTED'});
       }
 
-      if(command.expectedActivationEpoch!==null&&command.expectedActivationEpoch!==BigInt(heads.activation_epoch))throw new DomainError('ACTIVATION_EPOCH_CONFLICT','Activation epoch changed',409,'REFRESH_AND_RETRY_NEW_COMMAND');
+      if(command.expectedActivationEpoch!==null&&command.expectedActivationEpoch!==BigInt(heads.activation_epoch))throw new DomainError('ACTIVATION_EPOCH_STALE','Activation epoch changed',409,'REFRESH_AND_RETRY_NEW_COMMAND');
       const domainKey=operationDomainKey(operation,command.targetId,command.arguments);
       await lockAdvisory(client,'ACTIVATION_DOMAIN',domainKey);
       await client.query(`INSERT INTO kcml.activation_domain_head(domain_key,current_activation_epoch,barrier_state,pending_mutating_operation_count,platform_incarnation_id,application_deployment_epoch,recovery_epoch)
         VALUES($1,$2,'OPEN',0,$3,$4,$5) ON CONFLICT(domain_key) DO NOTHING`,[domainKey,heads.activation_epoch,heads.platform_incarnation_id,heads.current_epoch,heads.recovery_epoch]);
       const domainHead=(await client.query(`SELECT * FROM kcml.activation_domain_head WHERE domain_key=$1 FOR UPDATE`,[domainKey])).rows[0];
-      if(!domainHead)throw new DomainError('ACTIVATION_DOMAIN_HEAD_MISSING','Activation domain head could not be reserved',500,'DO_NOT_RETRY');
-      if(domainHead.barrier_state!=='OPEN'&&!permitsClosedComponentAdmission(operationName))throw new DomainError('ACTIVATION_DOMAIN_CLOSED','Mutating admission is closed for this activation domain',409,'RETRY_SAME_OPERATION',{domainKey,barrierState:domainHead.barrier_state});
+      if(!domainHead)throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID','Activation domain head could not be reserved',500,'DO_NOT_RETRY');
+      if(domainHead.barrier_state!=='OPEN'&&!permitsClosedComponentAdmission(operationName))throw new DomainError('TERMINAL_STATE_IMMUTABLE','Mutating admission is closed for this activation domain',409,'RETRY_SAME_OPERATION',{domainKey,barrierState:domainHead.barrier_state});
       if(command.targetId&&command.expectedStateVersion!==null){
         const handler=operationHandlerFor(operationName);
         const admissionEntity=operationName==='component.revision.publish'?'component':handler.entity;
         const target=await entityRowForUpdate(client,admissionEntity,command.targetId);
-        if(!target)throw new DomainError('TARGET_NOT_FOUND','Target does not exist',404,'DO_NOT_RETRY');
+        if(!target)throw new DomainError('KCIP_TARGET_NOT_FOUND','Target does not exist',404,'DO_NOT_RETRY');
         if(target.state_version!==undefined&&BigInt(String(target.state_version))!==command.expectedStateVersion)throw new DomainError('STATE_VERSION_CONFLICT','Target state changed',409,'REFRESH_AND_RETRY_NEW_COMMAND');
       }
       const concurrencyClaim=await reserveConcurrencyClaim(client,operation,domainKey,logicalOperationId,heads.platform_incarnation_id,BigInt(heads.current_epoch),BigInt(heads.recovery_epoch));
@@ -212,27 +212,27 @@ async function verifyAuditChain(pool:DatabasePool):Promise<{valid:true;eventCoun
   const events=await pool.query(`SELECT chain_sequence,event_type,payload_canonical_bytes,payload_digest,previous_hash,event_hash FROM kcml.audit_event ORDER BY chain_sequence`);
   const headResult=await pool.query(`SELECT last_sequence,last_hash FROM kcml.audit_head WHERE singleton_key=1`);
   const head=headResult.rows[0];
-  if(!head)throw new DomainError('AUDIT_HEAD_MISSING','Audit head is missing',503,'DO_NOT_RETRY');
+  if(!head)throw new DomainError('CLOSURE_PREDICATE_INCOMPLETE','Audit head is missing',503,'DO_NOT_RETRY');
   let previous=Buffer.alloc(32);
   let expectedSequence=1n;
   for(const event of events.rows){
     const sequence=BigInt(event.chain_sequence);
-    if(sequence!==expectedSequence)throw new DomainError('AUDIT_SEQUENCE_GAP',`Expected audit sequence ${expectedSequence} but found ${sequence}`,409,'DO_NOT_RETRY');
+    if(sequence!==expectedSequence)throw new DomainError('SEQUENCE_GAP',`Expected audit sequence ${expectedSequence} but found ${sequence}`,409,'DO_NOT_RETRY');
     const storedPrevious=Buffer.from(event.previous_hash);
-    if(!storedPrevious.equals(previous))throw new DomainError('AUDIT_PREVIOUS_HASH_MISMATCH',`Audit chain predecessor mismatch at ${sequence}`,409,'DO_NOT_RETRY');
+    if(!storedPrevious.equals(previous))throw new DomainError('CHECKPOINT_DIGEST_INVALID',`Audit chain predecessor mismatch at ${sequence}`,409,'DO_NOT_RETRY');
     const payloadDigest=createHash('sha256').update(Buffer.from(event.payload_canonical_bytes)).digest();
-    if(!payloadDigest.equals(Buffer.from(event.payload_digest)))throw new DomainError('AUDIT_PAYLOAD_DIGEST_MISMATCH',`Audit payload digest mismatch at ${sequence}`,409,'DO_NOT_RETRY');
+    if(!payloadDigest.equals(Buffer.from(event.payload_digest)))throw new DomainError('CHECKPOINT_DIGEST_INVALID',`Audit payload digest mismatch at ${sequence}`,409,'DO_NOT_RETRY');
     const sequenceBytes=Buffer.alloc(8); sequenceBytes.writeBigInt64BE(sequence);
     const calculated=createHash('sha256').update(Buffer.concat([previous,sequenceBytes,Buffer.from(String(event.event_type),'utf8'),payloadDigest])).digest();
-    if(!calculated.equals(Buffer.from(event.event_hash)))throw new DomainError('AUDIT_EVENT_HASH_MISMATCH',`Audit event hash mismatch at ${sequence}`,409,'DO_NOT_RETRY');
+    if(!calculated.equals(Buffer.from(event.event_hash)))throw new DomainError('CHECKPOINT_DIGEST_INVALID',`Audit event hash mismatch at ${sequence}`,409,'DO_NOT_RETRY');
     previous=calculated; expectedSequence+=1n;
   }
   const lastSequence=expectedSequence-1n;
-  if(BigInt(head.last_sequence)!==lastSequence||!Buffer.from(head.last_hash).equals(previous))throw new DomainError('AUDIT_HEAD_MISMATCH','Audit head does not match the terminal chain event',409,'DO_NOT_RETRY');
+  if(BigInt(head.last_sequence)!==lastSequence||!Buffer.from(head.last_hash).equals(previous))throw new DomainError('CLOSURE_PREDICATE_INCOMPLETE','Audit head does not match the terminal chain event',409,'DO_NOT_RETRY');
   return {valid:true,eventCount:events.rows.length,lastSequence:lastSequence.toString(),lastHash:previous.toString('hex')};
 }
 async function currentActivationEpoch(pool:DatabasePool):Promise<bigint>{const result=await pool.query(`SELECT current_epoch FROM kcml.activation_head WHERE singleton_key=1`);return BigInt(result.rows[0].current_epoch);}
-async function nextStreamSequence(client:DatabaseClient,stream:string):Promise<bigint>{const commandId=stream.startsWith('command:')?stream.slice('command:'.length):stream;if(!/^[0-9a-f-]{36}$/iu.test(commandId))throw new DomainError('OUTBOX_STREAM_PARENT_INVALID','Authoritative outbox stream must be UUID-addressable',500);return allocateContiguousSequence(client,'TRANSACTIONAL_OUTBOX',commandId,'STREAM_SEQUENCE');}
+async function nextStreamSequence(client:DatabaseClient,stream:string):Promise<bigint>{const commandId=stream.startsWith('command:')?stream.slice('command:'.length):stream;if(!/^[0-9a-f-]{36}$/iu.test(commandId))throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID','Authoritative outbox stream must be UUID-addressable',500);return allocateContiguousSequence(client,'TRANSACTIONAL_OUTBOX',commandId,'STREAM_SEQUENCE');}
 async function audit(client:DatabaseClient,eventType:string,actorId:string,aggregateType:string,aggregateId:string,correlationId:string,causationId:string|null,payload:JsonObject):Promise<void>{const bytes=Buffer.from(canonicalJson(jsonSafe(payload)));await client.query(`SELECT * FROM kcml.append_audit_event($1,'OWNER',$2,$3,$4,$5,$6,$7,$8)`,[eventType,actorId,aggregateType,aggregateId,correlationId,causationId,payload,bytes]);}
 
 export type WorkerFaultPoint='AFTER_COMMAND_CHECKPOINT_BEFORE_TERMINAL';
@@ -272,7 +272,7 @@ export class CanonicalCommandWorker {
       const queueUpdate=await client.query(`UPDATE kcml.queue_item SET status='CLAIMED',lease_owner=$2,lease_fencing_token=$3,lease_expires_at=clock_timestamp()+make_interval(secs=>$4),attempt_count=attempt_count+1,concurrency_fencing_token=$5,state_version=state_version+1,updated_at=clock_timestamp()
         WHERE id=$1 AND recovery_epoch=$6`,[row.id,this.options.workerId,leaseToken.toString(),this.options.leaseSeconds??60,claimToken.toString(),recoveryHead.recovery_epoch]);
       const commandUpdate=await client.query(`UPDATE kcml.domain_command SET status='RUNNING',concurrency_fencing_token=$2,state_version=state_version+1 WHERE id=$1 AND recovery_epoch=$3 AND status IN ('ACCEPTED','RUNNING')`,[row.command_id,claimToken.toString(),recoveryHead.recovery_epoch]);
-      if(queueUpdate.rowCount!==1||commandUpdate.rowCount!==1)throw new DomainError('WORKER_CLAIM_CAS_FAILED','Worker claim could not atomically advance queue and command fences',409,'RECONCILE_THEN_RETRY');
+      if(queueUpdate.rowCount!==1||commandUpdate.rowCount!==1)throw new DomainError('FENCING_TOKEN_STALE','Worker claim could not atomically advance queue and command fences',409,'RECONCILE_THEN_RETRY');
       return {...row,lease_owner:this.options.workerId,lease_fencing_token:leaseToken,concurrency_fencing_token:claimToken};
     });
     if(!claim)return false;
@@ -286,8 +286,8 @@ export class CanonicalCommandWorker {
 
   private async applyCommand(row:any):Promise<unknown>{
     const operation=this.catalog.get(row.operation_name);this.catalog.authorityFor(operation);const handler=operationHandlerFor(operation.operationName);const args=(row.request.arguments??{}) as JsonObject;
-    if(row.queue_name!==handler.queue)throw new DomainError('OPERATION_QUEUE_BINDING_MISMATCH',`${operation.operationName} was delivered on ${row.queue_name}, expected ${handler.queue}`,409,'DO_NOT_RETRY');
-    if(handler.strategy==='CONSISTENT_QUERY')throw new DomainError('READ_OPERATION_QUEUED',`${operation.operationName} must execute on the consistent-read path`,409,'DO_NOT_RETRY');
+    if(row.queue_name!==handler.queue)throw new DomainError('OPERATION_CONTRACT_INCOMPLETE',`${operation.operationName} was delivered on ${row.queue_name}, expected ${handler.queue}`,409,'DO_NOT_RETRY');
+    if(handler.strategy==='CONSISTENT_QUERY')throw new DomainError('OPERATION_CONTRACT_INCOMPLETE',`${operation.operationName} must execute on the consistent-read path`,409,'DO_NOT_RETRY');
     return this.applyInCommandTransaction(row,async(client,head)=>{
       if(operation.operationName==='generation.job.create')return createGenerationJob(client,args,{platformIncarnationId:head.platform_incarnation_id,applicationDeploymentEpoch:BigInt(head.current_epoch),logicalOperationId:row.logical_operation_id,correlationId:row.correlation_id});
       if(operation.operationName==='browser.session.create')return this.createBrowserSession(client,head,args,row);
@@ -322,11 +322,11 @@ export class CanonicalCommandWorker {
   private async applyInCommandTransaction(row:any,apply:(client:DatabaseClient,head:RecoveryAuthorityHead)=>Promise<unknown>):Promise<unknown>{
     return inTransactionProfile(this.pool,'WORKER_COMMIT',async(client)=>{
       const head=await lockAndVerifyPlatformRecovery(client);
-      if(BigInt(row.recovery_epoch)!==BigInt(head.recovery_epoch))throw new DomainError('STALE_RECOVERY_EPOCH','Worker command recovery epoch is stale',409,'RECONCILE_THEN_RETRY');
+      if(BigInt(row.recovery_epoch)!==BigInt(head.recovery_epoch))throw new DomainError('PLATFORM_INCARNATION_STALE','Worker command recovery epoch is stale',409,'RECONCILE_THEN_RETRY');
       const checkpoint=(await client.query(`SELECT * FROM kcml.domain_command_execution_checkpoint WHERE command_id=$1`,[row.command_id])).rows[0];
       await verifyWorkerClaimAndAdmission(client,row,checkpoint?['ADMITTED','TERMINAL']:['ADMITTED']);
       if(checkpoint){
-        if(!await checkpointRecoveryAuthorized(client,row,checkpoint))throw new DomainError('COMMAND_CHECKPOINT_LINEAGE_CONFLICT','Persisted command checkpoint does not match current logical operation lineage or an exact terminal-replay recovery classification',409,'MANUAL_REVIEW');
+        if(!await checkpointRecoveryAuthorized(client,row,checkpoint))throw new DomainError('CHECKPOINT_DIGEST_INVALID','Persisted command checkpoint does not match current logical operation lineage or an exact terminal-replay recovery classification',409,'MANUAL_REVIEW');
         return checkpoint.output;
       }
       const output=await apply(client,head);const safeOutput=jsonSafe(output);
@@ -340,13 +340,13 @@ export class CanonicalCommandWorker {
   private async createBrowserSession(client:DatabaseClient,head:RecoveryAuthorityHead,args:JsonObject,row:any):Promise<unknown>{const result=await client.query(`INSERT INTO kcml.browser_session(parent_kind,parent_id,purpose,execution_target,runtime_build_id,account_binding_id,operation_scope,current_url,platform_incarnation_id,application_deployment_epoch)VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)RETURNING *`,[args.parentKind??'OWNER_CHAT',dbUuid(args.parentId)??row.logical_operation_id,args.purpose??'OWNER browser session',args.executionTarget??'SERVER_MANAGED',args.runtimeBuildId??process.env.KCML_BROWSER_RUNTIME_BUILD??'playwright-1.58.2',dbUuid(args.accountBindingId),args.operationScope??{},args.targetUrl??null,head.platform_incarnation_id,head.current_epoch]);return result.rows[0];}
   private async createTestRun(client:DatabaseClient,head:RecoveryAuthorityHead,args:JsonObject,_row:any):Promise<unknown>{const env=jsonSafe({releaseId:process.env.KCML_RELEASE_ID??'development',sourceSha:requiredSourceSha()});const result=await client.query(`INSERT INTO kcml.self_test_run(suite_key,run_kind,source_sha,release_id,environment_digest,seed,platform_incarnation_id,application_deployment_epoch)VALUES($1,$2,$3,$4,$5,$6,$7,$8)RETURNING *`,[args.suiteKey??'self-test',args.runKind??'SELF_TEST',requiredSourceSha(),process.env.KCML_RELEASE_ID??'development',digestBytes(canonicalDigest(env)),args.seed??null,head.platform_incarnation_id,head.current_epoch]);return result.rows[0];}
   private async complete(row:any,output:unknown):Promise<void>{await inTransactionProfile(this.pool,'WORKER_COMMIT',async(client)=>{
-    const recoveryHead=await lockAndVerifyPlatformRecovery(client);if(BigInt(row.recovery_epoch)!==BigInt(recoveryHead.recovery_epoch))throw new DomainError('STALE_RECOVERY_EPOCH','Worker terminal write recovery epoch is stale',409,'RECONCILE_THEN_RETRY');
+    const recoveryHead=await lockAndVerifyPlatformRecovery(client);if(BigInt(row.recovery_epoch)!==BigInt(recoveryHead.recovery_epoch))throw new DomainError('PLATFORM_INCARNATION_STALE','Worker terminal write recovery epoch is stale',409,'RECONCILE_THEN_RETRY');
     const checkpoint=(await client.query(`SELECT * FROM kcml.domain_command_execution_checkpoint WHERE command_id=$1`,[row.command_id])).rows[0];
-    if(!checkpoint||!await checkpointRecoveryAuthorized(client,row,checkpoint))throw new DomainError('COMMAND_CHECKPOINT_MISSING','Successful terminalization requires the exact immutable execution checkpoint from the same recovery epoch or an authorized terminal-replay classification',409,'RECONCILE_THEN_RETRY');
+    if(!checkpoint||!await checkpointRecoveryAuthorized(client,row,checkpoint))throw new DomainError('CHECKPOINT_STALE','Successful terminalization requires the exact immutable execution checkpoint from the same recovery epoch or an authorized terminal-replay classification',409,'RECONCILE_THEN_RETRY');
     await verifyWorkerClaimAndAdmission(client,row,['ADMITTED','TERMINAL'],false);
     const locked=await client.query(`SELECT * FROM kcml.queue_item WHERE id=$1 FOR UPDATE`,[row.id]);const current=locked.rows[0];
-    if(current.status!=='CLAIMED'||current.lease_owner!==this.options.workerId||BigInt(current.lease_fencing_token)!==BigInt(row.lease_fencing_token))throw new DomainError('QUEUE_FENCE_LOST','Queue claim fence is no longer current',409,'RECONCILE_THEN_RETRY');
-    const safeOutput=jsonSafe(checkpoint.output);if(canonicalDigest(safeOutput)!==canonicalDigest(jsonSafe(output)))throw new DomainError('COMMAND_CHECKPOINT_OUTPUT_CONFLICT','Worker output differs from immutable execution checkpoint',409,'MANUAL_REVIEW');const outputRecord=typeof checkpoint.output==='object'&&checkpoint.output!==null?checkpoint.output as Record<string,unknown>:{};
+    if(current.status!=='CLAIMED'||current.lease_owner!==this.options.workerId||BigInt(current.lease_fencing_token)!==BigInt(row.lease_fencing_token))throw new DomainError('FENCING_TOKEN_STALE','Queue claim fence is no longer current',409,'RECONCILE_THEN_RETRY');
+    const safeOutput=jsonSafe(checkpoint.output);if(canonicalDigest(safeOutput)!==canonicalDigest(jsonSafe(output)))throw new DomainError('CHECKPOINT_DIGEST_INVALID','Worker output differs from immutable execution checkpoint',409,'MANUAL_REVIEW');const outputRecord=typeof checkpoint.output==='object'&&checkpoint.output!==null?checkpoint.output as Record<string,unknown>:{};
     const stateVersion=BigInt(String(outputRecord.state_version??0));const eventSequence=BigInt(String(outputRecord.aggregate_event_sequence??0));const activationEpoch=BigInt(String(outputRecord.current_activation_epoch??outputRecord.activation_epoch??0));
     const terminalResponse:OperationResult={status:'SUCCEEDED',metadata:{correlationId:row.correlation_id,logicalOperationId:row.logical_operation_id,commandId:row.command_id,stateVersion,eventSequence,activationEpoch,resultDigest:canonicalDigest(safeOutput),idempotencyReplay:false,serverTime:new Date().toISOString()},result:safeOutput,error:null};
     const safeTerminal=jsonSafe(terminalResponse);const terminalDigest=digestBytes(canonicalDigest(safeTerminal));
@@ -357,9 +357,9 @@ export class CanonicalCommandWorker {
     await audit(client,'domain.command.succeeded',this.options.workerId,'DOMAIN_COMMAND',row.command_id,row.correlation_id,null,{commandId:row.command_id,operationName:row.operation_name,resultDigest:canonicalDigest(safeOutput)});
   });}
   private async fail(row:any,error:unknown):Promise<void>{await inTransactionProfile(this.pool,'WORKER_COMMIT',async(client)=>{
-    const recoveryHead=await lockAndVerifyPlatformRecovery(client);if(BigInt(row.recovery_epoch)!==BigInt(recoveryHead.recovery_epoch))throw new DomainError('STALE_RECOVERY_EPOCH','Worker failure write recovery epoch is stale',409,'RECONCILE_THEN_RETRY');
+    const recoveryHead=await lockAndVerifyPlatformRecovery(client);if(BigInt(row.recovery_epoch)!==BigInt(recoveryHead.recovery_epoch))throw new DomainError('PLATFORM_INCARNATION_STALE','Worker failure write recovery epoch is stale',409,'RECONCILE_THEN_RETRY');
     const checkpointExists=Number((await client.query(`SELECT count(*)::int AS count FROM kcml.domain_command_execution_checkpoint WHERE command_id=$1`,[row.command_id])).rows[0]?.count??0)>0;
-    if(checkpointExists)throw new DomainError('APPLIED_COMMAND_CANNOT_FAIL','An applied command with immutable checkpoint must resume terminal replay instead of becoming failed',409,'RECONCILE_THEN_RETRY');
+    if(checkpointExists)throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED','An applied command with immutable checkpoint must resume terminal replay instead of becoming failed',409,'RECONCILE_THEN_RETRY');
     await verifyWorkerClaimAndAdmission(client,row,['ADMITTED'],false);
     const locked=await client.query(`SELECT * FROM kcml.queue_item WHERE id=$1 FOR UPDATE`,[row.id]);const current=locked.rows[0];if(!current||current.status!=='CLAIMED'||current.lease_owner!==this.options.workerId)return;
     const failure=canonicalFailure(error);
@@ -372,7 +372,7 @@ export class CanonicalCommandWorker {
       const safeTerminal=jsonSafe(terminalResponse);const terminalDigest=digestBytes(canonicalDigest(safeTerminal));
       await client.query(`UPDATE kcml.queue_item SET status='FAILED_FINAL',lease_owner=NULL,lease_expires_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`,[row.id]);
       await client.query(`UPDATE kcml.domain_command SET status='FAILED_FINAL',error=$2,completed_at=clock_timestamp(),state_version=state_version+1 WHERE id=$1`,[row.command_id,failure]);
-      await client.query(`UPDATE kcml.domain_idempotency_record SET lifecycle='FAILED_FINAL',response_status=$2,response_body=$3,response_digest=$4,terminal_outcome_digest=$4,completed_at=clock_timestamp(),updated_at=clock_timestamp(),state_version=state_version+1 WHERE command_id=$1`,[row.command_id,canonicalFailure(error).classification==='INTERNAL'?500:(error instanceof DomainError?error.httpStatus:500),safeTerminal,terminalDigest]);
+      await client.query(`UPDATE kcml.domain_idempotency_record SET lifecycle='FAILED_FINAL',response_status=$2,response_body=$3,response_digest=$4,terminal_outcome_digest=$4,completed_at=clock_timestamp(),updated_at=clock_timestamp(),state_version=state_version+1 WHERE command_id=$1`,[row.command_id,failure.httpStatus,safeTerminal,terminalDigest]);
       await terminalizeCommandGuards(client,row.command_id,row.logical_operation_id,row.concurrency_claim_id??null);
     }
   });}

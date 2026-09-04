@@ -42,7 +42,7 @@ export class McpRuntime {
         FROM kcml.component c JOIN kcml.component_revision r ON r.id=c.active_revision_id
         CROSS JOIN kcml.platform_incarnation p CROSS JOIN kcml.application_deployment_head d
         WHERE c.id=$1 AND c.lifecycle='ACTIVE' AND p.singleton_key=1 AND d.singleton_key=1 FOR SHARE OF c,r`,[componentId])).rows[0];
-      if(!authority)throw new DomainError('MCP_COMPONENT_REVISION_NOT_ACTIVE','MCP server has no active exact revision',409,'DO_NOT_RETRY');
+      if(!authority)throw new DomainError('KCIP_BINDING_NOT_ACTIVE','MCP server has no active exact revision',409,'DO_NOT_RETRY');
       if(requestIdValue!==null){
         const prior=(await client.query(`SELECT e.request_body_digest,c.* FROM kcml.mcp_request_event e
           JOIN kcml.mcp_call_run c ON c.request_event_id=e.id
@@ -88,7 +88,7 @@ export class McpRuntime {
       return (await client.query(`UPDATE kcml.mcp_call_run SET state='EXECUTING',started_at=clock_timestamp(),state_version=state_version+1
         WHERE id=$1 AND state='CLAIMED' RETURNING *`,[reservation.id])).rows[0]??null;
     });
-    if(!claimed)throw new DomainError('MCP_REQUEST_IN_FLIGHT','The same MCP request is already executing',409,'RETRY_SAME_OPERATION');
+    if(!claimed)throw new DomainError('MCP_DUPLICATE_IN_FLIGHT_REQUEST_ID','The same MCP request is already executing',409,'RETRY_SAME_OPERATION');
     try{
       let result:unknown;
       if(request.method==='server/discover')result=this.discover();
@@ -114,11 +114,11 @@ export class McpRuntime {
       const updated=await client.query(`UPDATE kcml.mcp_call_run SET state=$2,structured_result=CASE WHEN $2='SUCCEEDED' THEN $3::jsonb ELSE NULL END,
         result_digest=$4,jsonrpc_error=$5::jsonb,terminal_response=$3::jsonb,response_delivery_state='MATERIALIZED',completed_at=clock_timestamp(),state_version=state_version+1
         WHERE id=$1 AND state='EXECUTING' RETURNING id`,[callId,state,JSON.stringify(response),responseDigest,error===null?null:JSON.stringify(error)]);
-      if(updated.rowCount!==1)throw new DomainError('MCP_TERMINAL_COMMIT_CONFLICT','MCP call state changed before terminal commit',409,'RECONCILE_THEN_RETRY');
+      if(updated.rowCount!==1)throw new DomainError('MCP_OUTCOME_UNKNOWN','MCP call state changed before terminal commit',409,'RECONCILE_THEN_RETRY');
       const event=await client.query(`UPDATE kcml.mcp_request_event SET final_response_state=$2,response_delivery_state='MATERIALIZED',handler_dispatched=true,
         response_http_status=200,response_content_type='application/json',completed_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp()
         WHERE id=$1 AND completed_at IS NULL RETURNING id`,[requestEventId,state]);
-      if(event.rowCount!==1)throw new DomainError('MCP_REQUEST_EVENT_TERMINAL_CONFLICT','MCP request event state changed before terminal commit',409,'RECONCILE_THEN_RETRY');
+      if(event.rowCount!==1)throw new DomainError('MCP_OUTCOME_UNKNOWN','MCP request event state changed before terminal commit',409,'RECONCILE_THEN_RETRY');
     });
   }
 }

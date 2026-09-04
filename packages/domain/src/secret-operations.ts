@@ -7,13 +7,13 @@ type JsonObject = Record<string, unknown>;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
 function requiredSecretId(targetId:string|null):string {
-  if(!targetId||!UUID_PATTERN.test(targetId))throw new DomainError('SECRET_TARGET_REQUIRED','secret.usage.report requires an exact secret UUID',422,'DO_NOT_RETRY');
+  if(!targetId||!UUID_PATTERN.test(targetId))throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID','secret.usage.report requires an exact secret UUID',422,'DO_NOT_RETRY');
   return targetId;
 }
 
 function boundedLimit(value:unknown,name:string,defaultValue:number):number {
   if(value===undefined)return defaultValue;
-  if(typeof value!=='number'||!Number.isSafeInteger(value)||value<1||value>500)throw new DomainError('SECRET_USAGE_LIMIT_INVALID',`${name} must be an integer between 1 and 500`,422,'DO_NOT_RETRY');
+  if(typeof value!=='number'||!Number.isSafeInteger(value)||value<1||value>500)throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID',`${name} must be an integer between 1 and 500`,422,'DO_NOT_RETRY');
   return value;
 }
 
@@ -122,7 +122,7 @@ async function reportSecretUsage(pool:DatabasePool,targetId:string|null,args:Jso
       CROSS JOIN resolution_inventory resolution CROSS JOIN access_inventory access
       LEFT JOIN kcml.secret_version active ON active.id=secret.active_version_id AND active.secret_id=secret.id`,[secretId,resolutionLimit,accessLimit]);
     const row=result.rows[0];
-    if(!row)throw new DomainError('SECRET_NOT_FOUND','Secret does not exist',404,'DO_NOT_RETRY');
+    if(!row)throw new DomainError('KCIP_TARGET_NOT_FOUND','Secret does not exist',404,'DO_NOT_RETRY');
     const failedChecks=Object.entries(row.checks as JsonObject).filter(([,passed])=>passed!==true).map(([name])=>`SECRET_USAGE_${name.replace(/([a-z0-9])([A-Z])/gu,'$1_$2').toUpperCase()}`);
     const evidence={secretId,evidenceScope:'SECRET_METADATA_AND_USAGE_EVIDENCE',consistent:failedChecks.length===0,checks:row.checks,issues:failedChecks,authorityHead:row.authority_head,secret:row.secret,activeVersion:row.active_version,versions:row.versions,bindings:row.bindings,resolutions:row.resolutions,accesses:row.accesses,inventory:row.inventory};
     await client.query('COMMIT');
@@ -136,7 +136,7 @@ async function reportSecretUsage(pool:DatabasePool,targetId:string|null,args:Jso
 }
 
 async function readOwnerApiKey(pool:DatabasePool,targetId:string|null):Promise<unknown> {
-  if(targetId!==null&&!UUID_PATTERN.test(targetId))throw new DomainError('OWNER_API_KEY_TARGET_INVALID','ownerApiKey.read target must be the singleton credential UUID or null',422,'DO_NOT_RETRY');
+  if(targetId!==null&&!UUID_PATTERN.test(targetId))throw new DomainError('AGENTIC_OPERATION_CONTEXT_INVALID','ownerApiKey.read target must be the singleton credential UUID or null',422,'DO_NOT_RETRY');
   const client=await pool.connect();
   try {
     await client.query('BEGIN');
@@ -161,7 +161,7 @@ async function readOwnerApiKey(pool:DatabasePool,targetId:string|null):Promise<u
       LEFT JOIN kcml.secret_version version ON version.id=credential.secret_version_id AND version.secret_id=credential.secret_id
       WHERE credential.singleton_key=1 AND ($1::uuid IS NULL OR credential.id=$1)
         AND platform.singleton_key=1 AND deployment.singleton_key=1 AND recovery.singleton_key=1`,[targetId])).rows[0];
-    if(!row)throw new DomainError('OWNER_API_KEY_NOT_FOUND','Singleton OWNER API credential does not exist or target does not match',404,'DO_NOT_RETRY');
+    if(!row)throw new DomainError('AGENTIC_OWNER_INTENT_MISSING','Singleton OWNER API credential does not exist or target does not match',404,'DO_NOT_RETRY');
     const initialized=Boolean(row.secret_id&&row.secret_version_id&&row.fingerprint);
     const checks={
       recoveryReady:row.recovery_state==='READY'&&row.database_identity_current===true&&row.recovery_lineage_current===true,
@@ -194,5 +194,5 @@ export const exactSecretQueryOperations=new Set(['secret.usage.report','ownerApi
 export async function executeExactSecretQuery(pool:DatabasePool,operationName:string,targetId:string|null,args:JsonObject):Promise<unknown> {
   if(operationName==='secret.usage.report')return reportSecretUsage(pool,targetId,args);
   if(operationName==='ownerApiKey.read')return readOwnerApiKey(pool,targetId);
-  throw new DomainError('SECRET_OPERATION_NOT_EXACT',`Secret operation ${operationName} has no exact query implementation`,500,'DO_NOT_RETRY');
+  throw new DomainError('OPERATION_CONTRACT_INCOMPLETE',`Secret operation ${operationName} has no exact query implementation`,500,'DO_NOT_RETRY');
 }

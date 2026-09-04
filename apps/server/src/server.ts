@@ -86,7 +86,7 @@ async function executeChatTool(name: string, args: JsonObject, pool: DatabasePoo
     }, { callerFingerprint: callerFingerprint(request), actorId: ownerActorId, correlationId: request.requestCorrelationId, idempotencyKey: randomUUID() });
     return apiSafe(result);
   }
-  throw new DomainError('CHAT_TOOL_NOT_FOUND', `Unknown chat tool ${name}`, 400, 'DO_NOT_RETRY');
+  throw new DomainError('KCIP_TARGET_NOT_FOUND', `Unknown chat tool ${name}`, 400, 'DO_NOT_RETRY');
 }
 
 function apiSafe(value: unknown): unknown {
@@ -157,7 +157,7 @@ async function verifySsotStorage(pool: DatabasePool): Promise<{ expected: number
 
 async function ownerApiKeyMetadata(pool: DatabasePool): Promise<unknown> {
   const result = await pool.query(`SELECT id,stable_name,secret_id,secret_version_id,fingerprint,credential_version,credential_activation_epoch,last_used_at,last_usage_metadata,created_at,rotated_at,updated_at,state_version FROM kcml.owner_api_credential WHERE singleton_key=1`);
-  if (!result.rows[0]) throw new DomainError('OWNER_API_CREDENTIAL_MISSING', 'Singleton OWNER API credential row is missing', 503);
+  if (!result.rows[0]) throw new DomainError('AGENTIC_OWNER_INTENT_MISSING', 'Singleton OWNER API credential row is missing', 503);
   return apiSafe(result.rows[0]);
 }
 
@@ -190,10 +190,10 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
   await app.register(helmet, { contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'"], styleSrc: ["'self'", "'unsafe-inline'"], imgSrc: ["'self'", 'data:', 'blob:'], connectSrc: ["'self'", 'wss:'], frameAncestors: ["'none'"] } }, hsts: { maxAge: 63_072_000, includeSubDomains: true, preload: true } });
   await app.register(rateLimit, { max: 240, timeWindow: '1 minute', keyGenerator: (request) => request.ip });
   app.addHook('onRequest', async (request) => { request.requestCorrelationId = correlationId(typeof request.headers['x-correlation-id'] === 'string' ? request.headers['x-correlation-id'] : undefined); });
-  app.addHook('onRequest', async (request) => { if (request.url.startsWith('/api/v1/') && ['POST','PUT','PATCH','DELETE'].includes(request.method) && !idempotencyKey(request)) throw new DomainError('IDEMPOTENCY_KEY_REQUIRED', 'Idempotency-Key is mandatory for every mutating API request', 428, 'DO_NOT_RETRY'); });
+  app.addHook('onRequest', async (request) => { if (request.url.startsWith('/api/v1/') && ['POST','PUT','PATCH','DELETE'].includes(request.method) && !idempotencyKey(request)) throw new DomainError('IDEMPOTENCY_CONFLICT', 'Idempotency-Key is mandatory for every mutating API request', 428, 'DO_NOT_RETRY'); });
   app.addHook('onResponse', async (request, reply) => { reply.header('x-correlation-id', request.requestCorrelationId); metrics.increment('kcml_http_requests_total', { method: request.method, status: String(reply.statusCode) }); });
   app.setErrorHandler((error, request, reply) => {
-    const domain = error instanceof DomainError ? error : new DomainError('INTERNAL_ERROR', 'Internal service error', 500);
+    const domain = error instanceof DomainError ? error : new DomainError('KCIP_INTERNAL_FAILURE', 'Internal service error', 500);
     const failure = canonicalFailure(domain);
     logger.error('request.failed', { correlationId: request.requestCorrelationId, code: failure.code, error: error instanceof Error ? error.message : String(error), errorRecordDigest: failure.recordDigest });
     void reply.status(failure.httpStatus).send({ error: { ...failure, correlationId: request.requestCorrelationId } });
@@ -206,19 +206,19 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
       const result = await pool.query(`SELECT c.verifier_hash,o.id AS owner_id FROM kcml.owner_api_credential c CROSS JOIN kcml.owner_identity o WHERE c.singleton_key=1 AND o.singleton_key=1`);
       const expected = result.rows[0]?.verifier_hash as Buffer | undefined;
       const actual = tokenDigest(apiValue);
-      if (!expected || expected.length !== actual.length || !timingSafeEqual(expected, actual)) throw new DomainError('API_KEY_INVALID', 'API key is invalid', 401);
+      if (!expected || expected.length !== actual.length || !timingSafeEqual(expected, actual)) throw new DomainError('AGENTIC_OPERATION_CONTEXT_INVALID', 'API key is invalid', 401);
       request.ownerIdentityId = result.rows[0].owner_id;
       request.authKind = 'API_KEY';
       return;
     }
     const token = request.cookies.kcml_session;
-    if (!token) throw new DomainError('SESSION_REQUIRED', 'Authentication is required', 401);
+    if (!token) throw new DomainError('AGENTIC_OWNER_INTENT_MISSING', 'Authentication is required', 401);
     request.principal = await auth.authenticate(token, requireMfa);
     request.ownerIdentityId = request.principal.ownerId;
     request.authKind = 'SESSION';
     if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
       const csrf = request.headers['x-csrf-token'];
-      if (typeof csrf !== 'string') throw new DomainError('CSRF_REQUIRED', 'X-CSRF-Token is required', 403);
+      if (typeof csrf !== 'string') throw new DomainError('AGENTIC_OWNER_INTENT_MISSING', 'X-CSRF-Token is required', 403);
       auth.verifyCsrf(request.principal, csrf);
     }
   };
@@ -277,20 +277,20 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
     return { state: result.state, csrfToken: result.csrfToken, expiresAt: result.expiresAt, username: 'KRMAR78' };
   });
   app.post('/api/v1/auth/login/mfa', async (request) => { await authenticate(request, false); const body = z.object({ code: z.string().min(1) }).parse(request.body); await auth.verifyMfa(request.cookies.kcml_session!, body.code); return { state: 'AUTHENTICATED' }; });
-  app.post('/api/v1/auth/logout', async (request, reply) => { await authenticate(request, false); if (request.authKind !== 'SESSION' || !request.principal) throw new DomainError('SESSION_REQUIRED', 'Logout requires an OWNER web session', 400); await auth.logout(request.principal); reply.clearCookie('kcml_session', { path: '/' }); return { status: 'SIGNED_OUT' }; });
-  app.post('/api/v1/auth/api-key-session', async (request, reply) => { await authenticate(request); if (request.authKind !== 'API_KEY') throw new DomainError('API_KEY_REQUIRED', 'Bearer KCML_OWNER_API_KEY is required', 401); const result = await auth.createApiKeySession(request.ip, request.headers['user-agent'] ?? null); reply.setCookie('kcml_session', result.sessionToken, cookieOptions()); reply.header('x-csrf-token', result.csrfToken); return { state: 'AUTHENTICATED', csrfToken: result.csrfToken, expiresAt: result.expiresAt, username: 'KRMAR78' }; });
+  app.post('/api/v1/auth/logout', async (request, reply) => { await authenticate(request, false); if (request.authKind !== 'SESSION' || !request.principal) throw new DomainError('AGENTIC_OWNER_INTENT_MISSING', 'Logout requires an OWNER web session', 400); await auth.logout(request.principal); reply.clearCookie('kcml_session', { path: '/' }); return { status: 'SIGNED_OUT' }; });
+  app.post('/api/v1/auth/api-key-session', async (request, reply) => { await authenticate(request); if (request.authKind !== 'API_KEY') throw new DomainError('AGENTIC_OWNER_INTENT_MISSING', 'Bearer KCML_OWNER_API_KEY is required', 401); const result = await auth.createApiKeySession(request.ip, request.headers['user-agent'] ?? null); reply.setCookie('kcml_session', result.sessionToken, cookieOptions()); reply.header('x-csrf-token', result.csrfToken); return { state: 'AUTHENTICATED', csrfToken: result.csrfToken, expiresAt: result.expiresAt, username: 'KRMAR78' }; });
   app.get('/api/v1/session', async (request) => { await authenticate(request, false); return { username: 'KRMAR78', authKind: request.authKind, sessionId: request.principal?.sessionId ?? null, mfaVerified: request.principal?.mfaVerified ?? request.authKind === 'API_KEY', expiresAt: request.principal?.expiresAt.toISOString() ?? null }; });
-  app.post('/api/v1/session/reauthenticate', async (request) => { await authenticate(request, false); if (request.authKind !== 'SESSION') throw new DomainError('SESSION_REQUIRED', 'Reauthentication requires a web session', 400); const body = z.object({ password: z.string().min(1), mfaCode: z.string().optional() }).parse(request.body); await auth.reauthenticate(request.cookies.kcml_session!, body.password, body.mfaCode); return { status: 'REAUTHENTICATED' }; });
+  app.post('/api/v1/session/reauthenticate', async (request) => { await authenticate(request, false); if (request.authKind !== 'SESSION') throw new DomainError('AGENTIC_OWNER_INTENT_MISSING', 'Reauthentication requires a web session', 400); const body = z.object({ password: z.string().min(1), mfaCode: z.string().optional() }).parse(request.body); await auth.reauthenticate(request.cookies.kcml_session!, body.password, body.mfaCode); return { status: 'REAUTHENTICATED' }; });
   app.get('/api/v1/owner/security', async (request) => { await authenticate(request); const result = await pool.query(`SELECT id,username,password_source,mfa_enabled,deployment_managed,password_changed_at,last_login_at,created_at,updated_at,state_version,application_deployment_epoch FROM kcml.owner_identity WHERE singleton_key=1`); return apiSafe(result.rows[0]); });
-  app.post('/api/v1/owner/mfa/enroll', async (request) => { await authenticate(request, false); if (request.authKind !== 'SESSION') throw new DomainError('SESSION_REQUIRED', 'MFA enrollment requires a web session', 400); return auth.beginMfaEnrollment(request.cookies.kcml_session!); });
-  app.post('/api/v1/owner/mfa/verify', async (request) => { await authenticate(request, false); if (request.authKind !== 'SESSION') throw new DomainError('SESSION_REQUIRED', 'MFA enrollment verification requires a web session', 400); const body = z.object({ code: z.string().min(1) }).parse(request.body); return auth.completeMfa(request.cookies.kcml_session!, body.code); });
-  app.post('/api/v1/owner/recovery-codes/rotate', async (request) => { await authenticate(request); if (request.authKind !== 'SESSION') throw new DomainError('SESSION_REQUIRED', 'Recovery code rotation requires a web session', 400); return auth.rotateRecoveryCodes(request.cookies.kcml_session!); });
+  app.post('/api/v1/owner/mfa/enroll', async (request) => { await authenticate(request, false); if (request.authKind !== 'SESSION') throw new DomainError('AGENTIC_OWNER_INTENT_MISSING', 'MFA enrollment requires a web session', 400); return auth.beginMfaEnrollment(request.cookies.kcml_session!); });
+  app.post('/api/v1/owner/mfa/verify', async (request) => { await authenticate(request, false); if (request.authKind !== 'SESSION') throw new DomainError('AGENTIC_OWNER_INTENT_MISSING', 'MFA enrollment verification requires a web session', 400); const body = z.object({ code: z.string().min(1) }).parse(request.body); return auth.completeMfa(request.cookies.kcml_session!, body.code); });
+  app.post('/api/v1/owner/recovery-codes/rotate', async (request) => { await authenticate(request); if (request.authKind !== 'SESSION') throw new DomainError('AGENTIC_OWNER_INTENT_MISSING', 'Recovery code rotation requires a web session', 400); return auth.rotateRecoveryCodes(request.cookies.kcml_session!); });
   app.get('/api/v1/owner/sessions', async (request) => { await authenticate(request); return auth.listSessions(ownerId(request)); });
   app.delete('/api/v1/owner/sessions/:id', async (request) => { await authenticate(request); await auth.revokeSession(ownerId(request), (request.params as { id: string }).id); return { status: 'REVOKED' }; });
-  app.post('/api/v1/owner/sessions/revoke-others', async (request) => { await authenticate(request); if (!request.principal) throw new DomainError('SESSION_REQUIRED', 'Current session is required', 400); return { revoked: await auth.revokeOtherSessions(ownerId(request), request.principal.sessionId) }; });
+  app.post('/api/v1/owner/sessions/revoke-others', async (request) => { await authenticate(request); if (!request.principal) throw new DomainError('AGENTIC_OWNER_INTENT_MISSING', 'Current session is required', 400); return { revoked: await auth.revokeOtherSessions(ownerId(request), request.principal.sessionId) }; });
   app.post('/api/v1/owner/sessions/revoke-all', async (request, reply) => { await authenticate(request); const revoked = await auth.revokeAllSessions(ownerId(request)); reply.clearCookie('kcml_session', { path: '/' }); return { revoked }; });
   app.get('/api/v1/owner/api-key', async (request) => { await authenticate(request); return ownerApiKeyMetadata(pool); });
-  app.get('/api/v1/owner/api-key/value', async (request) => { await authenticate(request); const result = await pool.query(`SELECT secret_id FROM kcml.owner_api_credential WHERE singleton_key=1`); if (!result.rows[0]?.secret_id) throw new DomainError('OWNER_API_KEY_NOT_INITIALIZED', 'OWNER API key is not initialized', 409); return secrets.reveal(result.rows[0].secret_id, ownerId(request)); });
+  app.get('/api/v1/owner/api-key/value', async (request) => { await authenticate(request); const result = await pool.query(`SELECT secret_id FROM kcml.owner_api_credential WHERE singleton_key=1`); if (!result.rows[0]?.secret_id) throw new DomainError('AGENTIC_OPERATION_CONTEXT_INVALID', 'OWNER API key is not initialized', 409); return secrets.reveal(result.rows[0].secret_id, ownerId(request)); });
   app.post('/api/v1/owner/api-key/rotate', async (request) => { await authenticate(request); const body = z.object({ expectedStateVersion: z.coerce.bigint(), logicalOperationId: z.string().uuid().optional() }).parse(request.body); return secrets.rotateOwnerApiKey(body.expectedStateVersion, ownerId(request), body.logicalOperationId ?? randomUUID(), request.requestCorrelationId); });
   app.get('/api/v1/owner/api-key/usage', async (request) => { await authenticate(request); const [credential, accesses] = await Promise.all([ownerApiKeyMetadata(pool), pool.query(`SELECT id,event_type,actor_id,correlation_id,created_at FROM kcml.audit_event WHERE event_type LIKE 'owner.api_key.%' OR actor_id='OWNER_API_KEY' ORDER BY chain_sequence DESC LIMIT 100`)]); return { credential, events: apiSafe(accesses.rows) }; });
 

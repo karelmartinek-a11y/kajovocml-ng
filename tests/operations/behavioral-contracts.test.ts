@@ -145,14 +145,14 @@ describe('TD-12 exact operation behavior contracts', () => {
 
   it('rejects caller-owned authority fields before admission', () => {
     expect(() => validateCanonicalOperationCommand(operation('runtime.prepare'), '00000000-0000-4000-8000-000000000010', { platformIncarnationId: context.platformIncarnationId })).toThrowError(
-      expect.objectContaining({ code: 'OPERATION_AUTHORITY_OVERRIDE_FORBIDDEN' })
+      expect.objectContaining({ code: 'AGENTIC_ARGUMENT_ORIGIN_INVALID' })
     );
   });
 
   it('keeps operation-specific target and argument validation fail-closed', () => {
-    expect(() => validateCanonicalOperationCommand(operation('runtime.prepare'), null, {})).toThrowError(expect.objectContaining({ code: 'OPERATION_TARGET_REQUIRED' }));
-    expect(() => validateCanonicalOperationCommand(operation('browser.action.start'), '00000000-0000-4000-8000-000000000011', {})).toThrowError(expect.objectContaining({ code: 'OPERATION_ARGUMENT_REQUIRED' }));
-    expect(() => validateCanonicalOperationCommand(operation('runtime.invoke'), '00000000-0000-4000-8000-000000000012', {})).toThrowError(expect.objectContaining({ code: 'OPERATION_ARGUMENT_REQUIRED' }));
+    expect(() => validateCanonicalOperationCommand(operation('runtime.prepare'), null, {})).toThrowError(expect.objectContaining({ code: 'TOOL_ARGUMENT_SCHEMA_INVALID' }));
+    expect(() => validateCanonicalOperationCommand(operation('browser.action.start'), '00000000-0000-4000-8000-000000000011', {})).toThrowError(expect.objectContaining({ code: 'TOOL_ARGUMENT_SCHEMA_INVALID' }));
+    expect(() => validateCanonicalOperationCommand(operation('runtime.invoke'), '00000000-0000-4000-8000-000000000012', {})).toThrowError(expect.objectContaining({ code: 'TOOL_ARGUMENT_SCHEMA_INVALID' }));
   });
 
   it('performs a runtime transition with CAS and rejects stale recovery state', async () => {
@@ -219,7 +219,7 @@ describe('TD-12 exact operation behavior contracts', () => {
       arguments: {},
       expectedStateVersion: 1n,
       ...context
-    })).rejects.toMatchObject({ code: 'RUNTIME_STATE_INVALID', retryDirective: 'RECONCILE_THEN_RETRY' });
+    })).rejects.toMatchObject({ code: 'RUNTIME_STATE_BOUNDARY_VIOLATION', retryDirective: 'DO_NOT_RETRY' });
   });
 });
 
@@ -244,19 +244,19 @@ describe('BEHAVIORAL_OPERATION_EVIDENCE — TD-20', () => {
 
   it.each(catalog.records.map((operation) => [operation.operationName, operation] as const))('negative authority override is rejected before admission: %s', async (_operationName, operation) => {
     expect(() => validateCanonicalOperationCommand(operation, commandFor(operation).targetId, { ...validArguments(operation), actorId: 'KRMAR78' }))
-      .toThrowError(expect.objectContaining({ code: 'OPERATION_AUTHORITY_OVERRIDE_FORBIDDEN' }));
+      .toThrowError(expect.objectContaining({ code: 'AGENTIC_ARGUMENT_ORIGIN_INVALID' }));
   });
 
   it.each(catalog.records.map((operation) => [operation.operationName, operation] as const))('stale deadline fails closed through CanonicalOperationService: %s', async (_operationName, operation) => {
     await expect(admissionOnlyService.execute(operation.operationName, commandFor(operation, '2020-01-01T00:00:00.000Z'), {
       callerFingerprint: 'KRMAR78', actorId: 'KRMAR78', correlationId: context.correlationId
-    })).rejects.toMatchObject({ code: 'DEADLINE_EXCEEDED' });
+    })).rejects.toMatchObject({ code: 'RUNTIME_DEADLINE_EXCEEDED' });
   });
 
   it.each(catalog.records.filter((operation) => operation.sideEffectClass !== 'READ_ONLY' && operation.exposureClass !== 'OWNER_QUERY').map((operation) => [operation.operationName, operation] as const))('mutations require idempotency before any write: %s', async (_operationName, operation) => {
     await expect(admissionOnlyService.execute(operation.operationName, commandFor(operation), {
       callerFingerprint: 'KRMAR78', actorId: 'KRMAR78', correlationId: context.correlationId
-    })).rejects.toMatchObject({ code: 'IDEMPOTENCY_KEY_REQUIRED' });
+    })).rejects.toMatchObject({ code: 'TOOL_ARGUMENT_SCHEMA_INVALID' });
   });
 
   it('binds duplicate, concurrency, fault and recovery evidence to contract-level obligations', async () => {

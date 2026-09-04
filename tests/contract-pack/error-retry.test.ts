@@ -7,7 +7,7 @@ import {
   validateErrorRetryRegistry,
   type StableErrorRecord
 } from '@kcml/schemas';
-import { canonicalizeDomainError, DomainError } from '../../packages/domain/src/errors.js';
+import { canonicalFailure, canonicalizeDomainError, DomainError } from '../../packages/domain/src/errors.js';
 
 describe('Error and Retry Registry', () => {
   it('contains only chapter 32 stable errors with total recovery semantics', async () => {
@@ -36,6 +36,26 @@ describe('Error and Retry Registry', () => {
     expect(known.record.httpMappings).toEqual([400]);
     expect(known.record.kcipMappings).toEqual(['ERROR']);
     expect(known.record.mcpMappings).toEqual([-32020]);
+    const conflictingAdapterMetadata = new DomainError('MCP_HEADER_MISMATCH', 'adapter text', 599, 'MANUAL_REVIEW');
+    expect(conflictingAdapterMetadata.httpStatus).toBe(400);
+    expect(conflictingAdapterMetadata.retryDirective).toBe(known.retryDirective);
+    expect(canonicalFailure(conflictingAdapterMetadata)).toMatchObject({
+      code: 'MCP_HEADER_MISMATCH',
+      effectiveCode: 'MCP_HEADER_MISMATCH',
+      httpStatus: 400,
+      retryDirective: known.retryDirective,
+      recordDigest: known.recordDigest
+    });
+    expect(Object.isFrozen(canonicalFailure(conflictingAdapterMetadata))).toBe(true);
+  });
+
+  it('projects PostgreSQL SQLSTATE failures through the same registry', () => {
+    expect(canonicalizeDomainError({ code: '23505' }).code).toBe('IDEMPOTENCY_CONFLICT');
+    expect(canonicalizeDomainError({ code: '23514' }).code).toBe('STATE_MACHINE_CONTRACT_INCOMPLETE');
+    expect(canonicalizeDomainError({ code: '40001' }).code).toBe('STATE_VERSION_CONFLICT');
+    expect(canonicalizeDomainError({ code: '40P01' }).code).toBe('PLATFORM_RECOVERY_IN_PROGRESS');
+    expect(canonicalizeDomainError({ code: '55000' }).code).toBe('TERMINAL_STATE_IMMUTABLE');
+    expect(canonicalizeDomainError({ code: 'XX000' }).code).toBe('ERROR_RECOVERY_CONTRACT_INCOMPLETE');
   });
 
   it('rejects duplicate meanings and retry booleans in mutation tests', () => {

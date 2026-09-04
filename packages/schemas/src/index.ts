@@ -202,4 +202,5 @@ export function newCorrelationId(): string {
 }
 
 export * from './error-retry-registry.js';
+export * from './error-codes.generated.js';
 export { z };

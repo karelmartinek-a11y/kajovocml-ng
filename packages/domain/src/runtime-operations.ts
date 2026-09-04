@@ -9,7 +9,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3
 
 function requiredTargetId(targetId: string | null, operationName: string): string {
   if (!targetId || !UUID_PATTERN.test(targetId)) {
-    throw new DomainError('RUNTIME_TARGET_REQUIRED', `${operationName} requires an exact UUID target`, 422, 'DO_NOT_RETRY');
+    throw new DomainError('RUNTIME_CONTEXT_NOT_CURRENT', `${operationName} requires an exact UUID target`, 422, 'DO_NOT_RETRY');
   }
   return targetId;
 }
@@ -17,7 +17,7 @@ function requiredTargetId(targetId: string | null, operationName: string): strin
 function boundedCallLimit(value: unknown): number {
   if (value === undefined) return 100;
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1 || value > 500) {
-    throw new DomainError('RUNTIME_INSPECTION_LIMIT_INVALID', 'callLimit must be an integer between 1 and 500', 422, 'DO_NOT_RETRY');
+    throw new DomainError('RUNTIME_BOUNDARY_CONTRACT_INCOMPLETE', 'callLimit must be an integer between 1 and 500', 422, 'DO_NOT_RETRY');
   }
   return value;
 }
@@ -176,7 +176,7 @@ async function verifyRuntimeBoundary(pool: DatabasePool, targetId: string | null
       LEFT JOIN host ON true
       LEFT JOIN kcml.runtime_ipc_connection connection ON connection.id=runtime.runtime_gateway_connection_id`, [runtimeInstanceId]);
     const row = result.rows[0];
-    if (!row) throw new DomainError('RUNTIME_INSTANCE_NOT_FOUND', 'Runtime instance does not exist', 404, 'DO_NOT_RETRY');
+    if (!row) throw new DomainError('RUNTIME_CONTEXT_NOT_CURRENT', 'Runtime instance does not exist', 404, 'DO_NOT_RETRY');
     const checks = row.checks as JsonObject;
     const issues = failedChecks(checks, 'RUNTIME_BOUNDARY');
     const evidence = {
@@ -201,7 +201,7 @@ async function inspectRuntimeConnection(pool: DatabasePool, targetId: string | n
   const callLimit = boundedCallLimit(args.callLimit);
   const includeTerminalCalls = args.includeTerminalCalls === undefined ? true : args.includeTerminalCalls;
   if (typeof includeTerminalCalls !== 'boolean') {
-    throw new DomainError('RUNTIME_INSPECTION_FILTER_INVALID', 'includeTerminalCalls must be boolean', 422, 'DO_NOT_RETRY');
+    throw new DomainError('RUNTIME_BOUNDARY_CONTRACT_INCOMPLETE', 'includeTerminalCalls must be boolean', 422, 'DO_NOT_RETRY');
   }
   return beginConsistentRead(pool, async (client) => {
     const result = await client.query(`WITH selected AS (
@@ -283,7 +283,7 @@ async function inspectRuntimeConnection(pool: DatabasePool, targetId: string | n
       LEFT JOIN kcml.runtime_instance runtime ON runtime.id=connection.runtime_instance_id
       LEFT JOIN peer ON true`, [connectionId, includeTerminalCalls, callLimit]);
     const row = result.rows[0];
-    if (!row) throw new DomainError('RUNTIME_CONNECTION_NOT_FOUND', 'Runtime IPC connection does not exist', 404, 'DO_NOT_RETRY');
+    if (!row) throw new DomainError('RUNTIME_CONTEXT_NOT_CURRENT', 'Runtime IPC connection does not exist', 404, 'DO_NOT_RETRY');
     const checks = row.checks as JsonObject;
     const issues = failedChecks(checks, 'RUNTIME_CONNECTION');
     const evidence = {
@@ -316,5 +316,5 @@ export async function executeExactRuntimeQuery(
 ): Promise<unknown> {
   if (operationName === 'runtime.boundary.verify') return verifyRuntimeBoundary(pool, targetId);
   if (operationName === 'runtime.connection.inspect') return inspectRuntimeConnection(pool, targetId, args);
-  throw new DomainError('RUNTIME_OPERATION_NOT_EXACT', `Runtime operation ${operationName} has no exact query implementation`, 500, 'DO_NOT_RETRY');
+  throw new DomainError('RUNTIME_BOUNDARY_CONTRACT_INCOMPLETE', `Runtime operation ${operationName} has no exact query implementation`, 500, 'DO_NOT_RETRY');
 }

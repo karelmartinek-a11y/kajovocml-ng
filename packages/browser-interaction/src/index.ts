@@ -26,7 +26,7 @@ export class BrowserInteractionService {
 
   public async observe(sessionId: string): Promise<BrowserObservation> {
     const observation = browserObservationSchema.parse(await this._adapter.observe(sessionId));
-    if (!this.operations) throw new DomainError('BROWSER_CANONICAL_SERVICE_REQUIRED', 'Browser observations require CanonicalOperationService persistence', 503, 'DO_NOT_RETRY');
+    if (!this.operations) throw new DomainError('BROWSER_CHALLENGE_REQUIRED', 'Browser observations require CanonicalOperationService persistence', 503, 'DO_NOT_RETRY');
     await this.operations.execute('browser.page.observed', {
       targetId: sessionId,
       arguments: observation,
@@ -44,7 +44,7 @@ export class BrowserInteractionService {
 
   public async action(inputValue: unknown, logicalOperationId = randomUUID()): Promise<ActionOutcome> {
     const input = browserActionInputSchema.parse(inputValue);
-    if (!this.operations) throw new DomainError('BROWSER_CANONICAL_SERVICE_REQUIRED', 'Browser actions require CanonicalOperationService persistence', 503, 'DO_NOT_RETRY');
+    if (!this.operations) throw new DomainError('BROWSER_CHALLENGE_REQUIRED', 'Browser actions require CanonicalOperationService persistence', 503, 'DO_NOT_RETRY');
     const accepted = await this.operations.execute('browser.action.start', {
       targetId: input.sessionId,
       arguments: {
@@ -76,7 +76,7 @@ export class BrowserInteractionService {
   }
 
   public async transferControl(sessionId: string, expectedControlEpoch: bigint, holder: 'AI' | 'OWNER' | 'AUTOMATION', ttlSeconds = 300): Promise<unknown> {
-    if (!this.operations) throw new DomainError('BROWSER_CANONICAL_SERVICE_REQUIRED', 'Control changes require CanonicalOperationService persistence', 503, 'DO_NOT_RETRY');
+    if (!this.operations) throw new DomainError('BROWSER_CHALLENGE_REQUIRED', 'Control changes require CanonicalOperationService persistence', 503, 'DO_NOT_RETRY');
     return this.operations.execute('browser.control.transfer', {
       targetId: sessionId,
       arguments: { holder, expectedControlEpoch: expectedControlEpoch.toString(), ttlSeconds },

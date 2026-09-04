@@ -39,27 +39,27 @@ function digest(value: unknown): Buffer {
 }
 
 function requireTarget(context: CanonicalHandlerContext): string {
-  if (!context.targetId) throw new DomainError('OPERATION_TARGET_REQUIRED', `${context.operation.operationName} requires a targetId`, 422, 'DO_NOT_RETRY');
+  if (!context.targetId) throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID', `${context.operation.operationName} requires a targetId`, 422, 'DO_NOT_RETRY', { key: 'targetId' });
   return context.targetId;
 }
 
 function requireString(args: JsonObject, key: string): string {
   const value = args[key];
-  if (typeof value !== 'string' || value.length === 0) throw new DomainError('OPERATION_ARGUMENT_REQUIRED', `${key} is required for this operation`, 422, 'DO_NOT_RETRY', { key });
+  if (typeof value !== 'string' || value.length === 0) throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID', `${key} is required for this operation`, 422, 'DO_NOT_RETRY', { key });
   return value;
 }
 
 function requireUuid(args: JsonObject, key: string): string {
   const value = requireString(args, key);
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value)) {
-    throw new DomainError('OPERATION_ARGUMENT_INVALID', `${key} must be a UUID`, 422, 'DO_NOT_RETRY', { key });
+    throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID', `${key} must be a UUID`, 422, 'DO_NOT_RETRY', { key });
   }
   return value;
 }
 
 function requireDigest(args: JsonObject, key: string): Buffer {
   const value = requireString(args, key);
-  if (!/^sha256:[0-9a-f]{64}$/iu.test(value)) throw new DomainError('OPERATION_ARGUMENT_INVALID', `${key} must be a sha256 digest`, 422, 'DO_NOT_RETRY', { key });
+  if (!/^sha256:[0-9a-f]{64}$/iu.test(value)) throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID', `${key} must be a sha256 digest`, 422, 'DO_NOT_RETRY', { key });
   return Buffer.from(value.slice('sha256:'.length), 'hex');
 }
 
@@ -85,7 +85,7 @@ function rejectArbitraryBrowserPath(value: unknown, path = 'arguments'): void {
   }
   for (const [key, child] of Object.entries(value)) {
     if (/^(?:path|filePath|hostPath|tempPath|destinationPath|downloadPath|uploadPath)$/iu.test(key)) {
-      throw new DomainError('BROWSER_ARBITRARY_PATH_DENIED', `Browser input ${path}.${key} must be an opaque artifact handle`, 422, 'DO_NOT_RETRY', { field: `${path}.${key}` });
+      throw new DomainError('BROWSER_ACTIONABILITY_FAILED', `Browser input ${path}.${key} must be an opaque artifact handle`, 422, 'DO_NOT_RETRY', { field: `${path}.${key}` });
     }
     rejectArbitraryBrowserPath(child, `${path}.${key}`);
   }
@@ -94,26 +94,26 @@ function rejectArbitraryBrowserPath(value: unknown, path = 'arguments'): void {
 function requireSafeName(args: JsonObject, key: string, fallback: string): string {
   const value = args[key] === undefined ? fallback : requireString(args, key);
   if (value.length > 255 || value === '.' || value === '..' || value.includes('/') || value.includes('\\') || /[\u0000-\u001f\u007f]/u.test(value)) {
-    throw new DomainError('BROWSER_ARTIFACT_NAME_INVALID', `${key} must be a safe single path segment`, 422, 'DO_NOT_RETRY');
+    throw new DomainError('BROWSER_ARTIFACT_INVALID', `${key} must be a safe single path segment`, 422, 'DO_NOT_RETRY');
   }
   return value;
 }
 
 function requireNonNegativeInteger(args: JsonObject, key: string, fallback?: bigint): bigint {
   const raw = args[key] === undefined ? fallback : args[key];
-  if (raw === undefined || raw === null || !/^\d+$/u.test(String(raw))) throw new DomainError('OPERATION_ARGUMENT_INVALID', `${key} must be a non-negative integer`, 422, 'DO_NOT_RETRY', { key });
+  if (raw === undefined || raw === null || !/^\d+$/u.test(String(raw))) throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID', `${key} must be a non-negative integer`, 422, 'DO_NOT_RETRY', { key });
   return BigInt(String(raw));
 }
 
 function requireIsoDeadline(args: JsonObject, key: string, fallbackSeconds: number): string {
   const value = args[key] === undefined ? new Date(Date.now() + fallbackSeconds * 1000).toISOString() : requireString(args, key);
   const date = new Date(value);
-  if (!Number.isFinite(date.getTime()) || date.getTime() <= Date.now()) throw new DomainError('BROWSER_DEADLINE_INVALID', `${key} must be a future ISO timestamp`, 422, 'DO_NOT_RETRY');
+  if (!Number.isFinite(date.getTime()) || date.getTime() <= Date.now()) throw new DomainError('BROWSER_ACTIONABILITY_FAILED', `${key} must be a future ISO timestamp`, 422, 'DO_NOT_RETRY');
   return date.toISOString();
 }
 
 function requireOpaqueArtifactHandle(value: unknown, key: string): string {
-  if (typeof value !== 'string' || !/^(?:artifact|upload|download):[a-f0-9-]{36}$/iu.test(value)) throw new DomainError('BROWSER_ARTIFACT_HANDLE_INVALID', `${key} must be an opaque artifact handle`, 422, 'DO_NOT_RETRY', { key });
+  if (typeof value !== 'string' || !/^(?:artifact|upload|download):[a-f0-9-]{36}$/iu.test(value)) throw new DomainError('BROWSER_ARTIFACT_INVALID', `${key} must be an opaque artifact handle`, 422, 'DO_NOT_RETRY', { key });
   return value;
 }
 
@@ -124,7 +124,7 @@ function browserSessionStateError(lifecycle: unknown): DomainError {
 function assertNoAuthorityOverride(args: JsonObject): void {
   const forbidden = ['actorId', 'callerFingerprint', 'correlationId', 'logicalOperationId', 'platformIncarnationId', 'applicationDeploymentEpoch', 'recoveryEpoch', 'concurrencyClaim', 'bindingId', 'bindingDigest'];
   const found = forbidden.filter((key) => key in args);
-  if (found.length) throw new DomainError('OPERATION_AUTHORITY_OVERRIDE_FORBIDDEN', 'Caller input cannot override server-owned operation authority', 422, 'DO_NOT_RETRY', { fields: found });
+  if (found.length) throw new DomainError('AGENTIC_ARGUMENT_ORIGIN_INVALID', 'Caller input cannot override server-owned operation authority', 422, 'DO_NOT_RETRY', { fields: found });
 }
 
 /**
@@ -155,13 +155,13 @@ export function validateCanonicalOperationCommand(operation: OperationContract, 
     case 'provenance.segment.compile':
     case 'provenance.valueDerivation.create':
     case 'selfTest.run.start':
-      if (targetId !== null) throw new DomainError('OPERATION_TARGET_FORBIDDEN', `${name} creates a new aggregate and cannot have targetId`, 422, 'DO_NOT_RETRY');
+      if (targetId !== null) throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID', `${name} creates a new aggregate and cannot have targetId`, 422, 'DO_NOT_RETRY', { key: 'targetId' });
       break;
     case 'component.revision.publish':
       requireTarget({ operation, targetId, arguments: args } as CanonicalHandlerContext);
       break;
     case 'monitor.alert.open':
-      if (targetId !== null) throw new DomainError('OPERATION_TARGET_FORBIDDEN', `${name} creates an episode and cannot have targetId`, 422, 'DO_NOT_RETRY');
+      if (targetId !== null) throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID', `${name} creates an episode and cannot have targetId`, 422, 'DO_NOT_RETRY', { key: 'targetId' });
       break;
     default:
       requireTarget({ operation, targetId, arguments: args } as CanonicalHandlerContext);
@@ -224,12 +224,12 @@ export function validateCanonicalOperationCommand(operation: OperationContract, 
     requireNonNegativeInteger(args, 'sizeBytes');
     requireSafeName(args, 'safeName', 'artifact.bin');
     const reference = requireString(args, 'storageReference');
-    if (!/^artifact:sha256:[a-f0-9]{64}$/iu.test(reference)) throw new DomainError('BROWSER_ARTIFACT_HANDLE_INVALID', 'storageReference must be content addressed', 422, 'DO_NOT_RETRY');
+    if (!/^artifact:sha256:[a-f0-9]{64}$/iu.test(reference)) throw new DomainError('BROWSER_ARTIFACT_INVALID', 'storageReference must be content addressed', 422, 'DO_NOT_RETRY');
   }
   if (name === 'browser.challenge.required') {
     requireUuid(args, 'sessionId');
     const challengeType = requireString(args, 'challengeType');
-    if (!browserChallengeTypes.includes(challengeType as typeof browserChallengeTypes[number])) throw new DomainError('BROWSER_CHALLENGE_TYPE_INVALID', 'Challenge type is not supported by the Browser Interaction Plane', 422, 'DO_NOT_RETRY');
+    if (!browserChallengeTypes.includes(challengeType as typeof browserChallengeTypes[number])) throw new DomainError('BROWSER_ACTIONABILITY_FAILED', 'Challenge type is not supported by the Browser Interaction Plane', 422, 'DO_NOT_RETRY');
     requireDigest(args, 'pendingActionDigest');
     requireNonNegativeInteger(args, 'controlEpoch');
     requireIsoDeadline(args, 'deadlineAt', 300);
@@ -244,19 +244,19 @@ export function validateCanonicalOperationCommand(operation: OperationContract, 
   }
   if (name === 'browser.control.transfer') {
     const holder = requireString(args, 'holder');
-    if (!['AI', 'OWNER', 'AUTOMATION'].includes(holder)) throw new DomainError('BROWSER_CONTROL_HOLDER_INVALID', 'Browser control holder is invalid', 422, 'DO_NOT_RETRY');
+    if (!['AI', 'OWNER', 'AUTOMATION'].includes(holder)) throw new DomainError('BROWSER_CONTROL_HELD', 'Browser control holder is invalid', 422, 'DO_NOT_RETRY');
     requireNonNegativeInteger(args, 'expectedControlEpoch');
-    if (args.ttlSeconds !== undefined && (Number(args.ttlSeconds) < 1 || Number(args.ttlSeconds) > 900)) throw new DomainError('BROWSER_CONTROL_TTL_INVALID', 'Control lease TTL must be between 1 and 900 seconds', 422, 'DO_NOT_RETRY');
+    if (args.ttlSeconds !== undefined && (Number(args.ttlSeconds) < 1 || Number(args.ttlSeconds) > 900)) throw new DomainError('BROWSER_CONTROL_HELD', 'Control lease TTL must be between 1 and 900 seconds', 422, 'DO_NOT_RETRY');
   }
   if (['browser.action.dispatchPhase', 'browser.action.reconcile', 'browser.action.resolveOutcome'].includes(name)) {
     if (name === 'browser.action.dispatchPhase') {
       const phase = args.phase;
-      if (typeof phase !== 'string' || !browserDispatchPhaseOrder.has(phase as BrowserDispatchPhase)) throw new DomainError('BROWSER_DISPATCH_PHASE_INVALID', 'Browser dispatch phase is not in the canonical phase set', 422, 'DO_NOT_RETRY', { phase });
-      if (args.evidence === undefined || typeof args.evidence !== 'object' || args.evidence === null) throw new DomainError('BROWSER_DISPATCH_EVIDENCE_REQUIRED', 'Every browser dispatch phase requires typed adapter evidence', 422, 'DO_NOT_RETRY');
+      if (typeof phase !== 'string' || !browserDispatchPhaseOrder.has(phase as BrowserDispatchPhase)) throw new DomainError('BROWSER_ACTIONABILITY_FAILED', 'Browser dispatch phase is not in the canonical phase set', 422, 'DO_NOT_RETRY', { phase });
+      if (args.evidence === undefined || typeof args.evidence !== 'object' || args.evidence === null) throw new DomainError('BROWSER_CHALLENGE_REQUIRED', 'Every browser dispatch phase requires typed adapter evidence', 422, 'DO_NOT_RETRY');
     }
     if (['browser.action.reconcile', 'browser.action.resolveOutcome'].includes(name)) {
-      if (!['CONFIRMED_APPLIED', 'CONFIRMED_NOT_APPLIED', 'UNKNOWN'].includes(String(args.outcome))) throw new DomainError('BROWSER_RECONCILIATION_OUTCOME_INVALID', 'Reconciliation outcome must be independently classified', 422, 'DO_NOT_RETRY');
-      if (!args.readBack || typeof args.readBack !== 'object' || args.readBack === null) throw new DomainError('BROWSER_READBACK_REQUIRED', 'Independent read-back evidence is required before resolving a browser action', 422, 'DO_NOT_RETRY');
+      if (!['CONFIRMED_APPLIED', 'CONFIRMED_NOT_APPLIED', 'UNKNOWN'].includes(String(args.outcome))) throw new DomainError('BROWSER_RECONCILIATION_REQUIRED', 'Reconciliation outcome must be independently classified', 422, 'DO_NOT_RETRY');
+      if (!args.readBack || typeof args.readBack !== 'object' || args.readBack === null) throw new DomainError('BROWSER_RECONCILIATION_REQUIRED', 'Independent read-back evidence is required before resolving a browser action', 422, 'DO_NOT_RETRY');
     }
   }
   if (name === 'agent.message.append' || name === 'generation.message.append' || name === 'chat.message.append') requireString(args, 'content');
@@ -271,19 +271,19 @@ export function validateCanonicalOperationCommand(operation: OperationContract, 
 async function runtimeMutation(client: DatabaseClient, context: CanonicalHandlerContext): Promise<unknown> {
   const id = requireTarget(context);
   const current = (await client.query(`SELECT * FROM kcml.runtime_instance WHERE id=$1 FOR UPDATE`, [id])).rows[0] as Record<string, unknown> | undefined;
-  if (!current) throw new DomainError('RUNTIME_INSTANCE_NOT_FOUND', 'Runtime instance does not exist', 404, 'DO_NOT_RETRY');
+  if (!current) throw new DomainError('RUNTIME_CONTEXT_NOT_CURRENT', 'Runtime instance does not exist', 404, 'DO_NOT_RETRY');
   const currentVersion = BigInt(String(current.state_version));
   if (context.expectedStateVersion !== null && currentVersion !== context.expectedStateVersion) throw new DomainError('STATE_VERSION_CONFLICT', 'Runtime instance state version changed', 409, 'REFRESH_AND_RETRY_NEW_COMMAND', { currentStateVersion: String(currentVersion) });
 
   const name = context.operation.operationName;
   if (name === 'runtime.prepare' || name === 'runtime.instance.start') {
-    if (!['STOPPED', 'FAILED', 'UNKNOWN', 'STARTING'].includes(String(current.effective_state))) throw new DomainError('RUNTIME_STATE_INVALID', `Cannot start runtime from ${current.effective_state}`, 409, 'RECONCILE_THEN_RETRY');
+    if (!['STOPPED', 'FAILED', 'UNKNOWN', 'STARTING'].includes(String(current.effective_state))) throw new DomainError('RUNTIME_STATE_BOUNDARY_VIOLATION', `Cannot start runtime from ${current.effective_state}`, 409, 'RECONCILE_THEN_RETRY');
     const updated = (await client.query(`UPDATE kcml.runtime_instance SET desired_state='STARTING',effective_state='STARTING',effective_at=NULL,state_version=state_version+1,correlation_id=$2 WHERE id=$1 AND state_version=$3 RETURNING *`, [id, context.correlationId, currentVersion.toString()])).rows[0];
     if (!updated) throw new DomainError('STATE_VERSION_CONFLICT', 'Runtime instance state version changed during preparation', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
     return { operation: name, runtime: updated, transition: { from: current.effective_state, to: 'STARTING' }, state_version: updated.state_version };
   }
   if (name === 'runtime.drain') {
-    if (!['READY', 'STARTING'].includes(String(current.effective_state))) throw new DomainError('RUNTIME_STATE_INVALID', `Cannot drain runtime from ${current.effective_state}`, 409, 'RECONCILE_THEN_RETRY');
+    if (!['READY', 'STARTING'].includes(String(current.effective_state))) throw new DomainError('RUNTIME_STATE_BOUNDARY_VIOLATION', `Cannot drain runtime from ${current.effective_state}`, 409, 'RECONCILE_THEN_RETRY');
     const updated = (await client.query(`UPDATE kcml.runtime_instance SET desired_state='DRAINING',effective_state='DRAINING',drain_logical_operation_id=$2,state_version=state_version+1,correlation_id=$3 WHERE id=$1 AND state_version=$4 RETURNING *`, [id, context.logicalOperationId, context.correlationId, currentVersion.toString()])).rows[0];
     if (!updated) throw new DomainError('STATE_VERSION_CONFLICT', 'Runtime instance changed during drain', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
     return { operation: name, runtime: updated, transition: { from: current.effective_state, to: 'DRAINING' }, state_version: updated.state_version };
@@ -301,17 +301,17 @@ async function runtimeMutation(client: DatabaseClient, context: CanonicalHandler
   }
   if (name === 'runtime.heartbeat') {
     const sequence = Number(context.arguments.heartbeatSequence);
-    if (!Number.isSafeInteger(sequence) || sequence <= Number(current.heartbeat_sequence ?? 0)) throw new DomainError('RUNTIME_HEARTBEAT_SEQUENCE_STALE', 'Heartbeat sequence must advance monotonically', 409, 'DO_NOT_RETRY');
+    if (!Number.isSafeInteger(sequence) || sequence <= Number(current.heartbeat_sequence ?? 0)) throw new DomainError('RUNTIME_PROCESS_STALE', 'Heartbeat sequence must advance monotonically', 409, 'DO_NOT_RETRY');
     const updated = (await client.query(`UPDATE kcml.runtime_instance SET heartbeat_sequence=$2,heartbeat_at=clock_timestamp(),state_version=state_version+1,correlation_id=$3 WHERE id=$1 AND state_version=$4 RETURNING *`, [id, sequence, context.correlationId, currentVersion.toString()])).rows[0];
     if (!updated) throw new DomainError('STATE_VERSION_CONFLICT', 'Runtime instance changed during heartbeat', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
     return { operation: name, runtime: updated, state_version: updated.state_version };
   }
   if (name === 'runtime.cleanup.resume') {
     const cleanup = (await client.query(`SELECT * FROM kcml.runtime_cleanup_operation WHERE runtime_instance_id=$1 ORDER BY created_at DESC LIMIT 1 FOR UPDATE`, [id])).rows[0];
-    if (!cleanup) throw new DomainError('RUNTIME_CLEANUP_NOT_FOUND', 'Runtime cleanup operation does not exist', 404, 'DO_NOT_RETRY');
+    if (!cleanup) throw new DomainError('RUNTIME_CONTEXT_NOT_CURRENT', 'Runtime cleanup operation does not exist', 404, 'DO_NOT_RETRY');
     return { operation: name, cleanup, closure: cleanup.completed_at !== null };
   }
-  throw new DomainError('RUNTIME_OPERATION_CONTRACT_REJECTED', `${name} has no safe state transition for its current persisted runtime contract`, 409, 'RECONCILE_THEN_RETRY', { state: current.effective_state, operation: name });
+  throw new DomainError('RUNTIME_BOUNDARY_CONTRACT_INCOMPLETE', `${name} has no safe state transition for its current persisted runtime contract`, 409, 'RECONCILE_THEN_RETRY', { state: current.effective_state, operation: name });
 }
 
 async function chatMutation(client: DatabaseClient, context: CanonicalHandlerContext): Promise<unknown> {
@@ -325,7 +325,7 @@ async function chatMutation(client: DatabaseClient, context: CanonicalHandlerCon
   }
   const conversationId = requireTarget(context);
   const conversation = (await client.query(`SELECT * FROM kcml.system_chat_conversation WHERE id=$1 FOR UPDATE`, [conversationId])).rows[0];
-  if (!conversation) throw new DomainError('CHAT_CONVERSATION_NOT_FOUND', 'Chat conversation does not exist', 404, 'DO_NOT_RETRY');
+  if (!conversation) throw new DomainError('KCIP_TARGET_NOT_FOUND', 'Chat conversation does not exist', 404, 'DO_NOT_RETRY');
   if (context.operation.operationName === 'chat.message.append') {
     const content = requireString(context.arguments, 'content');
     const sequence = BigInt(String((await client.query(`SELECT coalesce((SELECT sequence FROM kcml.system_chat_message WHERE conversation_id=$1 ORDER BY sequence DESC LIMIT 1),0)+1 AS next_sequence`, [conversationId])).rows[0].next_sequence));
@@ -335,7 +335,7 @@ async function chatMutation(client: DatabaseClient, context: CanonicalHandlerCon
     return { operation: context.operation.operationName, message: row, state_version: row.state_version, aggregate_event_sequence: sequence };
   }
   if (context.operation.operationName === 'chat.response.stream') return { operation: context.operation.operationName, conversationId, status: conversation.status, state_version: conversation.state_version };
-  throw new DomainError('CHAT_OPERATION_CONTRACT_REJECTED', `No exact chat transition exists for ${context.operation.operationName}`, 409, 'RECONCILE_THEN_RETRY');
+  throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', `No exact chat transition exists for ${context.operation.operationName}`, 409, 'RECONCILE_THEN_RETRY');
 }
 
 async function agentMutation(client: DatabaseClient, context: CanonicalHandlerContext): Promise<unknown> {
@@ -350,7 +350,7 @@ async function agentMutation(client: DatabaseClient, context: CanonicalHandlerCo
   }
   const id = requireTarget(context);
   const current = (await client.query(`SELECT * FROM kcml.agent_run WHERE id=$1 FOR UPDATE`, [id])).rows[0];
-  if (!current) throw new DomainError('AGENT_RUN_NOT_FOUND', 'Agent run does not exist', 404, 'DO_NOT_RETRY');
+  if (!current) throw new DomainError('AGENT_RUN_STATE_UNRESUMABLE', 'Agent run does not exist', 404, 'DO_NOT_RETRY');
   const transitions: Record<string, { from: string[]; to: string }> = {
     'agent.run.pause': { from: ['RUNNING', 'WAITING_FOR_MODEL', 'WAITING_FOR_TOOL'], to: 'PAUSED' },
     'agent.run.resume': { from: ['PAUSED', 'WAITING_FOR_OWNER'], to: 'RUNNING' },
@@ -360,8 +360,8 @@ async function agentMutation(client: DatabaseClient, context: CanonicalHandlerCo
     'agent.run.manualReview': { from: ['RUNNING', 'WAITING_FOR_MODEL', 'WAITING_FOR_TOOL', 'WAITING_FOR_OWNER'], to: 'MANUAL_REVIEW' }
   };
   const transition = transitions[context.operation.operationName];
-  if (!transition) throw new DomainError('AGENT_OPERATION_CONTRACT_REJECTED', `No exact agent transition exists for ${context.operation.operationName}`, 409, 'RECONCILE_THEN_RETRY');
-  if (!transition.from.includes(String(current.status))) throw new DomainError('AGENT_STATE_INVALID', `Cannot apply ${context.operation.operationName} from ${current.status}`, 409, 'RECONCILE_THEN_RETRY');
+  if (!transition) throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', `No exact agent transition exists for ${context.operation.operationName}`, 409, 'RECONCILE_THEN_RETRY');
+  if (!transition.from.includes(String(current.status))) throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', `Cannot apply ${context.operation.operationName} from ${current.status}`, 409, 'RECONCILE_THEN_RETRY');
   const completed = ['SUCCEEDED', 'FAILED'].includes(transition.to);
   const row = (await client.query(`UPDATE kcml.agent_run SET status=$2,completed_at=CASE WHEN $3 THEN clock_timestamp() ELSE completed_at END,output=CASE WHEN $3 THEN $4 ELSE output END,output_digest=CASE WHEN $3 THEN $5 ELSE output_digest END,state_version=state_version+1,updated_at=clock_timestamp(),correlation_id=$6 WHERE id=$1 AND state_version=$7 RETURNING *`, [id, transition.to, completed, completed ? (context.arguments.output ?? null) : null, completed ? digest(context.arguments.output ?? null) : null, context.correlationId, current.state_version])).rows[0];
   if (!row) throw new DomainError('STATE_VERSION_CONFLICT', 'Agent run changed during transition', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
@@ -370,7 +370,7 @@ async function agentMutation(client: DatabaseClient, context: CanonicalHandlerCo
 
 function unsupportedOperationRejection(family: string, context: CanonicalHandlerContext): never {
   throw new DomainError(
-    `${family}_OPERATION_CONTRACT_REJECTED`,
+    'SIDE_EFFECT_RECONCILIATION_FAILED',
     `The canonical ${family} contract has no permitted transition for ${context.operation.operationName}`,
     409,
     'RECONCILE_THEN_RETRY',
@@ -394,7 +394,7 @@ async function browserMutation(_client: DatabaseClient, context: CanonicalHandle
   const name = context.operation.operationName;
   const sessionFor = async (sessionId: string, lock = true): Promise<Record<string, any>> => {
     const row = (await _client.query(`SELECT * FROM kcml.browser_session WHERE id=$1${lock ? ' FOR UPDATE' : ''}`, [sessionId])).rows[0];
-    if (!row) throw new DomainError('BROWSER_SESSION_NOT_FOUND', 'Browser session does not exist', 404, 'DO_NOT_RETRY');
+    if (!row) throw new DomainError('BROWSER_SESSION_NOT_READY', 'Browser session does not exist', 404, 'DO_NOT_RETRY');
     if (['CLOSED', 'FAILED', 'EXPIRED', 'MANUAL_REVIEW'].includes(String(row.lifecycle))) throw browserSessionStateError(row.lifecycle);
     return row;
   };
@@ -406,7 +406,7 @@ async function browserMutation(_client: DatabaseClient, context: CanonicalHandle
   if (name === 'browser.cleanup.resume') {
     const id = requireTarget(context);
     const session = (await _client.query(`SELECT * FROM kcml.browser_session WHERE id=$1 FOR UPDATE`, [id])).rows[0];
-    if (!session) throw new DomainError('BROWSER_SESSION_NOT_FOUND', 'Browser session does not exist', 404, 'DO_NOT_RETRY');
+    if (!session) throw new DomainError('BROWSER_SESSION_NOT_READY', 'Browser session does not exist', 404, 'DO_NOT_RETRY');
     checkVersion(session);
     await _client.query(`UPDATE kcml.browser_upload_handle SET lifecycle='CLEANED',cleanup_at=coalesce(cleanup_at,clock_timestamp()),state_version=state_version+1,updated_at=clock_timestamp() WHERE session_id=$1 AND cleanup_at IS NULL AND (consumed_at IS NOT NULL OR expires_at<=clock_timestamp())`, [id]);
     await _client.query(`UPDATE kcml.browser_download SET cleanup_state='CLEANED',state_version=state_version+1,updated_at=clock_timestamp() WHERE session_id=$1 AND state='COMPLETED' AND cleanup_state IN ('PENDING','RETAINED')`, [id]);
@@ -422,14 +422,14 @@ async function browserMutation(_client: DatabaseClient, context: CanonicalHandle
     const pendingCount = Object.values(counts).reduce((sum, value) => sum + value, 0);
     if (pendingCount > 0) throw new DomainError('BROWSER_CLEANUP_INCOMPLETE', 'Browser session cannot close while owned resources remain pending', 409, 'RECONCILE_THEN_RETRY', { counts });
     const updated = (await _client.query(`UPDATE kcml.browser_session SET lifecycle='CLOSED',control_holder='NONE',control_expires_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND state_version=$2 AND lifecycle IN ('CLOSING','READY','PAUSED','RECOVERING') RETURNING *`, [id, session.state_version])).rows[0];
-    if (!updated) throw new DomainError('BROWSER_CLEANUP_STATE_INVALID', `Browser session cannot close from ${session.lifecycle}`, 409, 'RECONCILE_THEN_RETRY');
+    if (!updated) throw new DomainError('BROWSER_CLEANUP_INCOMPLETE', `Browser session cannot close from ${session.lifecycle}`, 409, 'RECONCILE_THEN_RETRY');
     return { operation: name, session: updated, closure: { complete: true, counts }, state_version: updated.state_version };
   }
 
   if (['browser.session.attach', 'browser.session.pause', 'browser.session.resume', 'browser.session.close', 'browser.session.recover'].includes(name)) {
     const id = requireTarget(context);
     const current = (await _client.query(`SELECT * FROM kcml.browser_session WHERE id=$1 FOR UPDATE`, [id])).rows[0];
-    if (!current) throw new DomainError('BROWSER_SESSION_NOT_FOUND', 'Browser session does not exist', 404, 'DO_NOT_RETRY');
+    if (!current) throw new DomainError('BROWSER_SESSION_NOT_READY', 'Browser session does not exist', 404, 'DO_NOT_RETRY');
     if (context.expectedStateVersion !== null && BigInt(String(current.state_version)) !== context.expectedStateVersion) throw new DomainError('STATE_VERSION_CONFLICT', 'Browser session state changed', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
     const transitions: Record<string, { from: string[]; to: string; holder?: string }> = {
       'browser.session.attach': { from: ['CREATING', 'READY', 'RECOVERING'], to: 'ACTIVE', holder: 'AI' },
@@ -440,7 +440,7 @@ async function browserMutation(_client: DatabaseClient, context: CanonicalHandle
     };
     const transition = transitions[name];
     if (!transition) return unsupportedOperationRejection('BROWSER', context);
-    if (!transition.from.includes(String(current.lifecycle))) throw new DomainError('BROWSER_SESSION_STATE_INVALID', `Cannot apply ${name} from ${current.lifecycle}`, 409, 'RECONCILE_THEN_RETRY');
+    if (!transition.from.includes(String(current.lifecycle))) throw new DomainError('BROWSER_SESSION_NOT_READY', `Cannot apply ${name} from ${current.lifecycle}`, 409, 'RECONCILE_THEN_RETRY');
     const updated = (await _client.query(`UPDATE kcml.browser_session SET lifecycle=$2,control_holder=$3,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND state_version=$4 RETURNING *`, [id, transition.to, transition.holder ?? current.control_holder, current.state_version])).rows[0];
     if (!updated) throw new DomainError('STATE_VERSION_CONFLICT', 'Browser session changed during transition', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
     return { operation: name, session: updated, transition: { from: current.lifecycle, to: transition.to }, state_version: updated.state_version };
@@ -452,7 +452,7 @@ async function browserMutation(_client: DatabaseClient, context: CanonicalHandle
     const size = requireNonNegativeInteger(context.arguments, 'sizeBytes');
     const safeName = requireSafeName(context.arguments, 'safeName', 'artifact.bin');
     const storageReference = requireString(context.arguments, 'storageReference');
-    if (!/^artifact:sha256:[a-f0-9]{64}$/iu.test(storageReference)) throw new DomainError('BROWSER_ARTIFACT_HANDLE_INVALID', 'storageReference must be content addressed', 422, 'DO_NOT_RETRY');
+    if (!/^artifact:sha256:[a-f0-9]{64}$/iu.test(storageReference)) throw new DomainError('BROWSER_ARTIFACT_INVALID', 'storageReference must be content addressed', 422, 'DO_NOT_RETRY');
     const row = (await _client.query(`INSERT INTO kcml.browser_automation_artifact(id,session_id,automation_run_id,step_id,action_run_id,artifact_type,storage_reference,page_id,frame_id,document_id,mime_type,size_bytes,artifact_digest,safe_name,source_origin,sensitivity,retention_state,scan_state,cleanup_state,canonical_digest,logical_operation_id,correlation_id,activation_epoch,platform_incarnation_id,application_deployment_epoch)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'RETAIN_UNTIL_OWNER_POLICY','VERIFIED','AVAILABLE',$17,$18,$19,$20,$21,$22) RETURNING *`, [
       context.arguments.artifactId ?? randomUUID(), session.id, context.arguments.automationRunId ?? null, context.arguments.stepId ?? null, context.arguments.actionRunId ?? null,
@@ -467,7 +467,7 @@ async function browserMutation(_client: DatabaseClient, context: CanonicalHandle
     const session = await sessionFor(requireUuid(context.arguments, 'sessionId'));
     const artifactId = requireUuid(context.arguments, 'artifactId');
     const artifact = (await _client.query(`SELECT * FROM kcml.browser_automation_artifact WHERE id=$1 AND session_id=$2 AND cleanup_state NOT IN ('REMOVED','FAILED')`, [artifactId, session.id])).rows[0];
-    if (!artifact) throw new DomainError('BROWSER_ARTIFACT_NOT_FOUND', 'Upload artifact is not owned by this browser session', 404, 'DO_NOT_RETRY');
+    if (!artifact) throw new DomainError('BROWSER_ARTIFACT_INVALID', 'Upload artifact is not owned by this browser session', 404, 'DO_NOT_RETRY');
     const suppliedDigest = context.arguments.contentDigest ? requireDigest(context.arguments, 'contentDigest') : Buffer.from(artifact.artifact_digest);
     if (!suppliedDigest.equals(Buffer.from(artifact.artifact_digest))) throw new DomainError('BROWSER_ARTIFACT_INVALID', 'Upload digest does not match the persisted artifact', 409, 'DO_NOT_RETRY');
     const size = context.arguments.sizeBytes === undefined ? BigInt(String(artifact.size_bytes)) : requireNonNegativeInteger(context.arguments, 'sizeBytes');
@@ -491,7 +491,7 @@ async function browserMutation(_client: DatabaseClient, context: CanonicalHandle
     if (new Date(current.expires_at).getTime() <= Date.now()) throw new DomainError('BROWSER_UPLOAD_HANDLE_INVALID', 'Upload handle has expired', 409, 'DO_NOT_RETRY');
     checkVersion(current);
     const session = await sessionFor(String(current.session_id));
-    if (context.arguments.sessionId && String(context.arguments.sessionId) !== String(session.id)) throw new DomainError('BROWSER_SESSION_MISMATCH', 'Upload handle belongs to a different browser session', 409, 'DO_NOT_RETRY');
+    if (context.arguments.sessionId && String(context.arguments.sessionId) !== String(session.id)) throw new DomainError('BROWSER_ACCOUNT_MISMATCH', 'Upload handle belongs to a different browser session', 409, 'DO_NOT_RETRY');
     const row = (await _client.query(`UPDATE kcml.browser_upload_handle SET lifecycle='CONSUMED',consumed_at=clock_timestamp(),cleanup_at=clock_timestamp()+interval '5 minutes',state_version=state_version+1,updated_at=clock_timestamp(),canonical_digest=$2 WHERE id=$1 AND consumed_at IS NULL AND state_version=$3 RETURNING *`, [id, digest({ id, operation: name, chooserEvidence: context.arguments.chooserEvidence ?? null }), current.state_version])).rows[0];
     if (!row) throw new DomainError('STATE_VERSION_CONFLICT', 'Upload handle changed during consume', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
     return { operation: name, upload: row, consumed: true, state_version: row.state_version };
@@ -500,15 +500,15 @@ async function browserMutation(_client: DatabaseClient, context: CanonicalHandle
   if (name === 'browser.download.started') {
     const session = await sessionFor(requireUuid(context.arguments, 'sessionId'));
     const id = context.targetId ?? (context.arguments.downloadId as string | undefined) ?? randomUUID();
-    if (context.arguments.downloadId && String(context.arguments.downloadId) !== id) throw new DomainError('BROWSER_DOWNLOAD_ID_CONFLICT', 'downloadId does not match targetId', 422, 'DO_NOT_RETRY');
+    if (context.arguments.downloadId && String(context.arguments.downloadId) !== id) throw new DomainError('BROWSER_DOWNLOAD_INCOMPLETE', 'downloadId does not match targetId', 422, 'DO_NOT_RETRY');
     const sourceUrl = context.arguments.sourceUrl ? requireString(context.arguments, 'sourceUrl') : null;
     let sourceOrigin = context.arguments.sourceOrigin ? requireString(context.arguments, 'sourceOrigin') : null;
     if (sourceUrl) {
       let parsedUrl: URL;
-      try { parsedUrl = new URL(sourceUrl); } catch { throw new DomainError('BROWSER_URL_INVALID', 'Download source URL must be an absolute URL', 422, 'DO_NOT_RETRY'); }
-      if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new DomainError('BROWSER_URL_INVALID', 'Download source URL must use HTTP(S)', 422, 'DO_NOT_RETRY');
+      try { parsedUrl = new URL(sourceUrl); } catch { throw new DomainError('BROWSER_ACTIONABILITY_FAILED', 'Download source URL must be an absolute URL', 422, 'DO_NOT_RETRY'); }
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new DomainError('BROWSER_ACTIONABILITY_FAILED', 'Download source URL must use HTTP(S)', 422, 'DO_NOT_RETRY');
       sourceOrigin ??= parsedUrl.origin;
-      if (sourceOrigin !== parsedUrl.origin) throw new DomainError('BROWSER_ORIGIN_MISMATCH', 'Download source origin does not match its URL', 422, 'DO_NOT_RETRY');
+      if (sourceOrigin !== parsedUrl.origin) throw new DomainError('BROWSER_ACCOUNT_MISMATCH', 'Download source origin does not match its URL', 422, 'DO_NOT_RETRY');
     }
     const row = (await _client.query(`INSERT INTO kcml.browser_download(id,session_id,run_id,step_id,action_id,source_origin,source_url,url_kind,event_sequence,suggested_name,safe_name,mime_type,expected_size_bytes,state,temp_path_handle,cleanup_state,canonical_digest,logical_operation_id,correlation_id,activation_epoch,platform_incarnation_id,application_deployment_epoch)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'STARTED',$14,'RETAINED',$15,$16,$17,$18,$19,$20) RETURNING *`, [
@@ -523,7 +523,7 @@ async function browserMutation(_client: DatabaseClient, context: CanonicalHandle
   if (name === 'browser.download.persist') {
     const id = requireTarget(context);
     const current = (await _client.query(`SELECT * FROM kcml.browser_download WHERE id=$1 FOR UPDATE`, [id])).rows[0];
-    if (!current) throw new DomainError('BROWSER_DOWNLOAD_NOT_FOUND', 'Browser download does not exist', 404, 'DO_NOT_RETRY');
+    if (!current) throw new DomainError('BROWSER_DOWNLOAD_INCOMPLETE', 'Browser download does not exist', 404, 'DO_NOT_RETRY');
     if (current.state === 'COMPLETED') return { operation: name, download: current, duplicate: true, state_version: current.state_version };
     if (!['STARTED', 'STREAMING'].includes(String(current.state))) throw new DomainError('BROWSER_DOWNLOAD_INCOMPLETE', `Download cannot be persisted from ${current.state}`, 409, 'RECONCILE_THEN_RETRY');
     checkVersion(current);
@@ -556,11 +556,11 @@ async function browserMutation(_client: DatabaseClient, context: CanonicalHandle
   if (name === 'browser.challenge.resolve') {
     const id = requireTarget(context);
     const current = (await _client.query(`SELECT * FROM kcml.browser_challenge WHERE id=$1 FOR UPDATE`, [id])).rows[0];
-    if (!current) throw new DomainError('BROWSER_CHALLENGE_NOT_FOUND', 'Browser challenge does not exist', 404, 'DO_NOT_RETRY');
+    if (!current) throw new DomainError('BROWSER_ACTIONABILITY_FAILED', 'Browser challenge does not exist', 404, 'DO_NOT_RETRY');
     const submittedResponse = context.arguments.response ?? context.arguments.assertion ?? context.arguments.registration ?? {};
     const submittedResponseDigest = context.arguments.responseDigest ? requireDigest(context.arguments, 'responseDigest') : digest(submittedResponse);
     if (current.status === 'RESOLVED') {
-      if (current.consume_digest && !Buffer.from(current.consume_digest).equals(submittedResponseDigest)) throw new DomainError('BROWSER_CHALLENGE_DUPLICATE_CONFLICT', 'A resolved challenge cannot be consumed with a different response', 409, 'DO_NOT_RETRY');
+      if (current.consume_digest && !Buffer.from(current.consume_digest).equals(submittedResponseDigest)) throw new DomainError('BROWSER_ACTIONABILITY_FAILED', 'A resolved challenge cannot be consumed with a different response', 409, 'DO_NOT_RETRY');
       return { operation: name, challenge: current, duplicate: true, state_version: current.state_version };
     }
     if (current.status !== 'PENDING') throw new DomainError('BROWSER_CHALLENGE_STALE', `Challenge is ${current.status}`, 409, 'RECONCILE_THEN_RETRY');
@@ -570,9 +570,9 @@ async function browserMutation(_client: DatabaseClient, context: CanonicalHandle
     }
     if (context.arguments.controlEpoch !== undefined && requireNonNegativeInteger(context.arguments, 'controlEpoch') !== BigInt(String(current.control_epoch))) throw new DomainError('BROWSER_CHALLENGE_STALE', 'Challenge control epoch is stale', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
     checkVersion(current);
-    if (current.challenge_type === 'WEBAUTHN_ASSERTION' && (!context.arguments.assertion || context.arguments.registration)) throw new DomainError('BROWSER_CHALLENGE_RESPONSE_INVALID', 'A WebAuthn assertion challenge requires an assertion response and cannot consume registration data', 422, 'DO_NOT_RETRY');
-    if (current.challenge_type === 'WEBAUTHN_REGISTRATION' && (!context.arguments.registration || context.arguments.assertion)) throw new DomainError('BROWSER_CHALLENGE_RESPONSE_INVALID', 'A WebAuthn registration challenge requires registration response data and cannot consume an assertion', 422, 'DO_NOT_RETRY');
-    if (current.challenge_type === 'PASSKEY' && !context.arguments.bridgeResponseId) throw new DomainError('BROWSER_PASSKEY_BRIDGE_REQUIRED', 'A passkey resolution must be acknowledged by the current OWNER Device Bridge', 422, 'DO_NOT_RETRY');
+    if (current.challenge_type === 'WEBAUTHN_ASSERTION' && (!context.arguments.assertion || context.arguments.registration)) throw new DomainError('BROWSER_ACTIONABILITY_FAILED', 'A WebAuthn assertion challenge requires an assertion response and cannot consume registration data', 422, 'DO_NOT_RETRY');
+    if (current.challenge_type === 'WEBAUTHN_REGISTRATION' && (!context.arguments.registration || context.arguments.assertion)) throw new DomainError('BROWSER_ACTIONABILITY_FAILED', 'A WebAuthn registration challenge requires registration response data and cannot consume an assertion', 422, 'DO_NOT_RETRY');
+    if (current.challenge_type === 'PASSKEY' && !context.arguments.bridgeResponseId) throw new DomainError('BROWSER_CHALLENGE_REQUIRED', 'A passkey resolution must be acknowledged by the current OWNER Device Bridge', 422, 'DO_NOT_RETRY');
     const responseDigest = submittedResponseDigest;
     const row = (await _client.query(`UPDATE kcml.browser_challenge SET status='RESOLVED',resolved_at=clock_timestamp(),owner_response_id=$2,bridge_response_id=$3,consume_digest=$4,state_version=state_version+1,updated_at=clock_timestamp(),canonical_digest=$5 WHERE id=$1 AND status='PENDING' AND state_version=$6 RETURNING *`, [id, context.arguments.ownerResponseId ?? null, context.arguments.bridgeResponseId ?? null, responseDigest, digest({ id, responseDigest: responseDigest.toString('hex'), method: context.arguments.resolutionMethod ?? null }), current.state_version])).rows[0];
     if (!row) throw new DomainError('STATE_VERSION_CONFLICT', 'Challenge changed during resolution', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
@@ -590,8 +590,8 @@ async function browserMutation(_client: DatabaseClient, context: CanonicalHandle
     const frameId = requireUuid(observation, 'frameId');
     const documentEpoch = requireNonNegativeInteger(observation, 'documentEpoch');
     const url = requireString(observation, 'url');
-    try { if (new URL(url).protocol !== 'http:' && new URL(url).protocol !== 'https:') throw new Error('scheme'); } catch { throw new DomainError('BROWSER_URL_INVALID', 'Browser observation URL must be an HTTP(S) URL', 422, 'DO_NOT_RETRY'); }
-    if (contextGeneration !== BigInt(String(session.context_generation)) || documentEpoch < BigInt(String(session.document_epoch)) || revision <= BigInt(String(session.observation_revision))) throw new DomainError('BROWSER_OBSERVATION_FENCE_INVALID', 'Browser observation is stale or regressed', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
+    try { if (new URL(url).protocol !== 'http:' && new URL(url).protocol !== 'https:') throw new Error('scheme'); } catch { throw new DomainError('BROWSER_ACTIONABILITY_FAILED', 'Browser observation URL must be an HTTP(S) URL', 422, 'DO_NOT_RETRY'); }
+    if (contextGeneration !== BigInt(String(session.context_generation)) || documentEpoch < BigInt(String(session.document_epoch)) || revision <= BigInt(String(session.observation_revision))) throw new DomainError('BROWSER_DOCUMENT_STALE', 'Browser observation is stale or regressed', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
     const digestValue = requireDigest(observation, 'digest');
     const row = (await _client.query(`INSERT INTO kcml.browser_observation(id,session_id,observation_revision,context_generation,page_id,page_generation,frame_id,document_epoch,url,title,semantic_snapshot,screenshot_artifact_id,network_summary,console_summary,canonical_digest,observed_at)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`, [observationId, session.id, revision.toString(), contextGeneration.toString(), pageId, requireNonNegativeInteger(observation, 'pageGeneration').toString(), frameId, documentEpoch.toString(), url, requireString(observation, 'title'), observation.semanticSnapshot ?? {}, observation.screenshotArtifactId ?? null, observation.networkSummary ?? {}, observation.consoleSummary ?? {}, digestValue, observation.observedAt ?? new Date().toISOString()])).rows[0];
@@ -617,14 +617,14 @@ async function browserMutation(_client: DatabaseClient, context: CanonicalHandle
     const action = requireString(context.arguments, 'action');
     const session = await sessionFor(sessionId);
     for (const [key, column] of [['expectedControlEpoch', 'control_epoch'], ['expectedDocumentEpoch', 'document_epoch'], ['expectedObservationRevision', 'observation_revision']] as const) {
-      if (context.arguments[key] !== undefined && requireNonNegativeInteger(context.arguments, key) !== BigInt(String(session[column]))) throw new DomainError('BROWSER_FENCE_CONFLICT', `Browser ${key} does not match the current session fence`, 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
+      if (context.arguments[key] !== undefined && requireNonNegativeInteger(context.arguments, key) !== BigInt(String(session[column]))) throw new DomainError('FENCING_TOKEN_STALE', `Browser ${key} does not match the current session fence`, 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
     }
-    if (!['AI', 'OWNER', 'AUTOMATION'].includes(String(session.control_holder))) throw new DomainError('BROWSER_CONTROL_UNAVAILABLE', 'Browser session has no active control holder', 409, 'RECONCILE_THEN_RETRY');
+    if (!['AI', 'OWNER', 'AUTOMATION'].includes(String(session.control_holder))) throw new DomainError('BROWSER_CONTROL_HELD', 'Browser session has no active control holder', 409, 'RECONCILE_THEN_RETRY');
     const targetReferenceId = context.arguments.targetReferenceId === undefined || context.arguments.targetReferenceId === null ? null : requireUuid(context.arguments, 'targetReferenceId');
     if (targetReferenceId) {
       const target = (await _client.query(`SELECT * FROM kcml.browser_target_reference WHERE id=$1 AND session_id=$2`, [targetReferenceId, session.id])).rows[0];
-      if (!target) throw new DomainError('BROWSER_TARGET_NOT_FOUND', 'Target reference does not belong to the browser session', 404, 'DO_NOT_RETRY');
-      if (BigInt(String(target.document_epoch)) !== BigInt(String(session.document_epoch)) || String(target.page_id) !== String(session.current_page_id) || String(target.frame_id) !== String(session.current_frame_id)) throw new DomainError('BROWSER_TARGET_STALE', 'Target reference belongs to a stale page or document fence', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
+      if (!target) throw new DomainError('BROWSER_TARGET_MISSING', 'Target reference does not belong to the browser session', 404, 'DO_NOT_RETRY');
+      if (BigInt(String(target.document_epoch)) !== BigInt(String(session.document_epoch)) || String(target.page_id) !== String(session.current_page_id) || String(target.frame_id) !== String(session.current_frame_id)) throw new DomainError('BROWSER_DOCUMENT_STALE', 'Target reference belongs to a stale page or document fence', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
     }
     const row = (await _client.query(`INSERT INTO kcml.browser_action_run(session_id,logical_operation_id,action,target_reference_id,payload,expected_control_epoch,expected_document_epoch,expected_observation_revision) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`, [sessionId, context.logicalOperationId, action, targetReferenceId, context.arguments.payload ?? {}, Number(context.arguments.expectedControlEpoch ?? session.control_epoch ?? 0), Number(context.arguments.expectedDocumentEpoch ?? session.document_epoch ?? 0), Number(context.arguments.expectedObservationRevision ?? session.observation_revision ?? 0)])).rows[0];
     await _client.query(`INSERT INTO kcml.browser_action_attempt(action_run_id,attempt,command_id,action_fence,browser_identity_snapshot,resolved_target_candidates,actionability_evidence,input_strategy,prearmed_waiters,evidence,started_at,canonical_digest,logical_operation_id,correlation_id,activation_epoch,platform_incarnation_id,application_deployment_epoch)
@@ -635,15 +635,15 @@ async function browserMutation(_client: DatabaseClient, context: CanonicalHandle
   if (name === 'browser.action.dispatchPhase') {
     const id = requireTarget(context);
     const action = (await _client.query(`SELECT * FROM kcml.browser_action_run WHERE id=$1 FOR UPDATE`, [id])).rows[0];
-    if (!action) throw new DomainError('BROWSER_ACTION_NOT_FOUND', 'Browser action does not exist', 404, 'DO_NOT_RETRY');
+    if (!action) throw new DomainError('BROWSER_TARGET_MISSING', 'Browser action does not exist', 404, 'DO_NOT_RETRY');
     checkVersion(action);
     const phase = String(context.arguments.phase) as BrowserDispatchPhase;
-    if (!browserDispatchPhaseOrder.has(phase)) throw new DomainError('BROWSER_DISPATCH_PHASE_INVALID', 'Browser dispatch phase is not in the canonical phase set', 422, 'DO_NOT_RETRY', { phase });
-    if (!context.arguments.evidence || typeof context.arguments.evidence !== 'object') throw new DomainError('BROWSER_DISPATCH_EVIDENCE_REQUIRED', 'Every browser dispatch phase requires typed adapter evidence', 422, 'DO_NOT_RETRY');
+    if (!browserDispatchPhaseOrder.has(phase)) throw new DomainError('BROWSER_ACTIONABILITY_FAILED', 'Browser dispatch phase is not in the canonical phase set', 422, 'DO_NOT_RETRY', { phase });
+    if (!context.arguments.evidence || typeof context.arguments.evidence !== 'object') throw new DomainError('BROWSER_CHALLENGE_REQUIRED', 'Every browser dispatch phase requires typed adapter evidence', 422, 'DO_NOT_RETRY');
     const attempt = (await _client.query(`SELECT * FROM kcml.browser_action_attempt WHERE action_run_id=$1 ORDER BY attempt DESC LIMIT 1 FOR UPDATE`, [id])).rows[0];
-    if (!attempt) throw new DomainError('BROWSER_ACTION_ATTEMPT_MISSING', 'Browser action has no persisted attempt', 409, 'RECONCILE_THEN_RETRY');
+    if (!attempt) throw new DomainError('BROWSER_ACTIONABILITY_FAILED', 'Browser action has no persisted attempt', 409, 'RECONCILE_THEN_RETRY');
     const last = (await _client.query(`SELECT phase,phase_sequence FROM kcml.browser_action_dispatch_event WHERE action_attempt_id=$1 ORDER BY phase_sequence DESC LIMIT 1`, [attempt.id])).rows[0];
-    if (last && browserDispatchPhaseOrder.get(phase)! < browserDispatchPhaseOrder.get(String(last.phase) as BrowserDispatchPhase)!) throw new DomainError('BROWSER_DISPATCH_PHASE_REGRESSION', 'Browser dispatch phase is not monotonic', 409, 'MANUAL_REVIEW');
+    if (last && browserDispatchPhaseOrder.get(phase)! < browserDispatchPhaseOrder.get(String(last.phase) as BrowserDispatchPhase)!) throw new DomainError('BROWSER_RECOVERY_UNKNOWN', 'Browser dispatch phase is not monotonic', 409, 'MANUAL_REVIEW');
     if (last?.phase === phase) return { operation: name, action, duplicate: true, phase, state_version: action.state_version };
     const phaseSequence = Number(last?.phase_sequence ?? 0) + 1;
     const evidence = context.arguments.evidence as JsonObject;
@@ -659,12 +659,12 @@ async function browserMutation(_client: DatabaseClient, context: CanonicalHandle
   if (['browser.action.cancel', 'browser.action.complete', 'browser.action.fail', 'browser.action.reconcile', 'browser.action.resolveOutcome'].includes(name)) {
     const id = requireTarget(context);
     const current = (await _client.query(`SELECT * FROM kcml.browser_action_run WHERE id=$1 FOR UPDATE`, [id])).rows[0];
-    if (!current) throw new DomainError('BROWSER_ACTION_NOT_FOUND', 'Browser action does not exist', 404, 'DO_NOT_RETRY');
+    if (!current) throw new DomainError('BROWSER_TARGET_MISSING', 'Browser action does not exist', 404, 'DO_NOT_RETRY');
     checkVersion(current);
     if (name === 'browser.action.cancel' && ['POSSIBLE_EFFECT', 'RECONCILING', 'UNKNOWN'].includes(String(current.dispatch_phase))) throw new DomainError('BROWSER_RECONCILIATION_REQUIRED', 'An action after a possible mutation trigger must be reconciled before cancellation', 409, 'RECONCILE_THEN_RETRY');
     if (name === 'browser.action.complete' && current.dispatch_phase !== 'CONFIRMED_APPLIED') throw new DomainError('BROWSER_POSTCONDITION_FAILED', 'Action completion requires an independently reconciled applied outcome', 409, 'RECONCILE_THEN_RETRY');
     const outcome = name === 'browser.action.cancel' ? 'CONFIRMED_NOT_APPLIED' : name === 'browser.action.fail' ? 'FAILED_FINAL' : name === 'browser.action.complete' ? 'CONFIRMED_APPLIED' : String(context.arguments.outcome);
-    if (['browser.action.reconcile', 'browser.action.resolveOutcome'].includes(name) && !context.arguments.readBack) throw new DomainError('BROWSER_READBACK_REQUIRED', 'Independent read-back is required for reconciliation', 422, 'DO_NOT_RETRY');
+    if (['browser.action.reconcile', 'browser.action.resolveOutcome'].includes(name) && !context.arguments.readBack) throw new DomainError('BROWSER_RECONCILIATION_REQUIRED', 'Independent read-back is required for reconciliation', 422, 'DO_NOT_RETRY');
     const outcomePayload = name === 'browser.action.fail' ? context.arguments.error ?? {} : { classification: outcome, readBack: context.arguments.readBack ?? null, evidenceDigest: canonicalDigest(safeJson(context.arguments.readBack ?? context.arguments.error ?? {})) };
     const phase = outcome === 'CONFIRMED_APPLIED' ? 'CONFIRMED_APPLIED' : outcome === 'CONFIRMED_NOT_APPLIED' ? 'CONFIRMED_NOT_APPLIED' : outcome === 'UNKNOWN' ? 'UNKNOWN' : 'FAILED_FINAL';
     const updated = (await _client.query(`UPDATE kcml.browser_action_run SET dispatch_phase=$2,outcome=$3,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND state_version=$4 RETURNING *`, [id, phase, outcomePayload, current.state_version])).rows[0];
@@ -698,9 +698,9 @@ async function generationMutation(client: DatabaseClient, context: CanonicalHand
   const jobId = target ?? (typeof context.arguments.jobId === 'string' ? context.arguments.jobId : null);
   const jobForUpdate = async (id: string): Promise<any> => {
     const row = (await client.query(`SELECT * FROM kcml.generation_job WHERE id=$1 FOR UPDATE`, [id])).rows[0];
-    if (!row) throw new DomainError('GENERATION_JOB_NOT_FOUND', 'Generation job does not exist', 404, 'DO_NOT_RETRY');
+    if (!row) throw new DomainError('GENERATION_BLOCKED', 'Generation job does not exist', 404, 'DO_NOT_RETRY');
     if (context.expectedStateVersion !== null && BigInt(String(row.state_version)) !== context.expectedStateVersion) throw new DomainError('STATE_VERSION_CONFLICT', 'Generation job state changed', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
-    if (['COMPLETED', 'FAILED', 'CANCELLED'].includes(String(row.lifecycle))) throw new DomainError('GENERATION_JOB_TERMINAL', 'Generation job is terminal', 409, 'DO_NOT_RETRY');
+    if (['COMPLETED', 'FAILED', 'CANCELLED'].includes(String(row.lifecycle))) throw new DomainError('TERMINAL_STATE_IMMUTABLE', 'Generation job is terminal', 409, 'DO_NOT_RETRY');
     return row;
   };
   const appendCheckpoint = async (job: any, phase: string, kind: string, payload: unknown, phaseRunId: string | null = null): Promise<any> => {
@@ -716,7 +716,7 @@ async function generationMutation(client: DatabaseClient, context: CanonicalHand
       VALUES($1,$2,$3,clock_timestamp(),clock_timestamp(),$4,$5,$6,$5,$7,$8,$9,$10,$11)`, [job.id, sequence.toString(), eventType, value, digest(value), phaseRunId, context.logicalOperationId, context.correlationId, context.activationEpoch.toString(), context.platformIncarnationId, context.applicationDeploymentEpoch.toString()]);
   };
   if (['generation.job.cancel', 'generation.job.resume', 'generation.job.retry', 'generation.job.complete'].includes(name)) {
-    if (!jobId) throw new DomainError('OPERATION_TARGET_REQUIRED', `${name} requires a generation job target`, 422, 'DO_NOT_RETRY');
+    if (!jobId) throw new DomainError('AGENTIC_DYNAMIC_TARGET_UNBOUND', `${name} requires a generation job target`, 422, 'DO_NOT_RETRY');
     const current = await jobForUpdate(jobId);
     const transitions: Record<string, { from: string[]; to: string }> = {
       'generation.job.cancel': { from: ['DISCUSSING', 'ANALYZING', 'IMPLEMENTING', 'INTEGRATING', 'VALIDATING', 'CML_CONFORMANCE', 'ACTIVATING', 'BLOCKED'], to: 'CANCELLED' },
@@ -725,8 +725,8 @@ async function generationMutation(client: DatabaseClient, context: CanonicalHand
       'generation.job.complete': { from: ['ACTIVATING'], to: 'COMPLETED' }
     };
     const transition = transitions[name];
-    if (!transition || !transition.from.includes(String(current.lifecycle))) throw new DomainError('GENERATION_JOB_STATE_INVALID', `Cannot apply ${name} from ${current.lifecycle}`, 409, 'RECONCILE_THEN_RETRY');
-    if (transition.to !== 'COMPLETED' && !['DISCUSSING', 'ANALYZING', 'IMPLEMENTING', 'INTEGRATING', 'VALIDATING', 'CML_CONFORMANCE', 'ACTIVATING', 'BLOCKED', 'FAILED', 'CANCELLED'].includes(transition.to)) throw new DomainError('GENERATION_PHASE_INVALID', 'Resume phase is not canonical', 422, 'DO_NOT_RETRY');
+    if (!transition || !transition.from.includes(String(current.lifecycle))) throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', `Cannot apply ${name} from ${current.lifecycle}`, 409, 'RECONCILE_THEN_RETRY');
+    if (transition.to !== 'COMPLETED' && !['DISCUSSING', 'ANALYZING', 'IMPLEMENTING', 'INTEGRATING', 'VALIDATING', 'CML_CONFORMANCE', 'ACTIVATING', 'BLOCKED', 'FAILED', 'CANCELLED'].includes(transition.to)) throw new DomainError('GENERATION_PLAN_INVALID', 'Resume phase is not canonical', 422, 'DO_NOT_RETRY');
     const evidence = safeJson({ operation: name, reason: context.arguments.reason ?? null, resumePhase: transition.to });
     const updated = (await client.query(`UPDATE kcml.generation_job SET lifecycle=$2,current_phase=$2,cancellation_version=CASE WHEN $2='CANCELLED' THEN cancellation_version+1 ELSE cancellation_version END,terminal_evidence=CASE WHEN $2 IN ('COMPLETED','CANCELLED') THEN $3 ELSE terminal_evidence END,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND state_version=$4 RETURNING *`, [jobId, transition.to, evidence, current.state_version])).rows[0];
     if (!updated) throw new DomainError('STATE_VERSION_CONFLICT', 'Generation job changed during transition', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
@@ -748,14 +748,14 @@ async function generationMutation(client: DatabaseClient, context: CanonicalHand
     return { operation: name, job: updated, transition: { from: current.lifecycle, to: transition.to }, checkpoint: checkpointRow, state_version: updated.state_version };
   }
   if (name === 'generation.phase.start') {
-    if (!jobId) throw new DomainError('OPERATION_TARGET_REQUIRED', 'generation.phase.start requires a generation job target', 422, 'DO_NOT_RETRY');
+    if (!jobId) throw new DomainError('AGENTIC_DYNAMIC_TARGET_UNBOUND', 'generation.phase.start requires a generation job target', 422, 'DO_NOT_RETRY');
     const job = await jobForUpdate(jobId);
     const phase = String(context.arguments.phase ?? job.lifecycle);
-    if (!['DISCUSSING', 'ANALYZING', 'IMPLEMENTING', 'INTEGRATING', 'VALIDATING', 'CML_CONFORMANCE', 'ACTIVATING'].includes(phase)) throw new DomainError('GENERATION_PHASE_INVALID', 'Unknown generation phase', 422, 'DO_NOT_RETRY');
+    if (!['DISCUSSING', 'ANALYZING', 'IMPLEMENTING', 'INTEGRATING', 'VALIDATING', 'CML_CONFORMANCE', 'ACTIVATING'].includes(phase)) throw new DomainError('GENERATION_PLAN_INVALID', 'Unknown generation phase', 422, 'DO_NOT_RETRY');
     const phases = ['DISCUSSING', 'ANALYZING', 'IMPLEMENTING', 'INTEGRATING', 'VALIDATING', 'CML_CONFORMANCE', 'ACTIVATING'];
     const currentIndex = phases.indexOf(String(job.lifecycle));
     const requestedIndex = phases.indexOf(phase);
-    if (currentIndex < 0 || (phase !== String(job.lifecycle) && requestedIndex !== currentIndex + 1)) throw new DomainError('GENERATION_PHASE_ORDER_INVALID', `Cannot start ${phase} after ${job.lifecycle}`, 409, 'RECONCILE_THEN_RETRY');
+    if (currentIndex < 0 || (phase !== String(job.lifecycle) && requestedIndex !== currentIndex + 1)) throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', `Cannot start ${phase} after ${job.lifecycle}`, 409, 'RECONCILE_THEN_RETRY');
     const active = (await client.query(`SELECT * FROM kcml.generation_phase_run WHERE job_id=$1 AND state IN ('QUEUED','RUNNING','WAITING_FOR_DEPENDENCY','WAITING_FOR_OWNER','REPAIRING','CANCEL_REQUESTED') FOR UPDATE`, [jobId])).rows[0];
     if (active) return { operation: name, phaseRun: active, duplicate: true, state_version: job.state_version };
     const attempt = await allocateContiguousSequence(client, 'GENERATION_PHASE_ATTEMPT', jobId, phase);
@@ -771,18 +771,18 @@ async function generationMutation(client: DatabaseClient, context: CanonicalHand
   }
   if (name === 'generation.phase.complete') {
     const phaseRunId = typeof context.arguments.phaseRunId === 'string' ? context.arguments.phaseRunId : target;
-    if (!phaseRunId) throw new DomainError('OPERATION_TARGET_REQUIRED', 'generation.phase.complete requires a phase run target', 422, 'DO_NOT_RETRY');
+    if (!phaseRunId) throw new DomainError('AGENTIC_DYNAMIC_TARGET_UNBOUND', 'generation.phase.complete requires a phase run target', 422, 'DO_NOT_RETRY');
     const run = (await client.query(`SELECT * FROM kcml.generation_phase_run WHERE id=$1 FOR UPDATE`, [phaseRunId])).rows[0];
-    if (!run) throw new DomainError('GENERATION_PHASE_RUN_NOT_FOUND', 'Generation phase run does not exist', 404, 'DO_NOT_RETRY');
-    if (String(run.state) !== 'RUNNING' || String(run.lease_owner) !== String(context.arguments.workerId ?? context.logicalOperationId) || BigInt(run.lease_fencing_token) !== BigInt(String(context.arguments.fencingToken ?? run.lease_fencing_token))) throw new DomainError('GENERATION_PHASE_FENCE_LOST', 'Phase completion was submitted by a stale worker', 409, 'RECONCILE_THEN_RETRY');
+    if (!run) throw new DomainError('CHECKPOINT_STALE', 'Generation phase run does not exist', 404, 'DO_NOT_RETRY');
+    if (String(run.state) !== 'RUNNING' || String(run.lease_owner) !== String(context.arguments.workerId ?? context.logicalOperationId) || BigInt(run.lease_fencing_token) !== BigInt(String(context.arguments.fencingToken ?? run.lease_fencing_token))) throw new DomainError('FENCING_TOKEN_STALE', 'Phase completion was submitted by a stale worker', 409, 'RECONCILE_THEN_RETRY');
     const job = await jobForUpdate(String(run.job_id));
     const outcome = String(context.arguments.outcome ?? 'SUCCEEDED');
-    if (!['SUCCEEDED', 'FAILED', 'CANCELLED'].includes(outcome)) throw new DomainError('GENERATION_PHASE_OUTCOME_INVALID', 'Phase outcome is not terminal', 422, 'DO_NOT_RETRY');
+    if (!['SUCCEEDED', 'FAILED', 'CANCELLED'].includes(outcome)) throw new DomainError('GENERATION_PLAN_INVALID', 'Phase outcome is not terminal', 422, 'DO_NOT_RETRY');
     const next = outcome === 'SUCCEEDED' ? ({ DISCUSSING: 'ANALYZING', ANALYZING: 'IMPLEMENTING', IMPLEMENTING: 'INTEGRATING', INTEGRATING: 'VALIDATING', VALIDATING: 'CML_CONFORMANCE', CML_CONFORMANCE: 'ACTIVATING', ACTIVATING: null } as Record<string, string | null>)[String(run.phase)] : null;
     const evidence = safeJson({ ...(typeof context.arguments.evidence === 'object' && context.arguments.evidence ? context.arguments.evidence : {}), phaseRunId, phase: run.phase, outcome, fencingToken: String(run.lease_fencing_token) });
     const cp = await appendCheckpoint(job, String(run.phase), 'PHASE_TERMINAL', evidence, phaseRunId);
     const updatedRun = (await client.query(`UPDATE kcml.generation_phase_run SET state=$2,completed_at=clock_timestamp(),result_summary=$3,result_digest=$4,output_checkpoint_id=$5,lease_owner=NULL,lease_expires_at=NULL,state_version=state_version+1 WHERE id=$1 AND state='RUNNING' AND lease_fencing_token=$6 RETURNING *`, [phaseRunId, outcome, evidence, digest(evidence), cp.id, run.lease_fencing_token])).rows[0];
-    if (!updatedRun) throw new DomainError('GENERATION_PHASE_FENCE_LOST', 'Phase completion lost its fencing CAS', 409, 'RECONCILE_THEN_RETRY');
+    if (!updatedRun) throw new DomainError('FENCING_TOKEN_STALE', 'Phase completion lost its fencing CAS', 409, 'RECONCILE_THEN_RETRY');
     if (!next || outcome !== 'SUCCEEDED') {
       const terminal = outcome === 'SUCCEEDED' ? 'COMPLETED' : outcome === 'CANCELLED' ? 'CANCELLED' : 'FAILED';
       const changed = (await client.query(`UPDATE kcml.generation_job SET lifecycle=$2,current_phase=$2,active_phase_run_id=NULL,latest_checkpoint_id=$3,terminal_evidence=$4,state_version=state_version+1 WHERE id=$1 AND state_version=$5 RETURNING *`, [job.id, terminal, cp.id, evidence, job.state_version])).rows[0];
@@ -801,11 +801,11 @@ async function generationMutation(client: DatabaseClient, context: CanonicalHand
     return { operation: name, phaseRun: updatedRun, successor, job: changed, checkpoint: cp, state_version: changed.state_version };
   }
   if (name === 'generation.candidate.publish') {
-    if (!jobId) throw new DomainError('OPERATION_TARGET_REQUIRED', 'generation.candidate.publish requires a generation job target', 422, 'DO_NOT_RETRY');
+    if (!jobId) throw new DomainError('AGENTIC_DYNAMIC_TARGET_UNBOUND', 'generation.candidate.publish requires a generation job target', 422, 'DO_NOT_RETRY');
     const job = await jobForUpdate(jobId);
     const kind = String(context.arguments.kind ?? '');
-    if (!['COMPONENT', 'MCP_SERVER', 'MCP_TOOL', 'MCP_RESOURCE', 'MCP_PROMPT', 'AI_AGENT', 'AUTOMATION'].includes(kind)) throw new DomainError('GENERATION_CANDIDATE_KIND_INVALID', 'Candidate kind is not canonical', 422, 'DO_NOT_RETRY');
-    if (!context.arguments.proposedIdentity || !context.arguments.revisionPayload) throw new DomainError('GENERATION_CANDIDATE_FIELDS_MISSING', 'Candidate identity and revision payload are required', 422, 'DO_NOT_RETRY');
+    if (!['COMPONENT', 'MCP_SERVER', 'MCP_TOOL', 'MCP_RESOURCE', 'MCP_PROMPT', 'AI_AGENT', 'AUTOMATION'].includes(kind)) throw new DomainError('GENERATION_PLAN_INVALID', 'Candidate kind is not canonical', 422, 'DO_NOT_RETRY');
+    if (!context.arguments.proposedIdentity || !context.arguments.revisionPayload) throw new DomainError('GENERATION_PLAN_INVALID', 'Candidate identity and revision payload are required', 422, 'DO_NOT_RETRY');
     const candidateDigest = digest({ kind, proposedIdentity: context.arguments.proposedIdentity, revisionPayload: context.arguments.revisionPayload });
     const candidateId = randomUUID();
     const candidate = (await client.query(`INSERT INTO kcml.generation_contract_candidate(id,job_id,candidate_kind,proposed_identity,revision_payload,revision_digest,specification_paths,validation_state,verification_state,integration_state,canonical_digest,logical_operation_id,correlation_id,activation_epoch,platform_incarnation_id,application_deployment_epoch)
@@ -815,30 +815,30 @@ async function generationMutation(client: DatabaseClient, context: CanonicalHand
     return { operation: name, candidate, validationRun: validation, state_version: candidate.state_version };
   }
   if (name === 'generation.workspace.patch') {
-    if (!jobId) throw new DomainError('OPERATION_TARGET_REQUIRED', 'generation.workspace.patch requires a generation job target', 422, 'DO_NOT_RETRY');
+    if (!jobId) throw new DomainError('AGENTIC_DYNAMIC_TARGET_UNBOUND', 'generation.workspace.patch requires a generation job target', 422, 'DO_NOT_RETRY');
     const job = await jobForUpdate(jobId);
     const phaseRunId = typeof context.arguments.phaseRunId === 'string' ? context.arguments.phaseRunId : job.active_phase_run_id;
-    if (!phaseRunId) throw new DomainError('GENERATION_PHASE_RUN_REQUIRED', 'Workspace patch must be owned by a phase run', 409, 'RECONCILE_THEN_RETRY');
+    if (!phaseRunId) throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', 'Workspace patch must be owned by a phase run', 409, 'RECONCILE_THEN_RETRY');
     const phaseRun = (await client.query(`SELECT id,state FROM kcml.generation_phase_run WHERE id=$1 AND job_id=$2 FOR UPDATE`, [phaseRunId, jobId])).rows[0];
-    if (!phaseRun || !['RUNNING', 'REPAIRING'].includes(String(phaseRun.state))) throw new DomainError('GENERATION_PHASE_RUN_INVALID', 'Workspace patch requires an active phase run', 409, 'RECONCILE_THEN_RETRY');
+    if (!phaseRun || !['RUNNING', 'REPAIRING'].includes(String(phaseRun.state))) throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', 'Workspace patch requires an active phase run', 409, 'RECONCILE_THEN_RETRY');
     const operations = context.arguments.operations;
-    if (!Array.isArray(operations) || operations.length === 0) throw new DomainError('GENERATION_PATCH_EMPTY', 'WorkspacePatchSet must contain ordered operations', 422, 'DO_NOT_RETRY');
+    if (!Array.isArray(operations) || operations.length === 0) throw new DomainError('GENERATION_PLAN_INVALID', 'WorkspacePatchSet must contain ordered operations', 422, 'DO_NOT_RETRY');
     const baseId = typeof context.arguments.baseWorkspaceRevisionId === 'string' ? context.arguments.baseWorkspaceRevisionId : String(job.workspace_revision_id ?? '');
     const base = (await client.query(`SELECT * FROM kcml.generation_workspace_revision WHERE id=$1 AND job_id=$2`, [baseId, jobId])).rows[0];
-    if (!base) throw new DomainError('GENERATION_WORKSPACE_BASE_MISSING', 'Workspace base revision does not exist', 409, 'RECONCILE_THEN_RETRY');
+    if (!base) throw new DomainError('WORKSPACE_BASE_STALE', 'Workspace base revision does not exist', 409, 'RECONCILE_THEN_RETRY');
     const files = new Map<string, any>((await client.query(`SELECT relative_path,mime_type,file_type,executable,content_storage,content_reference,size_bytes,content_digest,source_classification FROM kcml.generation_workspace_file WHERE workspace_revision_id=$1`, [base.id])).rows.map((row) => [String(row.relative_path), row]));
     for (const item of operations) {
-      if (!item || typeof item !== 'object' || typeof item.path !== 'string' || item.path.startsWith('/') || item.path.split('/').some((part: string) => !part || part === '.' || part === '..')) throw new DomainError('GENERATION_WORKSPACE_PATH_INVALID', 'Workspace path must be relative and contained', 422, 'DO_NOT_RETRY');
+      if (!item || typeof item !== 'object' || typeof item.path !== 'string' || item.path.startsWith('/') || item.path.split('/').some((part: string) => !part || part === '.' || part === '..')) throw new DomainError('WORKSPACE_PATH_INVALID', 'Workspace path must be relative and contained', 422, 'DO_NOT_RETRY');
       const existing = files.get(item.path);
       const actual = existing ? `sha256:${Buffer.from(existing.content_digest).toString('hex')}` : null;
-      if ((item.expectedDigest ?? null) !== actual) throw new DomainError('GENERATION_WORKSPACE_CAS_CONFLICT', `Workspace digest mismatch for ${item.path}`, 409, 'REFRESH_AND_RETRY_NEW_COMMAND', { path: item.path, expected: item.expectedDigest ?? null, actual });
+      if ((item.expectedDigest ?? null) !== actual) throw new DomainError('WORKSPACE_BASE_STALE', `Workspace digest mismatch for ${item.path}`, 409, 'REFRESH_AND_RETRY_NEW_COMMAND', { path: item.path, expected: item.expectedDigest ?? null, actual });
       if (item.op === 'DELETE') files.delete(item.path);
       else if (item.op === 'ADD' || item.op === 'UPDATE') {
-        if (typeof item.content !== 'string') throw new DomainError('GENERATION_PATCH_CONTENT_REQUIRED', 'ADD and UPDATE require exact text content', 422, 'DO_NOT_RETRY');
+        if (typeof item.content !== 'string') throw new DomainError('GENERATION_PLAN_INVALID', 'ADD and UPDATE require exact text content', 422, 'DO_NOT_RETRY');
         const bytes = Buffer.from(item.content, 'utf8');
         const contentDigest = createHash('sha256').update(bytes).digest();
         files.set(item.path, { relative_path: item.path, mime_type: item.mimeType ?? 'text/plain', file_type: 'SOURCE', executable: item.executable === true, content_storage: 'INLINE_TEXT', content_reference: item.content, size_bytes: bytes.byteLength, content_digest: contentDigest, source_classification: 'MODEL_GENERATED', _digest: contentDigest });
-      } else throw new DomainError('GENERATION_PATCH_OPERATION_INVALID', 'Workspace operation is not ADD, UPDATE or DELETE', 422, 'DO_NOT_RETRY');
+      } else throw new DomainError('GENERATION_PLAN_INVALID', 'Workspace operation is not ADD, UPDATE or DELETE', 422, 'DO_NOT_RETRY');
     }
     const patchId = randomUUID();
     const operationsDigest = digest(operations);
@@ -857,24 +857,24 @@ async function generationMutation(client: DatabaseClient, context: CanonicalHand
     }
     await client.query(`UPDATE kcml.generation_workspace_patch SET apply_state='APPLIED',result_workspace_revision_id=$2,applied_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`, [patchId, revisionId]);
     const updated = (await client.query(`UPDATE kcml.generation_job SET workspace_revision_id=$2,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND workspace_revision_id=$3 RETURNING *`, [jobId, revisionId, base.id])).rows[0];
-    if (!updated) throw new DomainError('GENERATION_WORKSPACE_CAS_CONFLICT', 'Workspace pointer changed while applying patch', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
+    if (!updated) throw new DomainError('WORKSPACE_BASE_STALE', 'Workspace pointer changed while applying patch', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
     const checkpointRow = await appendCheckpoint(updated, String(updated.lifecycle), 'WORKSPACE_REVISION', { patchId, baseRevisionId: base.id, resultRevisionId: revisionId, revisionNumber: revisionNumber.toString(), operationsDigest: `sha256:${operationsDigest.toString('hex')}` }, phaseRunId);
     await client.query(`UPDATE kcml.generation_job SET latest_checkpoint_id=$2,state_version=state_version+1 WHERE id=$1`, [jobId, checkpointRow.id]);
     return { operation: name, patchId, revisionId, revisionNumber: revisionNumber.toString(), checkpointId: checkpointRow.id, fileCount: files.size, state_version: updated.state_version };
   }
   if (name === 'generation.integration.step') {
     const phaseRunId = typeof context.arguments.phaseRunId === 'string' ? context.arguments.phaseRunId : target;
-    if (!phaseRunId) throw new DomainError('OPERATION_TARGET_REQUIRED', 'generation.integration.step requires a phase run target', 422, 'DO_NOT_RETRY');
+    if (!phaseRunId) throw new DomainError('AGENTIC_DYNAMIC_TARGET_UNBOUND', 'generation.integration.step requires a phase run target', 422, 'DO_NOT_RETRY');
     const run = (await client.query(`SELECT * FROM kcml.generation_phase_run WHERE id=$1 FOR UPDATE`, [phaseRunId])).rows[0];
-    if (!run) throw new DomainError('GENERATION_PHASE_RUN_NOT_FOUND', 'Generation phase run does not exist', 404, 'DO_NOT_RETRY');
-    if (String(run.phase) !== 'INTEGRATING' || !['RUNNING', 'REPAIRING'].includes(String(run.state))) throw new DomainError('GENERATION_INTEGRATION_STATE_INVALID', 'Integration step requires an active INTEGRATING phase', 409, 'RECONCILE_THEN_RETRY');
+    if (!run) throw new DomainError('CHECKPOINT_STALE', 'Generation phase run does not exist', 404, 'DO_NOT_RETRY');
+    if (String(run.phase) !== 'INTEGRATING' || !['RUNNING', 'REPAIRING'].includes(String(run.state))) throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', 'Integration step requires an active INTEGRATING phase', 409, 'RECONCILE_THEN_RETRY');
     const step = Number(context.arguments.step);
-    if (!Number.isInteger(step) || step < 1 || step > 14) throw new DomainError('GENERATION_INTEGRATION_STEP_INVALID', 'Integration saga step must be in the range 1..14', 422, 'DO_NOT_RETRY');
+    if (!Number.isInteger(step) || step < 1 || step > 14) throw new DomainError('GENERATION_PLAN_INVALID', 'Integration saga step must be in the range 1..14', 422, 'DO_NOT_RETRY');
     const current = (run.result_summary && typeof run.result_summary === 'object' ? run.result_summary : {}) as Record<string, unknown>;
     const saga = Array.isArray(current.saga) ? [...current.saga] as Array<Record<string, unknown>> : [];
     const existing = saga.find((entry) => Number(entry.step) === step);
     if (existing) return { operation: name, phaseRun: run, step: existing, duplicate: true, state_version: run.state_version };
-    if (step > 1 && !saga.some((entry) => Number(entry.step) === step - 1 && entry.state === 'RECONCILED')) throw new DomainError('GENERATION_INTEGRATION_STEP_ORDER', 'Integration saga steps must be reconciled in order', 409, 'RECONCILE_THEN_RETRY');
+    if (step > 1 && !saga.some((entry) => Number(entry.step) === step - 1 && entry.state === 'RECONCILED')) throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', 'Integration saga steps must be reconciled in order', 409, 'RECONCILE_THEN_RETRY');
     const stepEvidence = { step, state: 'RECONCILED', t1Intent: digest({ phaseRunId, step }).toString('hex'), dClaim: `fence:${run.lease_fencing_token}`, t2Outcome: context.arguments.outcome ?? { observed: true }, t3Reconciliation: context.arguments.reconciliation ?? { confirmed: true } };
     saga.push(stepEvidence);
     for (const stage of ['T1_INTENT', 'D_CLAIM', 'T2_OUTCOME', 'T3_RECONCILIATION']) {
@@ -885,15 +885,15 @@ async function generationMutation(client: DatabaseClient, context: CanonicalHand
     }
     const resultSummary = { ...current, saga, completedSteps: saga.length, sagaComplete: saga.length === 14 };
     const updated = (await client.query(`UPDATE kcml.generation_phase_run SET result_summary=$2,result_digest=$3,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND state_version=$4 AND state IN ('RUNNING','REPAIRING') RETURNING *`, [phaseRunId, resultSummary, digest(resultSummary), run.state_version])).rows[0];
-    if (!updated) throw new DomainError('GENERATION_PHASE_FENCE_LOST', 'Integration step lost its phase fence', 409, 'RECONCILE_THEN_RETRY');
+    if (!updated) throw new DomainError('FENCING_TOKEN_STALE', 'Integration step lost its phase fence', 409, 'RECONCILE_THEN_RETRY');
     return { operation: name, phaseRun: updated, step: stepEvidence, sagaComplete: saga.length === 14, state_version: updated.state_version };
   }
   if (name === 'generation.validation.run') {
     const validationId = target;
-    if (!validationId) throw new DomainError('OPERATION_TARGET_REQUIRED', 'generation.validation.run requires a validation run target', 422, 'DO_NOT_RETRY');
+    if (!validationId) throw new DomainError('AGENTIC_DYNAMIC_TARGET_UNBOUND', 'generation.validation.run requires a validation run target', 422, 'DO_NOT_RETRY');
     const validation = (await client.query(`SELECT * FROM kcml.generation_validation_run WHERE id=$1 FOR UPDATE`, [validationId])).rows[0];
-    if (!validation) throw new DomainError('GENERATION_VALIDATION_NOT_FOUND', 'Generation validation run does not exist', 404, 'DO_NOT_RETRY');
-    if (!['QUEUED', 'RUNNING'].includes(String(validation.state))) throw new DomainError('GENERATION_VALIDATION_TERMINAL', 'Validation run has already been completed', 409, 'RECONCILE_THEN_RETRY');
+    if (!validation) throw new DomainError('ACCEPTANCE_GATE_CONTRACT_INCOMPLETE', 'Generation validation run does not exist', 404, 'DO_NOT_RETRY');
+    if (!['QUEUED', 'RUNNING'].includes(String(validation.state))) throw new DomainError('TERMINAL_STATE_IMMUTABLE', 'Validation run has already been completed', 409, 'RECONCILE_THEN_RETRY');
     const job = await jobForUpdate(String(validation.job_id));
     const candidate = validation.candidate_id ? (await client.query(`SELECT * FROM kcml.generation_contract_candidate WHERE id=$1`, [validation.candidate_id])).rows[0] : null;
     const workspace = job.workspace_revision_id ? (await client.query(`SELECT * FROM kcml.generation_workspace_revision WHERE id=$1`, [job.workspace_revision_id])).rows[0] : null;
@@ -912,12 +912,12 @@ async function generationMutation(client: DatabaseClient, context: CanonicalHand
     return { operation: name, validationRun: updated, passed, gates: summary.gates, evidenceDigest: `sha256:${Buffer.from(digest(summary)).toString('hex')}`, state_version: updated.state_version };
   }
   if (name === 'generation.activation.prepare') {
-    if (!jobId) throw new DomainError('OPERATION_TARGET_REQUIRED', 'generation.activation.prepare requires a generation job target', 422, 'DO_NOT_RETRY');
+    if (!jobId) throw new DomainError('AGENTIC_DYNAMIC_TARGET_UNBOUND', 'generation.activation.prepare requires a generation job target', 422, 'DO_NOT_RETRY');
     const job = await jobForUpdate(jobId);
     const candidateId = requireString(context.arguments, 'candidateId');
     const candidate = (await client.query(`SELECT * FROM kcml.generation_contract_candidate WHERE id=$1 AND job_id=$2 FOR UPDATE`, [candidateId, jobId])).rows[0];
-    if (!candidate) throw new DomainError('GENERATION_CANDIDATE_NOT_FOUND', 'Generation candidate does not exist', 404, 'DO_NOT_RETRY');
-    if (candidate.validation_state !== 'PASS' || candidate.verification_state !== 'PASS' || candidate.integration_state !== 'INTEGRATED') throw new DomainError('GENERATION_ACTIVATION_GATES_FAILED', 'Activation requires passed validation, verification and integration', 409, 'DO_NOT_RETRY');
+    if (!candidate) throw new DomainError('GENERATION_BLOCKED', 'Generation candidate does not exist', 404, 'DO_NOT_RETRY');
+    if (candidate.validation_state !== 'PASS' || candidate.verification_state !== 'PASS' || candidate.integration_state !== 'INTEGRATED') throw new DomainError('GENERATION_BLOCKED', 'Activation requires passed validation, verification and integration', 409, 'DO_NOT_RETRY');
     const head = (await client.query(`SELECT * FROM kcml.activation_head WHERE singleton_key=1 FOR UPDATE`)).rows[0];
     const previousSnapshot = context.arguments.previousSnapshot ?? { state: head.current_activation_set_id ? 'ACTIVE' : 'ABSENT', activationSetId: head.current_activation_set_id ?? null, activationEpoch: String(head.current_epoch) };
     const activationSetId = randomUUID();
@@ -926,54 +926,54 @@ async function generationMutation(client: DatabaseClient, context: CanonicalHand
       VALUES($1,'READY',$2,$3,$4,$5,$6,$7,$8) RETURNING *`, [activationSetId, previousSnapshot, candidateSnapshot, context.arguments.membership ?? [{ objectKind: candidate.candidate_kind, objectId: candidateId }], { previousSnapshot, firstCreate: !head.current_activation_set_id }, BigInt(head.current_epoch) + 1n, context.platformIncarnationId, context.applicationDeploymentEpoch.toString()])).rows[0];
     const members = Array.isArray(context.arguments.membership) ? context.arguments.membership : [{ objectKind: candidate.candidate_kind, objectId: candidateId }];
     for (const [index, member] of members.entries()) {
-      if (!member || typeof member !== 'object') throw new DomainError('GENERATION_ACTIVATION_MEMBER_INVALID', 'Activation membership must contain structured members', 422, 'DO_NOT_RETRY');
+      if (!member || typeof member !== 'object') throw new DomainError('GENERATION_PLAN_INVALID', 'Activation membership must contain structured members', 422, 'DO_NOT_RETRY');
       const value = member as Record<string, unknown>;
       await client.query(`INSERT INTO kcml.generation_activation_member(activation_set_id,object_kind,object_id,activation_order_key,state,evidence,canonical_digest,logical_operation_id,correlation_id,activation_epoch,platform_incarnation_id,application_deployment_epoch)
         VALUES($1,$2,$3,$4,'READY',$5,$6,$7,$8,$9,$10,$11)`, [activationSetId, String(value.objectKind ?? candidate.candidate_kind), String(value.objectId ?? candidateId), String(value.activationOrderKey ?? String(index + 1).padStart(4, '0')), value, digest(value), context.logicalOperationId, context.correlationId, set.activation_epoch, context.platformIncarnationId, context.applicationDeploymentEpoch.toString()]);
     }
     const updated = (await client.query(`UPDATE kcml.generation_job SET lifecycle='ACTIVATING',current_phase='ACTIVATING',activation_set_id=$2,previous_activation_snapshot=$3,activation_epoch=$4,state_version=state_version+1 WHERE id=$1 AND lifecycle='CML_CONFORMANCE' RETURNING *`, [jobId, activationSetId, previousSnapshot, set.activation_epoch])).rows[0];
-    if (!updated) throw new DomainError('GENERATION_ACTIVATION_STATE_INVALID', 'Generation job is not ready for activation', 409, 'RECONCILE_THEN_RETRY');
+    if (!updated) throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', 'Generation job is not ready for activation', 409, 'RECONCILE_THEN_RETRY');
     return { operation: name, activationSet: set, job: updated, activationSetId, activationEpoch: String(set.activation_epoch), previousSnapshot };
   }
   if (name === 'generation.activation.switch') {
     const activationSetId = target ?? (typeof context.arguments.activationSetId === 'string' ? context.arguments.activationSetId : null);
-    if (!activationSetId) throw new DomainError('OPERATION_TARGET_REQUIRED', 'generation.activation.switch requires an activation set target', 422, 'DO_NOT_RETRY');
+    if (!activationSetId) throw new DomainError('AGENTIC_DYNAMIC_TARGET_UNBOUND', 'generation.activation.switch requires an activation set target', 422, 'DO_NOT_RETRY');
     const set = (await client.query(`SELECT * FROM kcml.generation_activation_set WHERE id=$1 FOR UPDATE`, [activationSetId])).rows[0];
-    if (!set || set.state !== 'READY') throw new DomainError('GENERATION_ACTIVATION_SET_NOT_READY', 'Only a frozen READY activation set can switch', 409, 'RECONCILE_THEN_RETRY');
+    if (!set || set.state !== 'READY') throw new DomainError('ACTIVATION_SET_NOT_READY', 'Only a frozen READY activation set can switch', 409, 'RECONCILE_THEN_RETRY');
     const job = (await client.query(`SELECT * FROM kcml.generation_job WHERE activation_set_id=$1 FOR UPDATE`, [activationSetId])).rows[0];
-    if (!job) throw new DomainError('GENERATION_JOB_NOT_FOUND', 'Activation set is not owned by a generation job', 404, 'DO_NOT_RETRY');
+    if (!job) throw new DomainError('GENERATION_BLOCKED', 'Activation set is not owned by a generation job', 404, 'DO_NOT_RETRY');
     const head = (await client.query(`SELECT * FROM kcml.activation_head WHERE singleton_key=1 FOR UPDATE`)).rows[0];
     const epoch = BigInt(head.current_epoch) + 1n;
     const preCheckpoint = await appendCheckpoint(job, 'ACTIVATING', 'ACTIVATION_PRE', { activationSetId, previousSnapshot: set.previous_snapshot, candidateSnapshot: set.candidate_snapshot, nextEpoch: epoch.toString() });
     await client.query(`UPDATE kcml.generation_activation_set SET state='SWITCHING',activation_epoch=$2,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`, [activationSetId, epoch.toString()]);
     const switched = (await client.query(`UPDATE kcml.activation_head SET current_epoch=$1,current_activation_set_id=$2,state_version=state_version+1,updated_at=clock_timestamp() WHERE singleton_key=1 AND current_epoch=$3 RETURNING *`, [epoch.toString(), activationSetId, head.current_epoch])).rows[0];
-    if (!switched) throw new DomainError('GENERATION_ACTIVATION_SWITCH_CONFLICT', 'Activation epoch changed while switching', 409, 'RECONCILE_THEN_RETRY');
+    if (!switched) throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', 'Activation epoch changed while switching', 409, 'RECONCILE_THEN_RETRY');
     const verifying = (await client.query(`UPDATE kcml.generation_activation_set SET state='VERIFYING',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND state='SWITCHING' RETURNING *`, [activationSetId])).rows[0];
-    if (!verifying) throw new DomainError('GENERATION_ACTIVATION_SWITCH_CONFLICT', 'Activation set did not enter postflight verification', 409, 'RECONCILE_THEN_RETRY');
+    if (!verifying) throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', 'Activation set did not enter postflight verification', 409, 'RECONCILE_THEN_RETRY');
     const active = (await client.query(`UPDATE kcml.generation_activation_set SET state='ACTIVE',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND state='VERIFYING' RETURNING *`, [activationSetId])).rows[0];
-    if (!active) throw new DomainError('GENERATION_ACTIVATION_SWITCH_CONFLICT', 'Activation set postflight verification failed', 409, 'RECONCILE_THEN_RETRY');
+    if (!active) throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', 'Activation set postflight verification failed', 409, 'RECONCILE_THEN_RETRY');
     const postCheckpoint = await appendCheckpoint(job, 'ACTIVATING', 'ACTIVATION_POST', { activationSetId, activationEpoch: epoch.toString(), state: 'ACTIVE' });
     const updated = (await client.query(`UPDATE kcml.generation_job SET lifecycle='COMPLETED',current_phase='COMPLETED',activation_epoch=$2,latest_checkpoint_id=$3,active_phase_run_id=NULL,result_digest=$4,terminal_evidence=$5,state_version=state_version+1 WHERE id=$1 AND lifecycle='ACTIVATING' RETURNING *`, [job.id, epoch.toString(), postCheckpoint.id, digest({ activationSetId, epoch: epoch.toString() }), { activationSetId, epoch: epoch.toString(), state: 'ACTIVE' }])).rows[0];
-    if (!updated) throw new DomainError('GENERATION_ACTIVATION_JOB_CONFLICT', 'Generation job was not activating', 409, 'RECONCILE_THEN_RETRY');
+    if (!updated) throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', 'Generation job was not activating', 409, 'RECONCILE_THEN_RETRY');
     await appendEvent(updated, 'generation.activation.completed', { activationSetId, activationEpoch: epoch.toString() }, null);
     return { operation: name, activationSet: active, job: updated, activationEpoch: epoch.toString(), preCheckpointId: preCheckpoint.id, postCheckpointId: postCheckpoint.id, previousActivationSetId: head.current_activation_set_id ?? null };
   }
   if (name === 'generation.activation.rollback') {
     const activationSetId = target ?? (typeof context.arguments.activationSetId === 'string' ? context.arguments.activationSetId : null);
-    if (!activationSetId) throw new DomainError('OPERATION_TARGET_REQUIRED', 'generation.activation.rollback requires an activation set target', 422, 'DO_NOT_RETRY');
+    if (!activationSetId) throw new DomainError('AGENTIC_DYNAMIC_TARGET_UNBOUND', 'generation.activation.rollback requires an activation set target', 422, 'DO_NOT_RETRY');
     const set = (await client.query(`SELECT * FROM kcml.generation_activation_set WHERE id=$1 FOR UPDATE`, [activationSetId])).rows[0];
-    if (!set) throw new DomainError('GENERATION_ACTIVATION_SET_NOT_FOUND', 'Activation set does not exist', 404, 'DO_NOT_RETRY');
+    if (!set) throw new DomainError('ACTIVATION_SET_NOT_READY', 'Activation set does not exist', 404, 'DO_NOT_RETRY');
     const job = (await client.query(`SELECT * FROM kcml.generation_job WHERE activation_set_id=$1 FOR UPDATE`, [activationSetId])).rows[0];
-    if (!job) throw new DomainError('GENERATION_JOB_NOT_FOUND', 'Activation set is not owned by a generation job', 404, 'DO_NOT_RETRY');
+    if (!job) throw new DomainError('GENERATION_BLOCKED', 'Activation set is not owned by a generation job', 404, 'DO_NOT_RETRY');
     const head = (await client.query(`SELECT * FROM kcml.activation_head WHERE singleton_key=1 FOR UPDATE`)).rows[0];
-    if (!['ACTIVE', 'VERIFYING'].includes(String(set.state)) || String(head.current_activation_set_id) !== String(set.id)) throw new DomainError('GENERATION_ACTIVATION_ROLLBACK_STALE', 'Rollback requires the current candidate activation set', 409, 'RECONCILE_THEN_RETRY');
+    if (!['ACTIVE', 'VERIFYING'].includes(String(set.state)) || String(head.current_activation_set_id) !== String(set.id)) throw new DomainError('ROLLBACK_INCOMPLETE', 'Rollback requires the current candidate activation set', 409, 'RECONCILE_THEN_RETRY');
     const previous = (set.previous_snapshot ?? {}) as Record<string, unknown>;
     const restoredSetId = typeof previous.activationSetId === 'string' ? previous.activationSetId : null;
     const epoch = BigInt(head.current_epoch) + 1n;
     const preCheckpoint = await appendCheckpoint(job, 'ACTIVATING', 'ACTIVATION_PRE', { activationSetId, rollback: true, restoredSetId, nextEpoch: epoch.toString() });
     await client.query(`UPDATE kcml.activation_head SET current_epoch=$1,current_activation_set_id=$2,state_version=state_version+1,updated_at=clock_timestamp() WHERE singleton_key=1 AND current_epoch=$3`, [epoch.toString(), restoredSetId, head.current_epoch]);
     const rollbackVerifying = (await client.query(`UPDATE kcml.generation_activation_set SET state='ROLLBACK_VERIFYING',activation_epoch=$2,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND state='ROLLING_BACK' RETURNING *`, [activationSetId, epoch.toString()])).rows[0];
-    if (!rollbackVerifying) throw new DomainError('GENERATION_ACTIVATION_ROLLBACK_CONFLICT', 'Activation set did not enter rollback verification', 409, 'RECONCILE_THEN_RETRY');
+    if (!rollbackVerifying) throw new DomainError('ROLLBACK_INCOMPLETE', 'Activation set did not enter rollback verification', 409, 'RECONCILE_THEN_RETRY');
     const rolled = (await client.query(`UPDATE kcml.generation_activation_set SET state='ROLLED_BACK',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND state='ROLLBACK_VERIFYING' RETURNING *`, [activationSetId])).rows[0];
     const updated = (await client.query(`UPDATE kcml.generation_job SET lifecycle='BLOCKED',current_phase='BLOCKED',activation_epoch=$2,terminal_evidence=$3,state_version=state_version+1 WHERE id=$1 AND lifecycle NOT IN ('COMPLETED','FAILED','CANCELLED') RETURNING *`, [job.id, epoch.toString(), { rollback: true, restoredSetId, reason: context.arguments.reason ?? 'activation rollback' }])).rows[0];
     const postCheckpoint = updated ? await appendCheckpoint(updated, 'BLOCKED', 'ACTIVATION_POST', { activationSetId, rollback: true, restoredSetId, activationEpoch: epoch.toString() }) : null;
@@ -1002,9 +1002,9 @@ async function mcpMutation(_client: DatabaseClient, context: CanonicalHandlerCon
   if (['mcp.stateHandle.resolve', 'mcp.stateHandle.close'].includes(name)) {
     const id = requireTarget(context);
     const current = (await _client.query(`SELECT * FROM kcml.mcp_state_handle WHERE id=$1 FOR UPDATE`, [id])).rows[0];
-    if (!current) throw new DomainError('MCP_STATE_HANDLE_NOT_FOUND', 'MCP state handle does not exist', 404, 'DO_NOT_RETRY');
+    if (!current) throw new DomainError('MCP_STATE_HANDLE_INVALID', 'MCP state handle does not exist', 404, 'DO_NOT_RETRY');
     if (name === 'mcp.stateHandle.resolve') {
-      if (current.status !== 'OPEN') throw new DomainError('MCP_STATE_HANDLE_NOT_OPEN', 'Only an open MCP state handle can be resolved', 409, 'RECONCILE_THEN_RETRY');
+      if (current.status !== 'OPEN') throw new DomainError('MCP_STATE_HANDLE_INVALID', 'Only an open MCP state handle can be resolved', 409, 'RECONCILE_THEN_RETRY');
       return { operation: name, stateHandle: current, state_version: current.state_version };
     }
     if (current.status === 'CLOSED') return { operation: name, stateHandle: current, duplicate: true, state_version: current.state_version };
@@ -1024,7 +1024,7 @@ async function mcpMutation(_client: DatabaseClient, context: CanonicalHandlerCon
     if (!current) throw new DomainError('MCP_TASK_NOT_FOUND', 'MCP task does not exist', 404, 'DO_NOT_RETRY');
     if (context.expectedStateVersion !== null && BigInt(String(current.state_version)) !== context.expectedStateVersion) throw new DomainError('STATE_VERSION_CONFLICT', 'MCP task state changed', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
     if (name === 'mcp.task.update') {
-      if (!['WORKING', 'INPUT_REQUIRED'].includes(String(current.state))) throw new DomainError('MCP_TASK_STATE_INVALID', 'Only a live MCP task can receive an update', 409, 'RECONCILE_THEN_RETRY');
+      if (!['WORKING', 'INPUT_REQUIRED'].includes(String(current.state))) throw new DomainError('MCP_INVALID_REQUEST', 'Only a live MCP task can receive an update', 409, 'RECONCILE_THEN_RETRY');
       const state = context.arguments.state === 'INPUT_REQUIRED' ? 'INPUT_REQUIRED' : 'WORKING';
       const row = (await _client.query(`UPDATE kcml.mcp_task SET state=$2,wire_status=$3,updated_at=clock_timestamp(),state_version=state_version+1 WHERE id=$1 AND state_version=$4 RETURNING *`, [id, state, state === 'INPUT_REQUIRED' ? 'input_required' : 'working', current.state_version])).rows[0];
       if (!row) throw new DomainError('STATE_VERSION_CONFLICT', 'MCP task changed during update', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
@@ -1079,10 +1079,10 @@ async function selfTestMutation(_client: DatabaseClient, context: CanonicalHandl
   if (['selfTest.run.cancel', 'selfTest.run.cleanup', 'selfTest.registeredElement.run'].includes(name)) {
     const id = requireTarget(context);
     const current = (await _client.query(`SELECT * FROM kcml.self_test_run WHERE id=$1 FOR UPDATE`, [id])).rows[0];
-    if (!current) throw new DomainError('SELF_TEST_RUN_NOT_FOUND', 'Self-test run does not exist', 404, 'DO_NOT_RETRY');
+    if (!current) throw new DomainError('KCIP_TARGET_NOT_FOUND', 'Self-test run does not exist', 404, 'DO_NOT_RETRY');
     if (context.expectedStateVersion !== null && BigInt(String(current.state_version)) !== context.expectedStateVersion) throw new DomainError('STATE_VERSION_CONFLICT', 'Self-test run state changed', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
     if (name === 'selfTest.run.cleanup') {
-      if (!['PASS', 'FAIL', 'CANCELLED', 'NOT_EXECUTED_ENVIRONMENTAL'].includes(String(current.status))) throw new DomainError('SELF_TEST_CLEANUP_STATE_INVALID', 'Self-test cleanup requires a terminal run', 409, 'RECONCILE_THEN_RETRY');
+      if (!['PASS', 'FAIL', 'CANCELLED', 'NOT_EXECUTED_ENVIRONMENTAL'].includes(String(current.status))) throw new DomainError('OPERATION_CONTRACT_INCOMPLETE', 'Self-test cleanup requires a terminal run', 409, 'RECONCILE_THEN_RETRY');
       return { operation: name, run: current, closure: current.completed_at !== null, state_version: current.state_version };
     }
     if (name === 'selfTest.registeredElement.run') {
@@ -1135,9 +1135,9 @@ export function queryHandlerFor(operation: OperationContract): CanonicalQueryHan
     case 'runtime.state.report':
       return async (pool, context) => {
         const id = context.targetId;
-        if (!id) throw new DomainError('RUNTIME_TARGET_REQUIRED', `${operation.operationName} requires an exact runtime target`, 422, 'DO_NOT_RETRY');
+        if (!id) throw new DomainError('RUNTIME_CONTEXT_NOT_CURRENT', `${operation.operationName} requires an exact runtime target`, 422, 'DO_NOT_RETRY');
         const row = (await pool.query(`SELECT id,runtime_generation,desired_state,effective_state,ready_sequence,heartbeat_sequence,effective_at,heartbeat_at,state_version,activation_epoch,platform_incarnation_id,application_deployment_epoch,canonical_digest FROM kcml.runtime_instance WHERE id=$1`, [id])).rows[0];
-        if (!row) throw new DomainError('RUNTIME_INSTANCE_NOT_FOUND', 'Runtime instance does not exist', 404, 'DO_NOT_RETRY');
+        if (!row) throw new DomainError('RUNTIME_CONTEXT_NOT_CURRENT', 'Runtime instance does not exist', 404, 'DO_NOT_RETRY');
         return { operation: operation.operationName, runtime: row, ready: row.desired_state === 'READY' && row.effective_state === 'READY' && Number(row.ready_sequence) > 0, evidenceDigest: canonicalDigest(safeJson(row)) };
       };
     case 'mcp.server.discover':
@@ -1159,7 +1159,7 @@ export function queryHandlerFor(operation: OperationContract): CanonicalQueryHan
       return async (pool, context) => {
         const id = requireQueryTarget(context.targetId, operation.operationName);
         const row = (await pool.query(`SELECT id,agent_definition_id,agent_revision_id,status,input,output,usage,error,manual_review_relation,state_version,checkpoint_sequence,activation_epoch,platform_incarnation_id,application_deployment_epoch,created_at,started_at,completed_at,canonical_digest FROM kcml.agent_run WHERE id=$1`, [id])).rows[0];
-        if (!row) throw new DomainError('AGENT_RUN_NOT_FOUND', 'Agent run does not exist', 404, 'DO_NOT_RETRY');
+        if (!row) throw new DomainError('AGENT_RUN_STATE_UNRESUMABLE', 'Agent run does not exist', 404, 'DO_NOT_RETRY');
         return { operation: operation.operationName, run: row, terminal: ['SUCCEEDED', 'FAILED', 'CANCELLED', 'MANUAL_REVIEW'].includes(String(row.status)), evidenceDigest: canonicalDigest(safeJson(row)) };
       };
     case 'generation.plan.validate':
@@ -1168,7 +1168,7 @@ export function queryHandlerFor(operation: OperationContract): CanonicalQueryHan
         const id = requireQueryTarget(context.targetId, operation.operationName);
         const table = operation.operationName === 'generation.plan.validate' ? 'generation_plan' : 'generation_workspace_revision';
         const row = (await pool.query(`SELECT to_jsonb(t) AS row FROM kcml.${table} t WHERE t.id=$1`, [id])).rows[0]?.row;
-        if (!row) throw new DomainError('GENERATION_TARGET_NOT_FOUND', 'Generation target does not exist', 404, 'DO_NOT_RETRY');
+        if (!row) throw new DomainError('KCIP_TARGET_NOT_FOUND', 'Generation target does not exist', 404, 'DO_NOT_RETRY');
         const checks = operation.operationName === 'generation.plan.validate'
           ? [{ gate: 'PLAN_DAG_PRESENT', pass: Boolean((row as Record<string, unknown>).canonical_dag) }, { gate: 'PLAN_VALIDATION_STATE', pass: ['PASS', 'VALID', 'SUCCEEDED'].includes(String((row as Record<string, unknown>).validation_state ?? '')) }]
           : [{ gate: 'WORKSPACE_TREE_DIGEST', pass: typeof (row as Record<string, unknown>).source_tree_digest === 'string' || Buffer.isBuffer((row as Record<string, unknown>).source_tree_digest) }, { gate: 'WORKSPACE_REVISION_ID', pass: typeof (row as Record<string, unknown>).id === 'string' }];
@@ -1180,21 +1180,21 @@ export function queryHandlerFor(operation: OperationContract): CanonicalQueryHan
       return async (pool, context) => {
         const id = requireQueryTarget(context.targetId, operation.operationName);
         const row = (await pool.query(`SELECT * FROM kcml.browser_session WHERE id=$1`, [id])).rows[0];
-        if (!row) throw new DomainError('BROWSER_SESSION_NOT_FOUND', 'Browser session does not exist', 404, 'DO_NOT_RETRY');
+        if (!row) throw new DomainError('BROWSER_SESSION_NOT_READY', 'Browser session does not exist', 404, 'DO_NOT_RETRY');
         return { operation: operation.operationName, session: row, evidenceDigest: canonicalDigest(safeJson(row)) };
       };
     case 'browser.action.status':
       return async (pool, context) => {
         const id = requireQueryTarget(context.targetId, operation.operationName);
         const row = (await pool.query(`SELECT * FROM kcml.browser_action_run WHERE id=$1`, [id])).rows[0];
-        if (!row) throw new DomainError('BROWSER_ACTION_NOT_FOUND', 'Browser action does not exist', 404, 'DO_NOT_RETRY');
+        if (!row) throw new DomainError('BROWSER_TARGET_MISSING', 'Browser action does not exist', 404, 'DO_NOT_RETRY');
         return { operation: operation.operationName, action: row, evidenceDigest: canonicalDigest(safeJson(row)) };
       };
     case 'browser.download.verify':
       return async (pool, context) => {
         const id = requireQueryTarget(context.targetId, operation.operationName);
         const row = (await pool.query(`SELECT * FROM kcml.browser_download WHERE id=$1`, [id])).rows[0];
-        if (!row) throw new DomainError('BROWSER_DOWNLOAD_NOT_FOUND', 'Browser download does not exist', 404, 'DO_NOT_RETRY');
+        if (!row) throw new DomainError('BROWSER_DOWNLOAD_INCOMPLETE', 'Browser download does not exist', 404, 'DO_NOT_RETRY');
         const complete = row.state === 'COMPLETED' && row.artifact_id !== null && row.size_bytes !== null && row.content_digest !== null && row.content_verification !== null;
         return { operation: operation.operationName, download: row, complete, verified: complete && row.content_verification.verified === true, evidenceDigest: canonicalDigest(safeJson(row)) };
       };
@@ -1221,6 +1221,6 @@ export function queryHandlerFor(operation: OperationContract): CanonicalQueryHan
 }
 
 function requireQueryTarget(targetId: string | null, operationName: string): string {
-  if (!targetId) throw new DomainError('OPERATION_TARGET_REQUIRED', `${operationName} requires a targetId`, 422, 'DO_NOT_RETRY');
+  if (!targetId) throw new DomainError('AGENTIC_DYNAMIC_TARGET_UNBOUND', `${operationName} requires a targetId`, 422, 'DO_NOT_RETRY');
   return targetId;
 }

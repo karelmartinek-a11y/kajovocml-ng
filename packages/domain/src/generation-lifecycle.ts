@@ -34,22 +34,22 @@ function pathIsSafe(path: string): boolean {
 }
 
 function assertPhase(value: unknown): asserts value is GenerationPhase {
-  if (typeof value !== 'string' || !phaseIndex.has(value)) throw new DomainError('GENERATION_PHASE_INVALID', 'Unknown generation phase', 422, 'DO_NOT_RETRY', { phase: value });
+  if (typeof value !== 'string' || !phaseIndex.has(value)) throw new DomainError('GENERATION_PLAN_INVALID', 'Unknown generation phase', 422, 'DO_NOT_RETRY', { phase: value });
 }
 
 async function lockJob(client: Tx, jobId: string, expectedStateVersion?: bigint | null): Promise<any> {
   const row = (await client.query('SELECT * FROM kcml.generation_job WHERE id=$1 FOR UPDATE', [jobId])).rows[0];
-  if (!row) throw new DomainError('GENERATION_JOB_NOT_FOUND', 'Generation job does not exist', 404, 'DO_NOT_RETRY');
+  if (!row) throw new DomainError('GENERATION_BLOCKED', 'Generation job does not exist', 404, 'DO_NOT_RETRY');
   if (expectedStateVersion !== undefined && expectedStateVersion !== null && BigInt(row.state_version) !== expectedStateVersion) {
     throw new DomainError('STATE_VERSION_CONFLICT', 'Generation job state changed', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
   }
-  if (row.recovery_state === 'MANUAL_REVIEW') throw new DomainError('GENERATION_RECOVERY_BLOCKED', 'Generation recovery requires manual review', 409, 'MANUAL_REVIEW');
+  if (row.recovery_state === 'MANUAL_REVIEW') throw new DomainError('PLATFORM_RECOVERY_BLOCKED', 'Generation recovery requires manual review', 409, 'MANUAL_REVIEW');
   return row;
 }
 
 function assertLineage(job: any, platformIncarnationId?: string, applicationDeploymentEpoch?: bigint): void {
-  if (platformIncarnationId && String(job.platform_incarnation_id) !== platformIncarnationId) throw new DomainError('GENERATION_PLATFORM_INCARNATION_STALE', 'Generation job belongs to a previous platform incarnation', 409, 'RECONCILE_THEN_RETRY');
-  if (applicationDeploymentEpoch !== undefined && BigInt(job.application_deployment_epoch) !== applicationDeploymentEpoch) throw new DomainError('GENERATION_DEPLOYMENT_EPOCH_STALE', 'Generation job belongs to a previous deployment epoch', 409, 'RECONCILE_THEN_RETRY');
+  if (platformIncarnationId && String(job.platform_incarnation_id) !== platformIncarnationId) throw new DomainError('PLATFORM_INCARNATION_STALE', 'Generation job belongs to a previous platform incarnation', 409, 'RECONCILE_THEN_RETRY');
+  if (applicationDeploymentEpoch !== undefined && BigInt(job.application_deployment_epoch) !== applicationDeploymentEpoch) throw new DomainError('ACTIVATION_EPOCH_STALE', 'Generation job belongs to a previous deployment epoch', 409, 'RECONCILE_THEN_RETRY');
 }
 
 async function checkpoint(client: Tx, job: any, phase: string, kind: string, payload: unknown, phaseRunId: string | null, successorPhase: string | null): Promise<any> {
@@ -75,7 +75,7 @@ function nextPhase(phase: GenerationPhase): GenerationPhase | null {
 export async function createGenerationJob(client: Tx, args: JsonObject, lineage: { platformIncarnationId: string; applicationDeploymentEpoch: bigint; logicalOperationId?: string; correlationId?: string }): Promise<any> {
   const provisionalIdentity = { kind: 'PROVISIONAL_GENERATION_TARGET', id: randomUUID(), allocatedAt: new Date().toISOString() };
   const mode = String(args.mode ?? 'CREATE');
-  if (!['CREATE', 'UPDATE', 'FOLLOW_UP', 'RETRY', 'REPAIR'].includes(mode)) throw new DomainError('GENERATION_MODE_INVALID', 'Generation mode is not canonical', 422, 'DO_NOT_RETRY');
+  if (!['CREATE', 'UPDATE', 'FOLLOW_UP', 'RETRY', 'REPAIR'].includes(mode)) throw new DomainError('GENERATION_PLAN_INVALID', 'Generation mode is not canonical', 422, 'DO_NOT_RETRY');
   const result = await client.query(`INSERT INTO kcml.generation_job(mode,objective,target_object_ids,source_artifact_ids,model,lifecycle,current_phase,platform_incarnation_id,application_deployment_epoch,provisional_identity,logical_operation_id,correlation_id)
     VALUES($1,$2,$3,$4,$5,'DISCUSSING','DISCUSSING',$6,$7,$8,$9,$10) RETURNING *`, [mode, String(args.objective ?? 'OWNER generation request'), args.targetObjectIds ?? [], args.sourceArtifactIds ?? [], args.model ?? null, lineage.platformIncarnationId, lineage.applicationDeploymentEpoch.toString(), provisionalIdentity, lineage.logicalOperationId ?? null, lineage.correlationId ?? null]);
   const job = result.rows[0];
@@ -91,11 +91,11 @@ export async function startGenerationPhase(pool: DatabasePool, input: { jobId: s
   return withSerializableRetry(pool, async (client) => {
     const job = await lockJob(client, input.jobId, input.expectedJobStateVersion);
     assertLineage(job, input.platformIncarnationId, input.applicationDeploymentEpoch);
-    if (!transitionable.has(String(job.lifecycle) as GenerationJobState)) throw new DomainError('GENERATION_JOB_TERMINAL', 'A terminal generation job cannot start a phase', 409, 'DO_NOT_RETRY');
+    if (!transitionable.has(String(job.lifecycle) as GenerationJobState)) throw new DomainError('TERMINAL_STATE_IMMUTABLE', 'A terminal generation job cannot start a phase', 409, 'DO_NOT_RETRY');
     const current = String(job.lifecycle) as GenerationJobState;
     const phaseNumber = phaseIndex.get(input.phase)!;
     const currentNumber = phaseIndex.get(current);
-    if (current !== input.phase && (currentNumber === undefined || phaseNumber !== currentNumber + 1)) throw new DomainError('GENERATION_PHASE_ORDER_INVALID', `Cannot start ${input.phase} after ${current}`, 409, 'RECONCILE_THEN_RETRY');
+    if (current !== input.phase && (currentNumber === undefined || phaseNumber !== currentNumber + 1)) throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', `Cannot start ${input.phase} after ${current}`, 409, 'RECONCILE_THEN_RETRY');
     const active = (await client.query(`SELECT id FROM kcml.generation_phase_run WHERE job_id=$1 AND state IN ('QUEUED','RUNNING','WAITING_FOR_DEPENDENCY','WAITING_FOR_OWNER','REPAIRING','CANCEL_REQUESTED') FOR UPDATE`, [input.jobId])).rows[0];
     if (active) return active;
     const attempt = await allocateContiguousSequence(client, 'GENERATION_PHASE_ATTEMPT', input.jobId, input.phase);
@@ -113,19 +113,19 @@ export async function startGenerationPhase(pool: DatabasePool, input: { jobId: s
 }
 
 export async function completeGenerationPhase(pool: DatabasePool, input: { phaseRunId: string; workerId: string; fencingToken: bigint; outcome: 'SUCCEEDED' | 'FAILED' | 'CANCELLED'; evidence: JsonObject; nextPhase?: GenerationPhase | null; platformIncarnationId?: string; applicationDeploymentEpoch?: bigint; }): Promise<any> {
-  if (!PHASE_RUN_STATES.includes(input.outcome)) throw new DomainError('GENERATION_PHASE_OUTCOME_INVALID', 'Phase outcome is not terminal', 422, 'DO_NOT_RETRY');
+  if (!PHASE_RUN_STATES.includes(input.outcome)) throw new DomainError('GENERATION_PLAN_INVALID', 'Phase outcome is not terminal', 422, 'DO_NOT_RETRY');
   return withSerializableRetry(pool, async (client) => {
     const run = (await client.query('SELECT * FROM kcml.generation_phase_run WHERE id=$1 FOR UPDATE', [input.phaseRunId])).rows[0];
-    if (!run) throw new DomainError('GENERATION_PHASE_RUN_NOT_FOUND', 'Generation phase run does not exist', 404, 'DO_NOT_RETRY');
+    if (!run) throw new DomainError('CHECKPOINT_STALE', 'Generation phase run does not exist', 404, 'DO_NOT_RETRY');
     const job = await lockJob(client, String(run.job_id));
     assertLineage(job, input.platformIncarnationId, input.applicationDeploymentEpoch);
-    if (String(run.state) !== 'RUNNING' || String(run.lease_owner) !== input.workerId || BigInt(run.lease_fencing_token) !== input.fencingToken) throw new DomainError('GENERATION_PHASE_FENCE_LOST', 'Phase completion was submitted by a stale worker', 409, 'RECONCILE_THEN_RETRY');
+    if (String(run.state) !== 'RUNNING' || String(run.lease_owner) !== input.workerId || BigInt(run.lease_fencing_token) !== input.fencingToken) throw new DomainError('FENCING_TOKEN_STALE', 'Phase completion was submitted by a stale worker', 409, 'RECONCILE_THEN_RETRY');
     const successor = input.outcome === 'SUCCEEDED' ? (input.nextPhase ?? nextPhase(String(run.phase) as GenerationPhase)) : null;
     if (successor) assertPhase(successor);
     const terminalEvidence = { ...input.evidence, phase: run.phase, phaseRunId: run.id, fencingToken: input.fencingToken.toString(), terminal: input.outcome };
     const outputCheckpoint = await checkpoint(client, job, String(run.phase), 'PHASE_TERMINAL', terminalEvidence, String(run.id), successor);
     const updatedRun = (await client.query(`UPDATE kcml.generation_phase_run SET state=$2,completed_at=clock_timestamp(),result_summary=$3,result_digest=$4,output_checkpoint_id=$5,lease_owner=NULL,lease_expires_at=NULL,state_version=state_version+1 WHERE id=$1 AND state='RUNNING' AND lease_owner=$6 AND lease_fencing_token=$7 RETURNING *`, [run.id, input.outcome, safeJson(input.evidence), digest(terminalEvidence), outputCheckpoint.id, input.workerId, input.fencingToken.toString()])).rows[0];
-    if (!updatedRun) throw new DomainError('GENERATION_PHASE_FENCE_LOST', 'Phase completion lost its fencing CAS', 409, 'RECONCILE_THEN_RETRY');
+    if (!updatedRun) throw new DomainError('FENCING_TOKEN_STALE', 'Phase completion lost its fencing CAS', 409, 'RECONCILE_THEN_RETRY');
     if (input.outcome !== 'SUCCEEDED') {
       const terminalState = input.outcome === 'CANCELLED' ? 'CANCELLED' : 'FAILED';
       const changed = (await client.query(`UPDATE kcml.generation_job SET lifecycle=$2,current_phase=$2,active_phase_run_id=NULL,terminal_evidence=$3,state_version=state_version+1 WHERE id=$1 AND state_version=$4 RETURNING *`, [job.id, terminalState, safeJson(terminalEvidence), job.state_version])).rows[0];
@@ -152,11 +152,11 @@ export async function completeGenerationPhase(pool: DatabasePool, input: { phase
 export interface WorkspaceOperation { op: 'ADD' | 'UPDATE' | 'DELETE'; path: string; expectedDigest: string | null; content?: string; mimeType?: string; executable?: boolean; }
 
 export async function applyWorkspacePatchSet(pool: DatabasePool, input: { jobId: string; phaseRunId?: string; operations: readonly WorkspaceOperation[]; expectedRevisionId?: string; expectedRevisionNumber?: bigint; logicalOperationId?: string; correlationId?: string; }): Promise<any> {
-  if (!input.operations.length) throw new DomainError('GENERATION_PATCH_EMPTY', 'WorkspacePatchSet must contain at least one ordered operation', 422, 'DO_NOT_RETRY');
+  if (!input.operations.length) throw new DomainError('GENERATION_PLAN_INVALID', 'WorkspacePatchSet must contain at least one ordered operation', 422, 'DO_NOT_RETRY');
   for (const operation of input.operations) {
-    if (!pathIsSafe(operation.path)) throw new DomainError('GENERATION_WORKSPACE_PATH_INVALID', 'Workspace paths must be relative and contained', 422, 'DO_NOT_RETRY', { path: operation.path });
-    if (!['ADD', 'UPDATE', 'DELETE'].includes(operation.op)) throw new DomainError('GENERATION_PATCH_OPERATION_INVALID', 'Workspace operation is not canonical', 422, 'DO_NOT_RETRY');
-    if (operation.op !== 'DELETE' && typeof operation.content !== 'string') throw new DomainError('GENERATION_PATCH_CONTENT_REQUIRED', 'ADD and UPDATE require exact text content', 422, 'DO_NOT_RETRY');
+    if (!pathIsSafe(operation.path)) throw new DomainError('WORKSPACE_PATH_INVALID', 'Workspace paths must be relative and contained', 422, 'DO_NOT_RETRY', { path: operation.path });
+    if (!['ADD', 'UPDATE', 'DELETE'].includes(operation.op)) throw new DomainError('GENERATION_PLAN_INVALID', 'Workspace operation is not canonical', 422, 'DO_NOT_RETRY');
+    if (operation.op !== 'DELETE' && typeof operation.content !== 'string') throw new DomainError('GENERATION_PLAN_INVALID', 'ADD and UPDATE require exact text content', 422, 'DO_NOT_RETRY');
   }
   return withSerializableRetry(pool, async (client) => {
     const job = await lockJob(client, input.jobId);
@@ -174,10 +174,10 @@ export async function applyWorkspacePatchSet(pool: DatabasePool, input: { jobId:
       if (initialized) Object.assign(job, initialized);
       baseId = job.workspace_revision_id ?? initialRevisionId;
     }
-    if (!baseId) throw new DomainError('GENERATION_WORKSPACE_BASE_MISSING', 'Workspace has no current revision pointer', 409, 'RECONCILE_THEN_RETRY');
+    if (!baseId) throw new DomainError('WORKSPACE_BASE_STALE', 'Workspace has no current revision pointer', 409, 'RECONCILE_THEN_RETRY');
     const base = (await client.query('SELECT * FROM kcml.generation_workspace_revision WHERE id=$1 AND job_id=$2', [baseId, input.jobId])).rows[0];
-    if (!base) throw new DomainError('GENERATION_WORKSPACE_BASE_MISSING', 'Workspace base revision does not exist', 409, 'RECONCILE_THEN_RETRY');
-    if (input.expectedRevisionNumber !== undefined && BigInt(base.revision_number) !== input.expectedRevisionNumber) throw new DomainError('GENERATION_WORKSPACE_REVISION_CONFLICT', 'Workspace base revision is stale', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
+    if (!base) throw new DomainError('WORKSPACE_BASE_STALE', 'Workspace base revision does not exist', 409, 'RECONCILE_THEN_RETRY');
+    if (input.expectedRevisionNumber !== undefined && BigInt(base.revision_number) !== input.expectedRevisionNumber) throw new DomainError('REVISION_STALE', 'Workspace base revision is stale', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
     let phaseRunId = input.phaseRunId ?? job.active_phase_run_id;
     if (!phaseRunId) {
       // Compatibility for the public orchestrator API: a direct workspace call
@@ -190,14 +190,14 @@ export async function applyWorkspacePatchSet(pool: DatabasePool, input: { jobId:
       await client.query(`UPDATE kcml.generation_job SET active_phase_run_id=$2,lease_fencing_token=$3,state_version=state_version+1 WHERE id=$1`, [input.jobId, phaseRunId, fence.toString()]);
     }
     const run = (await client.query(`SELECT id,state,job_id FROM kcml.generation_phase_run WHERE id=$1 AND job_id=$2 FOR UPDATE`, [phaseRunId, input.jobId])).rows[0];
-    if (!run || !['RUNNING', 'REPAIRING'].includes(String(run.state))) throw new DomainError('GENERATION_PHASE_RUN_INVALID', 'Workspace patch requires an active phase run', 409, 'RECONCILE_THEN_RETRY');
+    if (!run || !['RUNNING', 'REPAIRING'].includes(String(run.state))) throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', 'Workspace patch requires an active phase run', 409, 'RECONCILE_THEN_RETRY');
     const baseFiles = (await client.query(`SELECT relative_path,content_digest,content_storage,content_reference,size_bytes,mime_type,file_type,executable,source_classification FROM kcml.generation_workspace_file WHERE workspace_revision_id=$1 ORDER BY relative_path`, [base.id])).rows;
     const files = new Map<string, any>(baseFiles.map((file) => [String(file.relative_path), file]));
     for (const operation of input.operations) {
       const existing = files.get(operation.path);
       const expected = operation.expectedDigest;
       const actual = existing ? `sha256:${Buffer.from(existing.content_digest).toString('hex')}` : null;
-      if (actual !== expected) throw new DomainError('GENERATION_WORKSPACE_CAS_CONFLICT', `Workspace digest mismatch for ${operation.path}`, 409, 'REFRESH_AND_RETRY_NEW_COMMAND', { path: operation.path, expected, actual });
+      if (actual !== expected) throw new DomainError('WORKSPACE_BASE_STALE', `Workspace digest mismatch for ${operation.path}`, 409, 'REFRESH_AND_RETRY_NEW_COMMAND', { path: operation.path, expected, actual });
       if (operation.op === 'DELETE') files.delete(operation.path);
       else {
         const content = Buffer.from(operation.content!, 'utf8');
@@ -220,7 +220,7 @@ export async function applyWorkspacePatchSet(pool: DatabasePool, input: { jobId:
     }
     await client.query(`UPDATE kcml.generation_workspace_patch SET apply_state='APPLIED',result_workspace_revision_id=$2,applied_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`, [patchId, revisionId]);
     const changed = (await client.query(`UPDATE kcml.generation_job SET workspace_revision_id=$2,latest_checkpoint_id=NULL,state_version=state_version+1 WHERE id=$1 AND workspace_revision_id=$3 RETURNING *`, [input.jobId, revisionId, base.id])).rows[0];
-    if (!changed) throw new DomainError('GENERATION_WORKSPACE_CAS_CONFLICT', 'Workspace pointer changed while applying patch', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
+    if (!changed) throw new DomainError('WORKSPACE_BASE_STALE', 'Workspace pointer changed while applying patch', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
     const cp = await checkpoint(client, changed, String(changed.lifecycle), 'WORKSPACE_REVISION', { patchId, baseRevisionId: base.id, resultRevisionId: revisionId, revisionNumber: revisionNumber.toString(), operationsDigest: `sha256:${operationsDigest.toString('hex')}` }, phaseRunId, null);
     await client.query('UPDATE kcml.generation_job SET latest_checkpoint_id=$2,state_version=state_version+1 WHERE id=$1', [input.jobId, cp.id]);
     await event(client, changed, 'generation.workspace.revision.created', { patchId, revisionId, revisionNumber: revisionNumber.toString() }, phaseRunId, cp.id);
@@ -231,7 +231,7 @@ export async function applyWorkspacePatchSet(pool: DatabasePool, input: { jobId:
 export async function runGenerationValidation(pool: DatabasePool, input: { validationRunId: string; platformIncarnationId?: string; applicationDeploymentEpoch?: bigint; }): Promise<any> {
   return withSerializableRetry(pool, async (client) => {
     const run = (await client.query('SELECT * FROM kcml.generation_validation_run WHERE id=$1 FOR UPDATE', [input.validationRunId])).rows[0];
-    if (!run) throw new DomainError('GENERATION_VALIDATION_NOT_FOUND', 'Generation validation run does not exist', 404, 'DO_NOT_RETRY');
+    if (!run) throw new DomainError('ACCEPTANCE_GATE_CONTRACT_INCOMPLETE', 'Generation validation run does not exist', 404, 'DO_NOT_RETRY');
     const job = await lockJob(client, String(run.job_id));
     assertLineage(job, input.platformIncarnationId, input.applicationDeploymentEpoch);
     const candidate = run.candidate_id ? (await client.query('SELECT * FROM kcml.generation_contract_candidate WHERE id=$1 AND job_id=$2', [run.candidate_id, run.job_id])).rows[0] : null;
@@ -251,7 +251,7 @@ export async function runGenerationValidation(pool: DatabasePool, input: { valid
     const summary = { gateCatalogVersion: 'generation-v1', passed, gates: gates.map(({ gateKey, pass, actual }) => ({ gateKey, pass, actual })) };
     const evidenceDigest = digest(summary);
     const updated = (await client.query(`UPDATE kcml.generation_validation_run SET state=$2,completed_at=clock_timestamp(),blocking_summary=$3,evidence_digest=$4,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND state IN ('RUNNING','QUEUED') RETURNING *`, [run.id, passed ? 'PASS' : 'FAIL', summary, evidenceDigest])).rows[0];
-    if (!updated) throw new DomainError('GENERATION_VALIDATION_TERMINAL', 'Validation run has already been completed', 409, 'RECONCILE_THEN_RETRY');
+    if (!updated) throw new DomainError('TERMINAL_STATE_IMMUTABLE', 'Validation run has already been completed', 409, 'RECONCILE_THEN_RETRY');
     if (candidate) await client.query(`UPDATE kcml.generation_contract_candidate SET validation_state=$2,verification_state=$3,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND job_id=$4`, [candidate.id, passed ? 'PASS' : 'FAIL', passed ? 'PASS' : 'FAIL', run.job_id]);
     return { validationRun: updated, passed, evidenceDigest: `sha256:${evidenceDigest.toString('hex')}`, gates: summary.gates };
   });
@@ -262,10 +262,10 @@ export async function prepareGenerationActivation(pool: DatabasePool, input: { j
     const job = await lockJob(client, input.jobId);
     assertLineage(job, input.platformIncarnationId, input.applicationDeploymentEpoch);
     const candidate = (await client.query('SELECT * FROM kcml.generation_contract_candidate WHERE id=$1 AND job_id=$2 FOR UPDATE', [input.candidateId, input.jobId])).rows[0];
-    if (!candidate) throw new DomainError('GENERATION_CANDIDATE_NOT_FOUND', 'Generation candidate does not exist', 404, 'DO_NOT_RETRY');
-    if (candidate.validation_state !== 'PASS' || candidate.verification_state !== 'PASS' || candidate.integration_state !== 'INTEGRATED') throw new DomainError('GENERATION_ACTIVATION_GATES_FAILED', 'Activation requires passed validation, verification and integration', 409, 'DO_NOT_RETRY');
+    if (!candidate) throw new DomainError('GENERATION_BLOCKED', 'Generation candidate does not exist', 404, 'DO_NOT_RETRY');
+    if (candidate.validation_state !== 'PASS' || candidate.verification_state !== 'PASS' || candidate.integration_state !== 'INTEGRATED') throw new DomainError('GENERATION_BLOCKED', 'Activation requires passed validation, verification and integration', 409, 'DO_NOT_RETRY');
     const activationHead = (await client.query('SELECT * FROM kcml.activation_head WHERE singleton_key=1 FOR UPDATE')).rows[0];
-    if (!activationHead) throw new DomainError('AUTHORITY_HEADS_MISSING', 'Activation authority head is missing', 503, 'RETRY_SAME_OPERATION');
+    if (!activationHead) throw new DomainError('CLOSURE_PREDICATE_INCOMPLETE', 'Activation authority head is missing', 503, 'RETRY_SAME_OPERATION');
     const previousSnapshot = input.previousSnapshot ?? { state: activationHead.current_activation_set_id ? 'ACTIVE' : 'ABSENT', activationSetId: activationHead.current_activation_set_id ?? null, activationEpoch: String(activationHead.current_epoch) };
     const activationSetId = randomUUID();
     const candidateSnapshot = { ...input.candidateSnapshot, jobId: input.jobId, candidateId: input.candidateId, provisionalIdentity: job.provisional_identity ?? null };
@@ -277,7 +277,7 @@ export async function prepareGenerationActivation(pool: DatabasePool, input: { j
         VALUES($1,$2,$3,$4,'READY',$5,$6,$7,$8,$9,$10,$11)`, [activationSetId, String(member.objectKind ?? candidate.candidate_kind), String(member.objectId ?? input.candidateId), String(member.activationOrderKey ?? String(index + 1).padStart(4, '0')), safeJson(member), digest(member), input.logicalOperationId ?? job.logical_operation_id ?? null, input.correlationId ?? job.correlation_id ?? null, row.activation_epoch, job.platform_incarnation_id, job.application_deployment_epoch]);
     }
     const changed = (await client.query(`UPDATE kcml.generation_job SET lifecycle='ACTIVATING',current_phase='ACTIVATING',activation_set_id=$2,previous_activation_snapshot=$3,activation_epoch=$4,state_version=state_version+1 WHERE id=$1 AND lifecycle='CML_CONFORMANCE' RETURNING *`, [job.id, activationSetId, safeJson(previousSnapshot), row.activation_epoch])).rows[0];
-    if (!changed) throw new DomainError('GENERATION_ACTIVATION_STATE_INVALID', 'Generation job is not ready for activation', 409, 'RECONCILE_THEN_RETRY');
+    if (!changed) throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', 'Generation job is not ready for activation', 409, 'RECONCILE_THEN_RETRY');
     await event(client, changed, 'generation.activation.started', { activationSetId, previousSnapshot, candidateSnapshot });
     return { activationSet: row, job: changed, previousSnapshot, candidateSnapshot };
   });
@@ -288,19 +288,19 @@ export async function switchGenerationActivation(pool: DatabasePool, input: { jo
     const job = await lockJob(client, input.jobId, input.expectedStateVersion);
     assertLineage(job, input.platformIncarnationId, input.applicationDeploymentEpoch);
     const set = (await client.query('SELECT * FROM kcml.generation_activation_set WHERE id=$1 FOR UPDATE', [input.activationSetId])).rows[0];
-    if (!set || String(set.state) !== 'READY') throw new DomainError('GENERATION_ACTIVATION_SET_NOT_READY', 'Only a frozen READY activation set can switch', 409, 'RECONCILE_THEN_RETRY');
+    if (!set || String(set.state) !== 'READY') throw new DomainError('ACTIVATION_SET_NOT_READY', 'Only a frozen READY activation set can switch', 409, 'RECONCILE_THEN_RETRY');
     const head = (await client.query('SELECT * FROM kcml.activation_head WHERE singleton_key=1 FOR UPDATE')).rows[0];
     const nextEpoch = BigInt(head.current_epoch) + 1n;
     const pre = await checkpoint(client, job, 'ACTIVATING', 'ACTIVATION_PRE', { activationSetId: set.id, previousSnapshot: set.previous_snapshot, candidateSnapshot: set.candidate_snapshot, nextEpoch: nextEpoch.toString() }, null, null);
     await client.query(`UPDATE kcml.generation_activation_set SET state='SWITCHING',activation_epoch=$2,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`, [set.id, nextEpoch.toString()]);
     await client.query(`UPDATE kcml.activation_head SET current_epoch=$1,current_activation_set_id=$2,state_version=state_version+1,updated_at=clock_timestamp() WHERE singleton_key=1 AND current_epoch=$3`, [nextEpoch.toString(), set.id, head.current_epoch]);
     const verifying = (await client.query(`UPDATE kcml.generation_activation_set SET state='VERIFYING',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND state='SWITCHING' RETURNING *`, [set.id])).rows[0];
-    if (!verifying) throw new DomainError('GENERATION_ACTIVATION_SWITCH_CONFLICT', 'Activation set did not enter postflight verification', 409, 'RECONCILE_THEN_RETRY');
+    if (!verifying) throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', 'Activation set did not enter postflight verification', 409, 'RECONCILE_THEN_RETRY');
     const verified = (await client.query(`UPDATE kcml.generation_activation_set SET state='ACTIVE',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND state='VERIFYING' RETURNING *`, [set.id])).rows[0];
-    if (!verified) throw new DomainError('GENERATION_ACTIVATION_SWITCH_CONFLICT', 'Activation set postflight verification failed', 409, 'RECONCILE_THEN_RETRY');
+    if (!verified) throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', 'Activation set postflight verification failed', 409, 'RECONCILE_THEN_RETRY');
     const post = await checkpoint(client, job, 'ACTIVATING', 'ACTIVATION_POST', { activationSetId: set.id, activationEpoch: nextEpoch.toString(), state: 'ACTIVE' }, null, null);
     const changed = (await client.query(`UPDATE kcml.generation_job SET lifecycle='COMPLETED',current_phase='COMPLETED',activation_epoch=$2,latest_checkpoint_id=$3,result_digest=$4,terminal_evidence=$5,active_phase_run_id=NULL,state_version=state_version+1 WHERE id=$1 AND lifecycle='ACTIVATING' RETURNING *`, [job.id, nextEpoch.toString(), post.id, digest({ activationSetId: set.id, activationEpoch: nextEpoch.toString(), state: 'COMPLETED' }), { activationSetId: set.id, activationEpoch: nextEpoch.toString(), state: 'COMPLETED' }])).rows[0];
-    if (!changed) throw new DomainError('GENERATION_ACTIVATION_JOB_CONFLICT', 'Generation job was not activating', 409, 'RECONCILE_THEN_RETRY');
+    if (!changed) throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', 'Generation job was not activating', 409, 'RECONCILE_THEN_RETRY');
     await event(client, changed, 'generation.activation.completed', { activationSetId: set.id, activationEpoch: nextEpoch.toString() }, null, post.id);
     return { job: changed, activationSet: verified, activationEpoch: nextEpoch.toString(), preCheckpointId: pre.id, postCheckpointId: post.id };
   });
@@ -311,9 +311,9 @@ export async function rollbackGenerationActivation(pool: DatabasePool, input: { 
     const job = await lockJob(client, input.jobId);
     assertLineage(job, input.platformIncarnationId, input.applicationDeploymentEpoch);
     const set = (await client.query('SELECT * FROM kcml.generation_activation_set WHERE id=$1 FOR UPDATE', [input.activationSetId])).rows[0];
-    if (!set) throw new DomainError('GENERATION_ACTIVATION_SET_NOT_FOUND', 'Activation set does not exist', 404, 'DO_NOT_RETRY');
+    if (!set) throw new DomainError('ACTIVATION_SET_NOT_READY', 'Activation set does not exist', 404, 'DO_NOT_RETRY');
     const head = (await client.query('SELECT * FROM kcml.activation_head WHERE singleton_key=1 FOR UPDATE')).rows[0];
-    if (!['ACTIVE', 'VERIFYING'].includes(String(set.state)) || String(head.current_activation_set_id) !== String(set.id)) throw new DomainError('GENERATION_ACTIVATION_ROLLBACK_STALE', 'Rollback requires the current candidate activation set', 409, 'RECONCILE_THEN_RETRY');
+    if (!['ACTIVE', 'VERIFYING'].includes(String(set.state)) || String(head.current_activation_set_id) !== String(set.id)) throw new DomainError('ROLLBACK_INCOMPLETE', 'Rollback requires the current candidate activation set', 409, 'RECONCILE_THEN_RETRY');
     const nextEpoch = BigInt(head.current_epoch) + 1n;
     const previous = (set.previous_snapshot ?? {}) as JsonObject;
     const previousSetId = typeof previous.activationSetId === 'string' ? previous.activationSetId : null;
@@ -322,7 +322,7 @@ export async function rollbackGenerationActivation(pool: DatabasePool, input: { 
     await client.query(`UPDATE kcml.generation_activation_set SET state='ROLLBACK_VERIFYING',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND state='ROLLING_BACK'`, [set.id]);
     const restored = (await client.query(`UPDATE kcml.generation_activation_set SET state='ROLLED_BACK',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND state='ROLLBACK_VERIFYING' RETURNING *`, [set.id])).rows[0];
     const changed = (await client.query(`UPDATE kcml.generation_job SET lifecycle='BLOCKED',current_phase='BLOCKED',activation_epoch=$2,terminal_evidence=$3,state_version=state_version+1 WHERE id=$1 AND lifecycle NOT IN ('COMPLETED','FAILED','CANCELLED') RETURNING *`, [job.id, nextEpoch.toString(), { rollback: true, activationSetId: set.id, restoredActivationSetId: previousSetId, reason: input.reason, state: previousSetId ? 'PREVIOUS_RESTORED' : 'ABSENT' }])).rows[0];
-    if (!changed) throw new DomainError('GENERATION_ROLLBACK_CONFLICT', 'Generation job cannot be rolled back from its terminal state', 409, 'DO_NOT_RETRY');
+    if (!changed) throw new DomainError('GENERATION_PLAN_INVALID', 'Generation job cannot be rolled back from its terminal state', 409, 'DO_NOT_RETRY');
     const cp = await checkpoint(client, changed, 'BLOCKED', 'ACTIVATION_POST', { rollback: true, activationSetId: set.id, restoredActivationSetId: previousSetId, activationEpoch: nextEpoch.toString(), reason: input.reason }, null, null);
     await event(client, changed, 'generation.activation.rollback.completed', { activationSetId: set.id, restoredActivationSetId: previousSetId, activationEpoch: nextEpoch.toString(), reason: input.reason }, null, cp.id);
     return { job: changed, activationSet: restored, restoredActivationSetId: previousSetId, activationEpoch: nextEpoch.toString(), checkpointId: cp.id };
@@ -333,7 +333,7 @@ export async function cleanupGenerationJob(pool: DatabasePool, jobId: string): P
   return withSerializableRetry(pool, async (client) => {
     const job = await lockJob(client, jobId);
     const heads = (await client.query(`SELECT p.platform_incarnation_id,d.current_epoch FROM kcml.platform_incarnation p CROSS JOIN kcml.application_deployment_head d WHERE p.singleton_key=1 AND d.singleton_key=1`)).rows[0];
-    if (!heads) throw new DomainError('AUTHORITY_HEADS_MISSING', 'Platform authority heads are missing', 503, 'RETRY_SAME_OPERATION');
+    if (!heads) throw new DomainError('CLOSURE_PREDICATE_INCOMPLETE', 'Platform authority heads are missing', 503, 'RETRY_SAME_OPERATION');
     const cleanupId = randomUUID();
     await client.query(`INSERT INTO kcml.cleanup_operation(id,parent_kind,parent_id,status,platform_incarnation_id,application_deployment_epoch) VALUES($1,'GENERATION_JOB',$2,'RUNNING',$3,$4)`, [cleanupId, jobId, heads.platform_incarnation_id, heads.current_epoch]);
     const phaseRuns = Number((await client.query(`SELECT count(*)::int AS count FROM kcml.generation_phase_run WHERE job_id=$1 AND state IN ('QUEUED','RUNNING','WAITING_FOR_DEPENDENCY','WAITING_FOR_OWNER','REPAIRING','CANCEL_REQUESTED')`, [jobId])).rows[0].count);

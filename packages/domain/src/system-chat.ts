@@ -31,7 +31,7 @@ export class SystemChatService{
           input.conversationId,`system-chat:${input.conversationId}`,title,input.accessChannel,input.model,input.context,digestBytes(shape),input.correlationId,
           heads.platform_incarnation_id,heads.current_epoch,heads.activation_epoch
         ])).rows[0];
-      }else if(conversation.owner_actor_id!=='KRMAR78')throw new DomainError('SYSTEM_CHAT_OWNER_MISMATCH','Conversation is not owned by the singleton OWNER',403,'DO_NOT_RETRY');
+      }else if(conversation.owner_actor_id!=='KRMAR78')throw new DomainError('OPERATION_CONTRACT_INCOMPLETE','Conversation is not owned by the singleton OWNER',403,'DO_NOT_RETRY');
       const stableKey=`system-chat-owner:${input.conversationId}:${input.idempotencyKey}`;
       const prior=(await client.query(`SELECT m.*,a.id AS assistant_message_id,a.content AS assistant_content,a.status AS assistant_status,a.model_call_id AS assistant_model_call_id
         FROM kcml.system_chat_message m LEFT JOIN kcml.system_chat_message a ON a.causation_id=m.id AND a.role='ASSISTANT'
@@ -39,7 +39,7 @@ export class SystemChatService{
       if(prior){
         if(prior.content!==input.message)throw new DomainError('IDEMPOTENCY_CONFLICT','Chat idempotency key was used with a different OWNER message',409,'DO_NOT_RETRY');
         if(prior.assistant_message_id)return{replay:true,conversationId:input.conversationId,ownerMessageId:String(prior.id),assistantMessageId:String(prior.assistant_message_id),assistantContent:String(prior.assistant_content),assistantStatus:String(prior.assistant_status),modelCallId:prior.assistant_model_call_id?String(prior.assistant_model_call_id):null};
-        throw new DomainError('SYSTEM_CHAT_REQUEST_IN_PROGRESS','The idempotent chat request is still in progress',409,'RETRY_SAME_OPERATION');
+        throw new DomainError('PLATFORM_RECOVERY_IN_PROGRESS','The idempotent chat request is still in progress',409,'RETRY_SAME_OPERATION');
       }
       const nextSequence=await allocateContiguousSequence(client,'SYSTEM_CHAT_MESSAGE',input.conversationId,'SEQUENCE');
       const shape={conversationId:input.conversationId,messageId:input.messageId,sequence:nextSequence.toString(),role:'OWNER',content:input.message,context:input.context,idempotencyKey:input.idempotencyKey};
@@ -57,11 +57,11 @@ export class SystemChatService{
   public async complete(input:{conversationId:string;ownerMessageId:string;content:string;modelCallId:string;usage:unknown;correlationId:string}):Promise<string>{
     return inTransaction(this.pool,'SERIALIZABLE',async client=>{
       const conversation=(await client.query(`SELECT * FROM kcml.system_chat_conversation WHERE id=$1 FOR UPDATE`,[input.conversationId])).rows[0];
-      if(!conversation)throw new DomainError('SYSTEM_CHAT_CONVERSATION_MISSING','Conversation disappeared before assistant persistence',409,'MANUAL_REVIEW');
+      if(!conversation)throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID','Conversation disappeared before assistant persistence',409,'MANUAL_REVIEW');
       const ownerMessage=(await client.query(`SELECT id FROM kcml.system_chat_message WHERE id=$1 AND conversation_id=$2 AND role='OWNER'`,[input.ownerMessageId,input.conversationId])).rows[0];
-      if(!ownerMessage)throw new DomainError('SYSTEM_CHAT_OWNER_MESSAGE_MISSING','OWNER message disappeared before assistant persistence',409,'MANUAL_REVIEW');
+      if(!ownerMessage)throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID','OWNER message disappeared before assistant persistence',409,'MANUAL_REVIEW');
       const modelCall=(await client.query(`SELECT id FROM kcml.ai_model_call WHERE id=$1 AND parent_run_id=$2 AND submit_state='COMPLETED'`,[input.modelCallId,input.conversationId])).rows[0];
-      if(!modelCall)throw new DomainError('SYSTEM_CHAT_MODEL_CALL_NOT_TERMINAL','Assistant success requires a completed model call owned by the conversation',409,'MANUAL_REVIEW');
+      if(!modelCall)throw new DomainError('TERMINAL_STATE_IMMUTABLE','Assistant success requires a completed model call owned by the conversation',409,'MANUAL_REVIEW');
       const existing=(await client.query(`SELECT id FROM kcml.system_chat_message WHERE causation_id=$1 AND role='ASSISTANT'`,[input.ownerMessageId])).rows[0];
       if(existing)return String(existing.id);
       const assistantMessageId=randomUUID();const nextSequence=await allocateContiguousSequence(client,'SYSTEM_CHAT_MESSAGE',input.conversationId,'SEQUENCE');
@@ -80,7 +80,7 @@ export class SystemChatService{
   public async fail(input:{conversationId:string;ownerMessageId:string;message:string;modelCallId?:string|null;correlationId:string}):Promise<string>{
     return inTransaction(this.pool,'SERIALIZABLE',async client=>{
       const conversation=(await client.query(`SELECT * FROM kcml.system_chat_conversation WHERE id=$1 FOR UPDATE`,[input.conversationId])).rows[0];
-      if(!conversation)throw new DomainError('SYSTEM_CHAT_CONVERSATION_MISSING','Conversation disappeared before failure persistence',409,'MANUAL_REVIEW');
+      if(!conversation)throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID','Conversation disappeared before failure persistence',409,'MANUAL_REVIEW');
       const existing=(await client.query(`SELECT id FROM kcml.system_chat_message WHERE causation_id=$1 AND role='ASSISTANT'`,[input.ownerMessageId])).rows[0];
       if(existing)return String(existing.id);
       const assistantMessageId=randomUUID();const nextSequence=await allocateContiguousSequence(client,'SYSTEM_CHAT_MESSAGE',input.conversationId,'SEQUENCE');

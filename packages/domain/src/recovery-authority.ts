@@ -20,12 +20,12 @@ export async function lockAndVerifyPlatformRecovery(client: DatabaseClient): Pro
     CROSS JOIN kcml.application_deployment_head deployment
     WHERE recovery.singleton_key=1 AND platform.singleton_key=1 AND deployment.singleton_key=1
     FOR SHARE OF recovery,platform,deployment`)).rows[0];
-  if (!row) throw new DomainError('PLATFORM_RECOVERY_HEAD_MISSING', 'Platform recovery authority head is missing', 503, 'RETRY_SAME_OPERATION');
+  if (!row) throw new DomainError('PLATFORM_RECOVERY_IN_PROGRESS', 'Platform recovery authority head is missing', 503, 'RETRY_SAME_OPERATION');
   const identityCurrent = Buffer.from(row.database_start_identity).equals(Buffer.from(row.current_database_start_identity));
   const lineageCurrent = String(row.platform_incarnation_id) === String(row.current_platform_incarnation_id)
     && BigInt(row.application_deployment_epoch) === BigInt(row.current_epoch);
   if (row.state !== 'READY' || !identityCurrent || !lineageCurrent) {
-    throw new DomainError('PLATFORM_RECOVERY_NOT_READY', 'Authoritative write is fail-closed until current database recovery and inventory reconciliation reach READY', 503, 'RETRY_SAME_OPERATION', {
+    throw new DomainError('PLATFORM_RECOVERY_IN_PROGRESS', 'Authoritative write is fail-closed until current database recovery and inventory reconciliation reach READY', 503, 'RETRY_SAME_OPERATION', {
       state: row.state,
       databaseStartIdentityCurrent: identityCurrent,
       authorityLineageCurrent: lineageCurrent,

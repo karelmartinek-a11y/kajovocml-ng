@@ -118,40 +118,40 @@ export interface ComponentOperationContext {
 }
 
 export async function executeExactComponentQuery(pool:DatabasePool,operationName:string,targetId:string|null,argumentsValue:JsonObject):Promise<unknown>{
-  if(!targetId)throw new DomainError('COMPONENT_TARGET_REQUIRED',`${operationName} requires an exact component target`,422,'DO_NOT_RETRY');
+  if(!targetId)throw new DomainError('AGENTIC_DYNAMIC_TARGET_UNBOUND',`${operationName} requires an exact component target`,422,'DO_NOT_RETRY');
   if(operationName==='component.validate'){
-    const parsed=componentRevisionQuerySchema.safeParse(argumentsValue);if(!parsed.success)throw new DomainError('COMPONENT_ARGUMENTS_INVALID','Component validation query arguments are invalid',422,'DO_NOT_RETRY',parsed.error.issues);
+    const parsed=componentRevisionQuerySchema.safeParse(argumentsValue);if(!parsed.success)throw new DomainError('OPERATION_CONTRACT_INCOMPLETE','Component validation query arguments are invalid',422,'DO_NOT_RETRY',parsed.error.issues);
     const revision=(await pool.query(`SELECT r.*,c.state_version AS component_state_version FROM kcml.component_revision r JOIN kcml.component c ON c.id=r.component_id WHERE r.id=$1 AND r.component_id=$2`,[parsed.data.revisionId,targetId])).rows[0];
-    if(!revision)throw new DomainError('COMPONENT_REVISION_NOT_FOUND','Component revision does not exist',404,'DO_NOT_RETRY');
+    if(!revision)throw new DomainError('REVISION_STALE','Component revision does not exist',404,'DO_NOT_RETRY');
     const calculated=digestBytes(revision.canonical_manifest);const valid=calculated.equals(Buffer.from(revision.manifest_digest))&&revision.validation_state==='VALID';
     return {componentId:targetId,revisionId:revision.id,valid,validationState:revision.validation_state,manifestDigest:`sha256:${Buffer.from(revision.manifest_digest).toString('hex')}`,componentStateVersion:String(revision.component_state_version),evidence:revision.validation_evidence};
   }
   if(operationName==='component.verify'){
-    const parsed=componentVerifyQuerySchema.safeParse(argumentsValue);if(!parsed.success)throw new DomainError('COMPONENT_ARGUMENTS_INVALID','Component verification query arguments are invalid',422,'DO_NOT_RETRY',parsed.error.issues);
+    const parsed=componentVerifyQuerySchema.safeParse(argumentsValue);if(!parsed.success)throw new DomainError('OPERATION_CONTRACT_INCOMPLETE','Component verification query arguments are invalid',422,'DO_NOT_RETRY',parsed.error.issues);
     const revision=(await pool.query(`SELECT * FROM kcml.component_revision WHERE id=$1 AND component_id=$2`,[parsed.data.revisionId,targetId])).rows[0];
-    if(!revision)throw new DomainError('COMPONENT_REVISION_NOT_FOUND','Component revision does not exist',404,'DO_NOT_RETRY');
+    if(!revision)throw new DomainError('REVISION_STALE','Component revision does not exist',404,'DO_NOT_RETRY');
     const gateResult=await pool.query(`SELECT count(*)::int AS total,count(*) FILTER(WHERE status='PASS' AND (expires_at IS NULL OR expires_at>clock_timestamp()))::int AS passed,
       count(*) FILTER(WHERE status<>'PASS' OR (expires_at IS NOT NULL AND expires_at<=clock_timestamp()))::int AS blocking FROM kcml.component_readiness_gate WHERE component_id=$1 AND ($2::uuid IS NULL OR release_id=$2)`,[targetId,parsed.data.releaseId??null]);
     const gates=gateResult.rows[0];const eligible=revision.validation_state==='VALID'&&revision.verification_state==='VERIFIED'&&Number(gates.total)>0&&Number(gates.blocking)===0;
     return {componentId:targetId,revisionId:revision.id,releaseId:parsed.data.releaseId??null,eligible,validationState:revision.validation_state,verificationState:revision.verification_state,gates:{total:Number(gates.total),passed:Number(gates.passed),blocking:Number(gates.blocking)}};
   }
   if(operationName==='component.state.query'){
-    const parsed=componentStateQuerySchema.safeParse(argumentsValue);if(!parsed.success)throw new DomainError('COMPONENT_ARGUMENTS_INVALID','Component state query arguments are invalid',422,'DO_NOT_RETRY',parsed.error.issues);
-    const component=(await pool.query(`SELECT * FROM kcml.component WHERE id=$1`,[targetId])).rows[0];if(!component)throw new DomainError('COMPONENT_NOT_FOUND','Component does not exist',404,'DO_NOT_RETRY');
+    const parsed=componentStateQuerySchema.safeParse(argumentsValue);if(!parsed.success)throw new DomainError('OPERATION_CONTRACT_INCOMPLETE','Component state query arguments are invalid',422,'DO_NOT_RETRY',parsed.error.issues);
+    const component=(await pool.query(`SELECT * FROM kcml.component WHERE id=$1`,[targetId])).rows[0];if(!component)throw new DomainError('KCIP_TARGET_NOT_FOUND','Component does not exist',404,'DO_NOT_RETRY');
     const current=String(component.active_revision_id)===parsed.data.expectedRevisionId&&String(component.current_release_id)===parsed.data.expectedReleaseId&&String(component.active_binding_set_revision_id)===parsed.data.expectedBindingSetRevisionId&&BigInt(component.current_activation_epoch)===parsed.data.expectedActivationEpoch;
-    if(!current)throw new DomainError('COMPONENT_STATE_SNAPSHOT_STALE','Requested component snapshot is no longer current',409,'REFRESH_AND_RETRY_NEW_COMMAND');
+    if(!current)throw new DomainError('CAPABILITY_SNAPSHOT_STALE','Requested component snapshot is no longer current',409,'REFRESH_AND_RETRY_NEW_COMMAND');
     const values:Record<string,unknown>={lifecycle:component.lifecycle,activation:component.activation_state,operational:component.operational_state,monitoring:component.monitoring_state,recertification:component.recertification_state};
     return {componentId:targetId,consistency:parsed.data.consistency,stateVersion:String(component.state_version),aggregateEventSequence:String(component.aggregate_event_sequence),revisionId:component.active_revision_id,releaseId:component.current_release_id,bindingSetRevisionId:component.active_binding_set_revision_id,activationEpoch:String(component.current_activation_epoch),observedAt:component.updated_at,states:parsed.data.stateKeys.map((key)=>({key,value:values[key],staleness:'CURRENT_PROJECTION'}))};
   }
-  throw new DomainError('COMPONENT_QUERY_HANDLER_MISSING',`No exact component query handler exists for ${operationName}`,501,'DO_NOT_RETRY');
+  throw new DomainError('OPERATION_CONTRACT_INCOMPLETE',`No exact component query handler exists for ${operationName}`,501,'DO_NOT_RETRY');
 }
 
 async function lockComponent(client: DatabaseClient, id: string, expectedStateVersion: bigint | null): Promise<Record<string, unknown>> {
   const row = (await client.query(`SELECT * FROM kcml.component WHERE id=$1 FOR UPDATE`, [id])).rows[0] as Record<string, unknown> | undefined;
-  if (!row) throw new DomainError('COMPONENT_NOT_FOUND', 'Component target does not exist', 404, 'DO_NOT_RETRY');
-  if (expectedStateVersion === null) throw new DomainError('STATE_VERSION_REQUIRED', 'Component mutation requires expectedStateVersion', 428, 'REFRESH_AND_RETRY_NEW_COMMAND');
+  if (!row) throw new DomainError('KCIP_TARGET_NOT_FOUND', 'Component target does not exist', 404, 'DO_NOT_RETRY');
+  if (expectedStateVersion === null) throw new DomainError('STATE_VERSION_CONFLICT', 'Component mutation requires expectedStateVersion', 428, 'REFRESH_AND_RETRY_NEW_COMMAND');
   if (BigInt(String(row.state_version)) !== expectedStateVersion) throw new DomainError('STATE_VERSION_CONFLICT', 'Component state changed before command execution', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
-  if (row.lifecycle === 'DEREGISTERED') throw new DomainError('COMPONENT_DEREGISTERED', 'Deregistered component is immutable', 409, 'DO_NOT_RETRY');
+  if (row.lifecycle === 'DEREGISTERED') throw new DomainError('TERMINAL_STATE_IMMUTABLE', 'Deregistered component is immutable', 409, 'DO_NOT_RETRY');
   return row;
 }
 
@@ -162,10 +162,10 @@ async function appendComponentAuditEvent(client: DatabaseClient, context: Compon
     VALUES($1,$2,$3,0,0,'CONTIGUOUS','CURRENT',$4,'VALID',$5,$6,$7)
     ON CONFLICT(component_id) DO NOTHING`, [`component-audit:${component.id}`,`Component audit ${component.code}`,component.id,Buffer.alloc(32),digestBytes(streamPayload),context.platformIncarnationId,context.applicationDeploymentEpoch.toString()]);
   const stream=(await client.query(`SELECT * FROM kcml.component_audit_stream WHERE component_id=$1 FOR UPDATE`,[component.id])).rows[0];
-  if(!stream)throw new DomainError('COMPONENT_AUDIT_STREAM_MISSING','Component audit stream could not be reserved',500,'DO_NOT_RETRY');
+  if(!stream)throw new DomainError('CLOSURE_PREDICATE_INCOMPLETE','Component audit stream could not be reserved',500,'DO_NOT_RETRY');
   const existing=(await client.query(`SELECT id,payload_digest FROM kcml.component_audit_event WHERE stable_key=$1 AND deleted_at IS NULL`,[eventKey])).rows[0];
   if(existing){
-    if(!Buffer.from(existing.payload_digest).equals(payloadDigest))throw new DomainError('COMPONENT_OBSERVATION_SEQUENCE_CONFLICT','The same component observation sequence has a different payload digest',409,'DO_NOT_RETRY');
+    if(!Buffer.from(existing.payload_digest).equals(payloadDigest))throw new DomainError('OPERATION_CONTRACT_INCOMPLETE','The same component observation sequence has a different payload digest',409,'DO_NOT_RETRY');
     return {id:existing.id,duplicate:true};
   }
   const sequence=BigInt(stream.last_sequence)+1n;const sequenceBytes=Buffer.alloc(8);sequenceBytes.writeBigInt64BE(sequence);
@@ -201,7 +201,7 @@ async function setComponentAdmissionBarrier(client:DatabaseClient,context:Compon
 
 async function assertCurrentReadiness(client:DatabaseClient,componentId:string,releaseId:unknown):Promise<void>{
   const gates=(await client.query(`SELECT count(*)::int AS total,count(*) FILTER(WHERE status<>'PASS' OR (expires_at IS NOT NULL AND expires_at<=clock_timestamp()))::int AS blocking FROM kcml.component_readiness_gate WHERE component_id=$1 AND release_id=$2`,[componentId,releaseId])).rows[0];
-  if(Number(gates?.total??0)===0||Number(gates?.blocking??0)>0)throw new DomainError('COMPONENT_READINESS_NOT_PASS','Current component release does not have fresh PASS for every readiness gate',409,'DO_NOT_RETRY');
+  if(Number(gates?.total??0)===0||Number(gates?.blocking??0)>0)throw new DomainError('ACTIVATION_SET_NOT_READY','Current component release does not have fresh PASS for every readiness gate',409,'DO_NOT_RETRY');
 }
 
 async function transitionComponentLifecycle(client:DatabaseClient,context:ComponentOperationContext,component:Record<string,unknown>,toLifecycle:string,reason:string,evidenceDigest:string,projection:Partial<Record<'operational_state'|'recertification_state',string>>={}):Promise<Record<string,unknown>>{
@@ -218,9 +218,9 @@ async function transitionComponentLifecycle(client:DatabaseClient,context:Compon
 
 export async function executeExactComponentMutation(client: DatabaseClient, context: ComponentOperationContext): Promise<unknown> {
   if (context.operationName === 'component.register') {
-    if (context.targetId) throw new DomainError('COMPONENT_REGISTER_TARGET_FORBIDDEN', 'Component registration creates a new aggregate', 422, 'DO_NOT_RETRY');
+    if (context.targetId) throw new DomainError('AGENTIC_DYNAMIC_TARGET_UNBOUND', 'Component registration creates a new aggregate', 422, 'DO_NOT_RETRY');
     const parsed = registerSchema.safeParse(context.arguments);
-    if (!parsed.success) throw new DomainError('COMPONENT_ARGUMENTS_INVALID', 'Component registration arguments do not match the exact contract', 422, 'DO_NOT_RETRY', parsed.error.issues);
+    if (!parsed.success) throw new DomainError('OPERATION_CONTRACT_INCOMPLETE', 'Component registration arguments do not match the exact contract', 422, 'DO_NOT_RETRY', parsed.error.issues);
     const input = parsed.data;
     const id = randomUUID();
     const canonicalPayload = {
@@ -253,19 +253,19 @@ export async function executeExactComponentMutation(client: DatabaseClient, cont
         digestBytes(canonicalPayload),context.logicalOperationId,context.correlationId,context.platformIncarnationId,context.applicationDeploymentEpoch.toString()
       ])).rows[0];
     } catch (error) {
-      if (typeof error === 'object' && error !== null && 'code' in error && error.code === '23505') throw new DomainError('COMPONENT_IDENTITY_CONFLICT', 'Component stable key, KCML number, code or hostname already exists', 409, 'DO_NOT_RETRY');
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === '23505') throw new DomainError('IDEMPOTENCY_CONFLICT', 'Component stable key, KCML number, code or hostname already exists', 409, 'DO_NOT_RETRY');
       throw error;
     }
   }
 
   if (context.operationName === 'component.heartbeat') {
-    if (!context.targetId) throw new DomainError('COMPONENT_TARGET_REQUIRED', 'Heartbeat requires an exact component target', 422, 'DO_NOT_RETRY');
+    if (!context.targetId) throw new DomainError('AGENTIC_DYNAMIC_TARGET_UNBOUND', 'Heartbeat requires an exact component target', 422, 'DO_NOT_RETRY');
     const parsed=heartbeatSchema.safeParse(context.arguments);
-    if(!parsed.success)throw new DomainError('COMPONENT_HEARTBEAT_INVALID','Heartbeat payload does not match the exact KCIP contract',422,'DO_NOT_RETRY',parsed.error.issues);
+    if(!parsed.success)throw new DomainError('OPERATION_CONTRACT_INCOMPLETE','Heartbeat payload does not match the exact KCIP contract',422,'DO_NOT_RETRY',parsed.error.issues);
     const input=parsed.data;
     const component=(await client.query(`SELECT * FROM kcml.component WHERE id=$1 FOR UPDATE`,[context.targetId])).rows[0] as Record<string,unknown>|undefined;
-    if(!component)throw new DomainError('COMPONENT_NOT_FOUND','Heartbeat component does not exist',404,'DO_NOT_RETRY');
-    if(input.componentCode!==component.code)throw new DomainError('COMPONENT_HEARTBEAT_IDENTITY_MISMATCH','Heartbeat componentCode does not match the target component',409,'DO_NOT_RETRY');
+    if(!component)throw new DomainError('KCIP_TARGET_NOT_FOUND','Heartbeat component does not exist',404,'DO_NOT_RETRY');
+    if(input.componentCode!==component.code)throw new DomainError('OPERATION_CONTRACT_INCOMPLETE','Heartbeat componentCode does not match the target component',409,'DO_NOT_RETRY');
     const payload=jsonSafe({...input,runtimeGeneration:input.runtimeGeneration.toString(),activationEpoch:input.activationEpoch.toString(),heartbeatSequence:input.heartbeatSequence.toString()});
     const eventKey=`heartbeat:${context.targetId}:${input.runtimeGeneration}:${input.heartbeatSequence}`;
     const runtime=(await client.query(`SELECT * FROM kcml.runtime_instance WHERE id=$1 AND component_id=$2 FOR UPDATE`,[input.runtimeId,context.targetId])).rows[0];
@@ -297,16 +297,16 @@ export async function executeExactComponentMutation(client: DatabaseClient, cont
   }
 
   if(context.operationName==='component.state.report'){
-    if(!context.targetId)throw new DomainError('COMPONENT_TARGET_REQUIRED','State report requires an exact component target',422,'DO_NOT_RETRY');
-    const parsed=componentStateReportSchema.safeParse(context.arguments);if(!parsed.success)throw new DomainError('COMPONENT_STATE_REPORT_INVALID','State report does not match the exact observation contract',422,'DO_NOT_RETRY',parsed.error.issues);
-    const component=(await client.query(`SELECT * FROM kcml.component WHERE id=$1 FOR UPDATE`,[context.targetId])).rows[0] as Record<string,unknown>|undefined;if(!component)throw new DomainError('COMPONENT_NOT_FOUND','State-report component does not exist',404,'DO_NOT_RETRY');
+    if(!context.targetId)throw new DomainError('AGENTIC_DYNAMIC_TARGET_UNBOUND','State report requires an exact component target',422,'DO_NOT_RETRY');
+    const parsed=componentStateReportSchema.safeParse(context.arguments);if(!parsed.success)throw new DomainError('STATE_MACHINE_CONTRACT_INCOMPLETE','State report does not match the exact observation contract',422,'DO_NOT_RETRY',parsed.error.issues);
+    const component=(await client.query(`SELECT * FROM kcml.component WHERE id=$1 FOR UPDATE`,[context.targetId])).rows[0] as Record<string,unknown>|undefined;if(!component)throw new DomainError('KCIP_TARGET_NOT_FOUND','State-report component does not exist',404,'DO_NOT_RETRY');
     const results=[];
     for(const observation of parsed.data.observations){
       const contract=(await client.query(`SELECT * FROM kcml.component_state_contract WHERE component_id=$1 AND revision_id=$2 AND state_key=$3 AND lifecycle='ACTIVE' AND deleted_at IS NULL`,[context.targetId,component.active_revision_id,observation.stateKey])).rows[0];
-      if(!contract)throw new DomainError('COMPONENT_STATE_CONTRACT_NOT_FOUND',`No active state contract exists for ${observation.stateKey}`,422,'DO_NOT_RETRY');
-      if(`sha256:${Buffer.from(contract.contract_digest).toString('hex')}`!==observation.schemaDigest)throw new DomainError('COMPONENT_STATE_SCHEMA_DIGEST_MISMATCH','State report schema digest is not current',409,'DO_NOT_RETRY');
-      const payloadDigest=canonicalDigest(jsonSafe(observation.payload));if(payloadDigest!==observation.payloadDigest)throw new DomainError('COMPONENT_STATE_PAYLOAD_DIGEST_MISMATCH','State report payload digest is invalid',422,'DO_NOT_RETRY');
-      if(!validateBoundedStatePayload(contract.schema,observation.payload))throw new DomainError('COMPONENT_STATE_PAYLOAD_SCHEMA_INVALID','State report payload violates its exact bounded schema',422,'DO_NOT_RETRY');
+      if(!contract)throw new DomainError('STATE_MACHINE_CONTRACT_INCOMPLETE',`No active state contract exists for ${observation.stateKey}`,422,'DO_NOT_RETRY');
+      if(`sha256:${Buffer.from(contract.contract_digest).toString('hex')}`!==observation.schemaDigest)throw new DomainError('RUNTIME_DIGEST_MISMATCH','State report schema digest is not current',409,'DO_NOT_RETRY');
+      const payloadDigest=canonicalDigest(jsonSafe(observation.payload));if(payloadDigest!==observation.payloadDigest)throw new DomainError('RUNTIME_DIGEST_MISMATCH','State report payload digest is invalid',422,'DO_NOT_RETRY');
+      if(!validateBoundedStatePayload(contract.schema,observation.payload))throw new DomainError('MODEL_OUTPUT_SCHEMA_INVALID','State report payload violates its exact bounded schema',422,'DO_NOT_RETRY');
       const runtime=(await client.query(`SELECT * FROM kcml.runtime_instance WHERE id=$1 AND component_id=$2 FOR UPDATE`,[observation.runtimeId,context.targetId])).rows[0];
       const lineageCurrent=Boolean(runtime)&&String(component.current_release_id)===observation.releaseId&&String(component.active_binding_set_revision_id)===observation.bindingSetRevisionId&&BigInt(String(component.current_activation_epoch))===observation.activationEpoch&&String(runtime.release_id)===observation.releaseId&&BigInt(runtime.runtime_generation)===observation.runtimeGeneration&&BigInt(runtime.activation_epoch)===observation.activationEpoch;
       const payload=jsonSafe({...observation,runtimeGeneration:observation.runtimeGeneration.toString(),activationEpoch:observation.activationEpoch.toString(),sourceSequence:observation.sourceSequence.toString()});
@@ -327,37 +327,37 @@ export async function executeExactComponentMutation(client: DatabaseClient, cont
   }
 
   if(context.operationName==='component.suspend'){
-    if(!context.targetId)throw new DomainError('COMPONENT_TARGET_REQUIRED','Suspend requires an exact component target',422,'DO_NOT_RETRY');const parsed=componentSuspendSchema.safeParse(context.arguments);if(!parsed.success)throw new DomainError('COMPONENT_ARGUMENTS_INVALID','Suspend arguments are invalid',422,'DO_NOT_RETRY',parsed.error.issues);
-    const component=await lockComponent(client,context.targetId,context.expectedStateVersion);if(component.lifecycle!=='ACTIVE')throw new DomainError('COMPONENT_SUSPEND_STATE_INVALID','Only ACTIVE component can be suspended',409,'DO_NOT_RETRY');
+    if(!context.targetId)throw new DomainError('AGENTIC_DYNAMIC_TARGET_UNBOUND','Suspend requires an exact component target',422,'DO_NOT_RETRY');const parsed=componentSuspendSchema.safeParse(context.arguments);if(!parsed.success)throw new DomainError('OPERATION_CONTRACT_INCOMPLETE','Suspend arguments are invalid',422,'DO_NOT_RETRY',parsed.error.issues);
+    const component=await lockComponent(client,context.targetId,context.expectedStateVersion);if(component.lifecycle!=='ACTIVE')throw new DomainError('STATE_MACHINE_CONTRACT_INCOMPLETE','Only ACTIVE component can be suspended',409,'DO_NOT_RETRY');
     await setComponentAdmissionBarrier(client,context,context.targetId,'CLOSED');return transitionComponentLifecycle(client,context,component,'SUSPENDED',parsed.data.reason,parsed.data.evidenceDigest,{operational_state:'MAINTENANCE'});
   }
 
   if(context.operationName==='component.quarantine'){
-    if(!context.targetId)throw new DomainError('COMPONENT_TARGET_REQUIRED','Quarantine requires an exact component target',422,'DO_NOT_RETRY');const parsed=componentQuarantineSchema.safeParse(context.arguments);if(!parsed.success)throw new DomainError('COMPONENT_ARGUMENTS_INVALID','Quarantine arguments are invalid',422,'DO_NOT_RETRY',parsed.error.issues);
-    const component=await lockComponent(client,context.targetId,context.expectedStateVersion);if(!['ACTIVE','SUSPENDED'].includes(String(component.lifecycle)))throw new DomainError('COMPONENT_QUARANTINE_STATE_INVALID','Only ACTIVE or SUSPENDED component can be quarantined',409,'DO_NOT_RETRY');
+    if(!context.targetId)throw new DomainError('AGENTIC_DYNAMIC_TARGET_UNBOUND','Quarantine requires an exact component target',422,'DO_NOT_RETRY');const parsed=componentQuarantineSchema.safeParse(context.arguments);if(!parsed.success)throw new DomainError('OPERATION_CONTRACT_INCOMPLETE','Quarantine arguments are invalid',422,'DO_NOT_RETRY',parsed.error.issues);
+    const component=await lockComponent(client,context.targetId,context.expectedStateVersion);if(!['ACTIVE','SUSPENDED'].includes(String(component.lifecycle)))throw new DomainError('STATE_MACHINE_CONTRACT_INCOMPLETE','Only ACTIVE or SUSPENDED component can be quarantined',409,'DO_NOT_RETRY');
     await setComponentAdmissionBarrier(client,context,context.targetId,'CLOSED');return transitionComponentLifecycle(client,context,component,'QUARANTINED',parsed.data.reason,parsed.data.evidenceDigest,{operational_state:'QUARANTINED',recertification_state:'DUE'});
   }
 
   if(context.operationName==='component.restore'){
-    if(!context.targetId)throw new DomainError('COMPONENT_TARGET_REQUIRED','Restore requires an exact component target',422,'DO_NOT_RETRY');const parsed=componentRestoreSchema.safeParse(context.arguments);if(!parsed.success)throw new DomainError('COMPONENT_ARGUMENTS_INVALID','Restore arguments are invalid',422,'DO_NOT_RETRY',parsed.error.issues);
+    if(!context.targetId)throw new DomainError('AGENTIC_DYNAMIC_TARGET_UNBOUND','Restore requires an exact component target',422,'DO_NOT_RETRY');const parsed=componentRestoreSchema.safeParse(context.arguments);if(!parsed.success)throw new DomainError('OPERATION_CONTRACT_INCOMPLETE','Restore arguments are invalid',422,'DO_NOT_RETRY',parsed.error.issues);
     const component=await lockComponent(client,context.targetId,context.expectedStateVersion);
     if(component.lifecycle==='QUARANTINED'&&parsed.data.targetLifecycle==='SUSPENDED'){await setComponentAdmissionBarrier(client,context,context.targetId,'CLOSED');return transitionComponentLifecycle(client,context,component,'SUSPENDED',parsed.data.reason,parsed.data.evidenceDigest,{operational_state:'MAINTENANCE'});}
     if(component.lifecycle==='SUSPENDED'&&parsed.data.targetLifecycle==='ACTIVE'){
-      if(component.activation_state!=='ACTIVE'||!component.enabled)throw new DomainError('COMPONENT_ACTIVATION_NOT_CURRENT','Restore to ACTIVE requires current effective activation',409,'DO_NOT_RETRY');await assertCurrentReadiness(client,context.targetId,component.current_release_id);await setComponentAdmissionBarrier(client,context,context.targetId,'OPEN');return transitionComponentLifecycle(client,context,component,'ACTIVE',parsed.data.reason,parsed.data.evidenceDigest,{operational_state:'HEALTHY'});
+      if(component.activation_state!=='ACTIVE'||!component.enabled)throw new DomainError('ACTIVATION_EPOCH_STALE','Restore to ACTIVE requires current effective activation',409,'DO_NOT_RETRY');await assertCurrentReadiness(client,context.targetId,component.current_release_id);await setComponentAdmissionBarrier(client,context,context.targetId,'OPEN');return transitionComponentLifecycle(client,context,component,'ACTIVE',parsed.data.reason,parsed.data.evidenceDigest,{operational_state:'HEALTHY'});
     }
-    throw new DomainError('COMPONENT_RESTORE_EDGE_FORBIDDEN',`Restore cannot transition ${String(component.lifecycle)} to ${parsed.data.targetLifecycle}`,409,'DO_NOT_RETRY');
+    throw new DomainError('OPERATION_CONTRACT_INCOMPLETE',`Restore cannot transition ${String(component.lifecycle)} to ${parsed.data.targetLifecycle}`,409,'DO_NOT_RETRY');
   }
 
   if(context.operationName==='component.recertify'){
-    if(!context.targetId)throw new DomainError('COMPONENT_TARGET_REQUIRED','Recertification requires an exact component target',422,'DO_NOT_RETRY');const parsed=componentRecertifySchema.safeParse(context.arguments);if(!parsed.success)throw new DomainError('COMPONENT_ARGUMENTS_INVALID','Recertification arguments are invalid',422,'DO_NOT_RETRY',parsed.error.issues);
-    const component=await lockComponent(client,context.targetId,context.expectedStateVersion);if(component.lifecycle!=='QUARANTINED')throw new DomainError('COMPONENT_RECERTIFY_STATE_INVALID','Recertification activation requires QUARANTINED lifecycle',409,'DO_NOT_RETRY');if(component.activation_state!=='ACTIVE'||!component.enabled)throw new DomainError('COMPONENT_ACTIVATION_NOT_CURRENT','Recertification requires current effective activation',409,'DO_NOT_RETRY');
+    if(!context.targetId)throw new DomainError('AGENTIC_DYNAMIC_TARGET_UNBOUND','Recertification requires an exact component target',422,'DO_NOT_RETRY');const parsed=componentRecertifySchema.safeParse(context.arguments);if(!parsed.success)throw new DomainError('OPERATION_CONTRACT_INCOMPLETE','Recertification arguments are invalid',422,'DO_NOT_RETRY',parsed.error.issues);
+    const component=await lockComponent(client,context.targetId,context.expectedStateVersion);if(component.lifecycle!=='QUARANTINED')throw new DomainError('STATE_MACHINE_CONTRACT_INCOMPLETE','Recertification activation requires QUARANTINED lifecycle',409,'DO_NOT_RETRY');if(component.activation_state!=='ACTIVE'||!component.enabled)throw new DomainError('ACTIVATION_EPOCH_STALE','Recertification requires current effective activation',409,'DO_NOT_RETRY');
     await assertCurrentReadiness(client,context.targetId,component.current_release_id);await setComponentAdmissionBarrier(client,context,context.targetId,'OPEN');return transitionComponentLifecycle(client,context,component,'ACTIVE',parsed.data.reason,parsed.data.evidenceDigest,{operational_state:'HEALTHY',recertification_state:'PASSED'});
   }
 
   if(context.operationName==='component.deregister'){
-    if(!context.targetId)throw new DomainError('COMPONENT_TARGET_REQUIRED','Deregistration requires an exact component target',422,'DO_NOT_RETRY');const parsed=componentDeregisterSchema.safeParse(context.arguments);if(!parsed.success)throw new DomainError('COMPONENT_ARGUMENTS_INVALID','Deregistration arguments are invalid',422,'DO_NOT_RETRY',parsed.error.issues);
+    if(!context.targetId)throw new DomainError('AGENTIC_DYNAMIC_TARGET_UNBOUND','Deregistration requires an exact component target',422,'DO_NOT_RETRY');const parsed=componentDeregisterSchema.safeParse(context.arguments);if(!parsed.success)throw new DomainError('OPERATION_CONTRACT_INCOMPLETE','Deregistration arguments are invalid',422,'DO_NOT_RETRY',parsed.error.issues);
     let component=await lockComponent(client,context.targetId,context.expectedStateVersion);
-    if(component.lifecycle!=='RETIRED')throw new DomainError('COMPONENT_DEREGISTER_STATE_INVALID','Deregistration only finalizes the normative RETIRED to DEREGISTERED edge after retirement closure',409,'DO_NOT_RETRY');
+    if(component.lifecycle!=='RETIRED')throw new DomainError('STATE_MACHINE_CONTRACT_INCOMPLETE','Deregistration only finalizes the normative RETIRED to DEREGISTERED edge after retirement closure',409,'DO_NOT_RETRY');
     await setComponentAdmissionBarrier(client,context,context.targetId,'CLOSED');
     const currentAdmission=(await client.query(`UPDATE kcml.domain_command_activation_domain relation SET state='TERMINAL',terminal_at=clock_timestamp(),state_version=relation.state_version+1,updated_at=clock_timestamp()
       FROM kcml.domain_command command WHERE relation.domain_command_id=command.id AND command.logical_operation_id=$1 AND relation.state='ADMITTED' RETURNING relation.activation_domain_id`,[context.logicalOperationId])).rows[0];
@@ -383,7 +383,7 @@ export async function executeExactComponentMutation(client: DatabaseClient, cont
       authorityRuntimeCount:Number(inventory?.authority_runtime_count??0),liveProcessCount:Number(inventory?.live_process_count??0),activeBindingCount,activeClaimCount,pendingSideEffectCount,otherCommandCount,
       admissionBarrierClosed:barrier?.barrier_state==='CLOSED'&&Number(barrier?.pending_mutating_operation_count??0)===0,auditStreamValid:!auditStream||auditStream.integrity_state==='VALID'
     };
-    if(!predicateResults.passed)throw new DomainError('COMPONENT_CLOSURE_INCOMPLETE','Deregistration closure predicate did not pass against authoritative PostgreSQL state',409,'DO_NOT_RETRY',predicateResults);
+    if(!predicateResults.passed)throw new DomainError('CLOSURE_PREDICATE_INCOMPLETE','Deregistration closure predicate did not pass against authoritative PostgreSQL state',409,'DO_NOT_RETRY',predicateResults);
     const inventoryWatermarks={runtimeRows:Number((await client.query(`SELECT count(*)::int AS count FROM kcml.runtime_instance WHERE component_id=$1`,[context.targetId])).rows[0]?.count??0),bindingRows:Number((await client.query(`SELECT count(*)::int AS count FROM kcml.component_contract_binding WHERE source_component_id=$1 OR target_component_id=$1`,[context.targetId])).rows[0]?.count??0),auditLastSequence:String(auditStream?.last_sequence??0),componentStateVersion:String(component.state_version),componentEventSequence:String(component.aggregate_event_sequence),barrierStateVersion:String(barrier?.state_version??0)};
     const closureEvidence={catalog:componentClosureQueryCatalog,inventoryWatermarks,predicateResults,componentId:context.targetId,terminalStateVersion:(BigInt(String(component.state_version))+1n).toString()};
     const closureResultDigest=digestBytes(closureEvidence);const closureCatalogDigest=digestBytes(componentClosureQueryCatalog);
@@ -397,13 +397,13 @@ export async function executeExactComponentMutation(client: DatabaseClient, cont
   }
 
   if (context.operationName === 'component.revision.publish') {
-    if (!context.targetId) throw new DomainError('COMPONENT_TARGET_REQUIRED', 'Revision publication requires a component target', 422, 'DO_NOT_RETRY');
+    if (!context.targetId) throw new DomainError('AGENTIC_DYNAMIC_TARGET_UNBOUND', 'Revision publication requires a component target', 422, 'DO_NOT_RETRY');
     const parsed = revisionPublishSchema.safeParse(context.arguments);
-    if (!parsed.success) throw new DomainError('COMPONENT_ARGUMENTS_INVALID', 'Component revision arguments do not match the exact contract', 422, 'DO_NOT_RETRY', parsed.error.issues);
+    if (!parsed.success) throw new DomainError('OPERATION_CONTRACT_INCOMPLETE', 'Component revision arguments do not match the exact contract', 422, 'DO_NOT_RETRY', parsed.error.issues);
     const input = parsed.data;
     const component = await lockComponent(client, context.targetId, context.expectedStateVersion);
-    if (!['DRAFT','REVIEW'].includes(String(component.lifecycle))) throw new DomainError('COMPONENT_REVISION_PUBLICATION_STATE_INVALID', 'Revision can only be published while component is DRAFT or REVIEW', 409, 'DO_NOT_RETRY');
-    if (Object.keys(input.canonicalManifest).length === 0) throw new DomainError('COMPONENT_MANIFEST_EMPTY', 'Canonical component manifest cannot be empty', 422, 'DO_NOT_RETRY');
+    if (!['DRAFT','REVIEW'].includes(String(component.lifecycle))) throw new DomainError('STATE_MACHINE_CONTRACT_INCOMPLETE', 'Revision can only be published while component is DRAFT or REVIEW', 409, 'DO_NOT_RETRY');
+    if (Object.keys(input.canonicalManifest).length === 0) throw new DomainError('OPERATION_CONTRACT_INCOMPLETE', 'Canonical component manifest cannot be empty', 422, 'DO_NOT_RETRY');
     const revisionId = randomUUID();
     const manifestDigest = digestBytes(input.canonicalManifest);
     const validationEvidence = { validator: 'KCML_COMPONENT_MANIFEST_V1', schemaValid: true, manifestDigest: `sha256:${manifestDigest.toString('hex')}` };
@@ -418,7 +418,7 @@ export async function executeExactComponentMutation(client: DatabaseClient, cont
         validationEvidence,{reason:'ACTIVATION_VERIFICATION_NOT_EXECUTED'},digestBytes(canonicalPayload),context.logicalOperationId,context.correlationId,context.platformIncarnationId,context.applicationDeploymentEpoch.toString()
       ])).rows[0];
     } catch (error) {
-      if (typeof error === 'object' && error !== null && 'code' in error && error.code === '23505') throw new DomainError('COMPONENT_REVISION_CONFLICT', 'Semantic version or manifest digest already exists for this component', 409, 'DO_NOT_RETRY');
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === '23505') throw new DomainError('REVISION_STALE', 'Semantic version or manifest digest already exists for this component', 409, 'DO_NOT_RETRY');
       throw error;
     }
     await client.query(`UPDATE kcml.component SET lifecycle=CASE WHEN lifecycle='REVIEW' THEN 'DRAFT' ELSE lifecycle END,
@@ -428,5 +428,5 @@ export async function executeExactComponentMutation(client: DatabaseClient, cont
     return revision;
   }
 
-  throw new DomainError('COMPONENT_OPERATION_HANDLER_MISSING', `No exact component mutation handler exists for ${context.operationName}`, 501, 'DO_NOT_RETRY');
+  throw new DomainError('OPERATION_CONTRACT_INCOMPLETE', `No exact component mutation handler exists for ${context.operationName}`, 501, 'DO_NOT_RETRY');
 }

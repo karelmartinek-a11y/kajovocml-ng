@@ -4,7 +4,7 @@ import { DomainError } from './errors.js';
 const SAFE_IDENTIFIER=/^[a-z][a-z0-9_]*$/u;
 
 function ident(value:string):string{
-  if(!SAFE_IDENTIFIER.test(value))throw new DomainError('SSOT_ENTITY_INVALID','Entity identifier is outside the compiled SSOT surface',500);
+  if(!SAFE_IDENTIFIER.test(value))throw new DomainError('OPERATION_CONTRACT_INCOMPLETE','Entity identifier is outside the compiled SSOT surface',500);
   return `"${value}"`;
 }
 
@@ -34,7 +34,7 @@ export class SsotSurfaceService {
   public constructor(private readonly pool:DatabasePool,private readonly allowedEntities:ReadonlySet<string>){}
 
   private assertEntity(entity:string):void{
-    if(!this.allowedEntities.has(entity))throw new DomainError('SSOT_ENTITY_NOT_COMPILED',`Entity ${entity} is not in the compiled SSOT surface`,500);
+    if(!this.allowedEntities.has(entity))throw new DomainError('OPERATION_CONTRACT_INCOMPLETE',`Entity ${entity} is not in the compiled SSOT surface`,500);
     ident(entity);
   }
 
@@ -44,14 +44,14 @@ export class SsotSurfaceService {
       FROM pg_attribute a JOIN pg_class c ON c.oid=a.attrelid JOIN pg_namespace n ON n.oid=c.relnamespace
       LEFT JOIN pg_attrdef ad ON ad.adrelid=a.attrelid AND ad.adnum=a.attnum
       WHERE n.nspname='kcml' AND c.relname=$1 AND a.attnum>0 AND NOT a.attisdropped ORDER BY a.attnum`,[entity]);
-    if(!result.rows.length)throw new DomainError('SSOT_ENTITY_STORAGE_MISSING',`Physical table kcml.${entity} is missing`,503);
+    if(!result.rows.length)throw new DomainError('OPERATION_CONTRACT_INCOMPLETE',`Physical table kcml.${entity} is missing`,503);
     const columns=new Map<string,ColumnInfo>(result.rows.map((row)=>[String(row.name),{name:String(row.name),nullable:Boolean(row.nullable),hasDefault:Boolean(row.has_default),generated:Boolean(row.generated)}]));this.columnCache.set(entity,columns);return columns;
   }
 
   public async read(entity:string,targetId:string|null,limit=200,scope:Readonly<Record<string,string>>={}):Promise<unknown>{
     this.assertEntity(entity);const columns=await this.columns(this.pool,entity);const table=ident(entity);
-    if(targetId&&columns.has('id')){const result=await this.pool.query(`SELECT to_jsonb(t) AS row FROM kcml.${table} t WHERE t.id::text=$1 LIMIT 1`,[targetId]);if(!result.rows[0])throw new DomainError('RESOURCE_NOT_FOUND',`${entity} row does not exist`,404);return result.rows[0].row;}
-    if(targetId&&columns.has('stable_key')){const result=await this.pool.query(`SELECT to_jsonb(t) AS row FROM kcml.${table} t WHERE t.stable_key=$1 LIMIT 1`,[targetId]);if(!result.rows[0])throw new DomainError('RESOURCE_NOT_FOUND',`${entity} row does not exist`,404);return result.rows[0].row;}
+    if(targetId&&columns.has('id')){const result=await this.pool.query(`SELECT to_jsonb(t) AS row FROM kcml.${table} t WHERE t.id::text=$1 LIMIT 1`,[targetId]);if(!result.rows[0])throw new DomainError('KCIP_TARGET_NOT_FOUND',`${entity} row does not exist`,404);return result.rows[0].row;}
+    if(targetId&&columns.has('stable_key')){const result=await this.pool.query(`SELECT to_jsonb(t) AS row FROM kcml.${table} t WHERE t.stable_key=$1 LIMIT 1`,[targetId]);if(!result.rows[0])throw new DomainError('KCIP_TARGET_NOT_FOUND',`${entity} row does not exist`,404);return result.rows[0].row;}
     const predicates:string[]=[];const values:unknown[]=[];const usedColumns=new Set<string>();
     for(const [key,value] of Object.entries(scope)){const candidates=[snake(key),key==='parentId'?'parent_id':'',key==='id'?'parent_id':''].filter(Boolean);const column=candidates.find((candidate)=>columns.has(candidate)&&!usedColumns.has(candidate));if(!column)continue;usedColumns.add(column);values.push(value);predicates.push(`t.${ident(column)}::text=$${values.length}`);}
     if(columns.has('deleted_at'))predicates.push('t.deleted_at IS NULL');const bounded=Math.max(1,Math.min(500,limit));values.push(bounded);
@@ -61,6 +61,6 @@ export class SsotSurfaceService {
 
   public async mutate(input:SurfaceMutationInput):Promise<never>{
     this.assertEntity(input.entity);
-    throw new DomainError('SSOT_OPERATION_BINDING_REQUIRED',`Mutating route ${input.routeKey} has no exact canonical operation binding and is fail-closed`,501,'DO_NOT_RETRY',{routeKey:input.routeKey,entity:input.entity});
+    throw new DomainError('OPERATION_CONTRACT_INCOMPLETE',`Mutating route ${input.routeKey} has no exact canonical operation binding and is fail-closed`,501,'DO_NOT_RETRY',{routeKey:input.routeKey,entity:input.entity});
   }
 }

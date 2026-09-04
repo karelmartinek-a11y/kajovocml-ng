@@ -119,7 +119,7 @@ export class PlatformRecoveryCoordinator {
   public constructor(private readonly pool:DatabasePool,private readonly options:PlatformRecoveryCoordinatorOptions={}){}
 
   public async recover(workerId:string):Promise<PlatformRecoveryResult>{
-    if(!/^[0-9a-f-]{36}$/iu.test(workerId))throw new DomainError('RECOVERY_WORKER_ID_INVALID','Recovery worker identity must be a UUID',500,'DO_NOT_RETRY');
+    if(!/^[0-9a-f-]{36}$/iu.test(workerId))throw new DomainError('AGENTIC_OPERATION_CONTEXT_INVALID','Recovery worker identity must be a UUID',500,'DO_NOT_RETRY');
     const authority=await this.beginOrTakeOver(workerId);
     await this.options.faultInjector?.('AFTER_RECOVERY_STARTING',{attemptId:authority.attemptId,recoveryEpoch:authority.recoveryEpoch,fencingToken:authority.fencingToken});
     await this.enterReconciling(authority,workerId);
@@ -138,7 +138,7 @@ export class PlatformRecoveryCoordinator {
     const current=(await client.query(`SELECT head.*,kcml.current_database_start_identity() AS current_database_start_identity,platform.platform_incarnation_id AS current_platform_incarnation_id,deployment.current_epoch
       FROM kcml.platform_recovery_head head CROSS JOIN kcml.platform_incarnation platform CROSS JOIN kcml.application_deployment_head deployment
       WHERE head.singleton_key=1 AND platform.singleton_key=1 AND deployment.singleton_key=1 FOR UPDATE OF head,platform,deployment`)).rows[0];
-    if(!current)throw new DomainError('PLATFORM_RECOVERY_HEAD_MISSING','Platform recovery authority is missing',503,'DO_NOT_RETRY');
+    if(!current)throw new DomainError('PLATFORM_RECOVERY_IN_PROGRESS','Platform recovery authority is missing',503,'DO_NOT_RETRY');
     const currentIdentity=Buffer.from(current.current_database_start_identity);const platformId=String(current.current_platform_incarnation_id);const deploymentEpoch=BigInt(current.current_epoch);
     const currentAttempt=current.current_attempt_id?(await client.query(`SELECT * FROM kcml.platform_recovery_attempt WHERE id=$1 FOR UPDATE`,[current.current_attempt_id])).rows[0]:null;
     const attemptReusable=currentAttempt&&!currentAttempt.finished_at&&Buffer.from(currentAttempt.database_start_identity).equals(currentIdentity)&&String(currentAttempt.platform_incarnation_id)===platformId&&BigInt(currentAttempt.application_deployment_epoch)===deploymentEpoch;
@@ -162,7 +162,7 @@ export class PlatformRecoveryCoordinator {
   private async enterReconciling(authority:RecoveryAuthority,workerId:string):Promise<void>{await inTransaction(this.pool,'SERIALIZABLE',async(client)=>{
     await exclusiveRecoveryLock(client);
     const attempt=(await client.query(`SELECT * FROM kcml.platform_recovery_attempt WHERE id=$1 FOR UPDATE`,[authority.attemptId])).rows[0];
-    if(!attempt||String(attempt.lease_owner)!==workerId||BigInt(attempt.lease_fencing_token)!==authority.fencingToken)throw new DomainError('RECOVERY_FENCE_LOST','Recovery attempt fence is not current',409,'RECONCILE_THEN_RETRY');
+    if(!attempt||String(attempt.lease_owner)!==workerId||BigInt(attempt.lease_fencing_token)!==authority.fencingToken)throw new DomainError('FENCING_TOKEN_STALE','Recovery attempt fence is not current',409,'RECONCILE_THEN_RETRY');
     if(attempt.state==='STARTING')await client.query(`UPDATE kcml.platform_recovery_attempt SET state='RECONCILING',lease_expires_at=clock_timestamp()+interval '2 minutes',state_version=state_version+1 WHERE id=$1`,[authority.attemptId]);
     await client.query(`UPDATE kcml.platform_recovery_head SET state='RECONCILING',state_version=state_version+1,updated_at=clock_timestamp() WHERE singleton_key=1 AND current_attempt_id=$1 AND current_fencing_token=$2`,[authority.attemptId,authority.fencingToken.toString()]);
   });}
@@ -270,6 +270,6 @@ export class PlatformRecoveryCoordinator {
   private async assertFence(client:DatabaseClient,authority:RecoveryAuthority,workerId:string):Promise<void>{
     const row=(await client.query(`SELECT attempt.lease_owner,attempt.lease_fencing_token,attempt.state,head.current_attempt_id,head.current_fencing_token,head.recovery_epoch
       FROM kcml.platform_recovery_attempt attempt JOIN kcml.platform_recovery_head head ON head.current_attempt_id=attempt.id WHERE attempt.id=$1 AND head.singleton_key=1 FOR UPDATE OF attempt,head`,[authority.attemptId])).rows[0];
-    if(!row||String(row.lease_owner)!==workerId||BigInt(row.lease_fencing_token)!==authority.fencingToken||String(row.current_attempt_id)!==authority.attemptId||BigInt(row.current_fencing_token)!==authority.fencingToken||BigInt(row.recovery_epoch)!==authority.recoveryEpoch||row.state!=='RECONCILING')throw new DomainError('RECOVERY_FENCE_LOST','Recovery worker no longer owns the current attempt fence',409,'RECONCILE_THEN_RETRY');
+    if(!row||String(row.lease_owner)!==workerId||BigInt(row.lease_fencing_token)!==authority.fencingToken||String(row.current_attempt_id)!==authority.attemptId||BigInt(row.current_fencing_token)!==authority.fencingToken||BigInt(row.recovery_epoch)!==authority.recoveryEpoch||row.state!=='RECONCILING')throw new DomainError('FENCING_TOKEN_STALE','Recovery worker no longer owns the current attempt fence',409,'RECONCILE_THEN_RETRY');
   }
 }

@@ -1080,7 +1080,10 @@ async function main() {
       httpMappings: httpMapping(code, classification), kcipMappings: ['ERROR'], mcpMappings: mcpMapping(code),
       uiMessageKey: `errors.${code}`, canonicalOwnerActions: tableDriven || manualReviewDirectiveCodes.has(code) ? ['OPEN_EVIDENCE', 'RESOLVE_OUTCOME'] : ['OPEN_EVIDENCE'],
       auditEvidenceKinds: ['ERROR', ...(tableDriven ? ['SIDE_EFFECT_OUTCOME', 'RECOVERY_DECISION'] : [])], testCaseIds: [`ERROR-${code}`], requirementIds,
-      authoritySourceRefs, extensions: { recoveryDecisionTable: table.recoveryDecisionTable }
+      authoritySourceRefs, extensions: {
+        recoveryDecisionTable: table.recoveryDecisionTable,
+        reservation: { kind: 'SSOT_STABLE_WIRE_COMPATIBILITY', authority: 'SSOT_CURRENT.md chapter 32' }
+      }
     };
   });
   const gateRecords = gates.map((gateId) => ({
@@ -1867,14 +1870,18 @@ async function main() {
     if (typeof record.repositoryPath !== 'string') throw new Error('ARTIFACT_TRACE_SOURCE_PATH_INVALID');
     const existing = traceSourceByPath.get(record.repositoryPath);
     if (!existing) traceSourceByPath.set(record.repositoryPath, record);
-    else traceSourceByPath.set(record.repositoryPath, {
-      ...existing, ...record,
-      requirementIds: [...new Set([...(existing.requirementIds ?? []), ...(record.requirementIds ?? [])])],
-      operationIds: [...new Set([...(existing.operationIds ?? []), ...(record.operationIds ?? [])])],
-      registryRecordIds: [...new Set([...(existing.registryRecordIds ?? []), ...(record.registryRecordIds ?? [])])],
-      testIds: [...new Set([...(existing.testIds ?? []), ...(record.testIds ?? [])])],
-      traceAnchors: [...(existing.traceAnchors ?? []), ...(record.traceAnchors ?? [])]
-    });
+    else {
+      const anchors = new Map((existing.traceAnchors ?? []).map((anchor) => [`${anchor.locator}:${anchor.symbol}`, anchor]));
+      for (const anchor of record.traceAnchors ?? []) anchors.set(`${anchor.locator}:${anchor.symbol}`, anchor);
+      traceSourceByPath.set(record.repositoryPath, {
+        ...existing, ...record,
+        requirementIds: [...new Set([...(existing.requirementIds ?? []), ...(record.requirementIds ?? [])])],
+        operationIds: [...new Set([...(existing.operationIds ?? []), ...(record.operationIds ?? [])])],
+        registryRecordIds: [...new Set([...(existing.registryRecordIds ?? []), ...(record.registryRecordIds ?? [])])],
+        testIds: [...new Set([...(existing.testIds ?? []), ...(record.testIds ?? [])])],
+        traceAnchors: [...anchors.values()]
+      });
+    }
   }
   for (const repositoryPath of traceSourceByPath.keys()) {
     if (typeof repositoryPath !== 'string') throw new Error('ARTIFACT_TRACE_SOURCE_PATH_INVALID');

@@ -57,7 +57,7 @@ export class SecretManager {
       const recovery = await lockAndVerifyPlatformRecovery(client);
       const rowResult = await client.query(`SELECT * FROM kcml.secret_record WHERE id=$1 AND deleted_at IS NULL FOR UPDATE`, [secretId]);
       const row = rowResult.rows[0];
-      if (!row) throw new DomainError('SECRET_NOT_FOUND','Secret does not exist',404);
+      if (!row) throw new DomainError('KCIP_TARGET_NOT_FOUND','Secret does not exist',404);
       if (BigInt(row.state_version) !== expectedStateVersion) throw new DomainError('STATE_VERSION_CONFLICT','Secret changed',409,'REFRESH_AND_RETRY_NEW_COMMAND');
       const versionNumber = await allocateContiguousSequence(client, 'SECRET_VERSION', secretId, 'VERSION_NUMBER'); const versionId=randomUUID();
       const envelope=this.cipher.encrypt(value,`${secretId}:${versionId}:${row.stable_name}`);
@@ -84,7 +84,7 @@ export class SecretManager {
     return inTransaction(this.pool,'READ COMMITTED',async(client)=>{
       const recovery = await lockAndVerifyPlatformRecovery(client);
       const result=await client.query(`SELECT r.stable_name,v.* FROM kcml.secret_record r JOIN kcml.secret_version v ON v.id=r.active_version_id WHERE r.id=$1 AND r.deleted_at IS NULL AND v.lifecycle='ACTIVE'`,[secretId]);
-      const row=result.rows[0]; if(!row) throw new DomainError('SECRET_NOT_FOUND','Active secret does not exist',404);
+      const row=result.rows[0]; if(!row) throw new DomainError('KCIP_TARGET_NOT_FOUND','Active secret does not exist',404);
       const payload={secretId,versionId:row.id,fingerprint:row.fingerprint,actorId,logicalOperationId};
       await client.query(`INSERT INTO kcml.secret_access_event(parent_id,stable_key,secret_id,secret_version_id,execution_context_id,purpose,operation,success,occurred_at,logical_operation_id,correlation_id,platform_incarnation_id,application_deployment_epoch,canonical_digest)
         VALUES($1,$2,$1,$3,$4,'OWNER_REVEAL','secret.reveal',true,clock_timestamp(),$4,$5,$6,$7,kcml.canonical_digest($8))`,[secretId,`${secretId}:${row.id}:${correlationId}`,row.id,logicalOperationId,correlationId,recovery.platform_incarnation_id,recovery.current_epoch,Buffer.from(canonicalJson(payload as unknown as CanonicalJsonValue))]);
@@ -95,7 +95,7 @@ export class SecretManager {
 
   public async get(id: string): Promise<SecretSummary> {
     const result=await this.pool.query(`SELECT r.id,r.stable_name,r.display_name,r.kind,r.active_version_id,r.secret_activation_epoch,v.fingerprint,r.state_version,r.updated_at FROM kcml.secret_record r LEFT JOIN kcml.secret_version v ON v.id=r.active_version_id WHERE r.id=$1 AND r.deleted_at IS NULL`,[id]);
-    const row=result.rows[0]; if(!row) throw new DomainError('SECRET_NOT_FOUND','Secret does not exist',404);
+    const row=result.rows[0]; if(!row) throw new DomainError('KCIP_TARGET_NOT_FOUND','Secret does not exist',404);
     return {id:row.id,stableName:row.stable_name,displayName:row.display_name,kind:row.kind,activeVersionId:row.active_version_id,secretActivationEpoch:String(row.secret_activation_epoch),fingerprint:row.fingerprint,stateVersion:String(row.state_version),updatedAt:new Date(row.updated_at).toISOString()};
   }
 
@@ -105,7 +105,7 @@ export class SecretManager {
     return inTransaction(this.pool, 'SERIALIZABLE', async (client) => {
       const recovery = await lockAndVerifyPlatformRecovery(client);
       const current = (await client.query(`SELECT * FROM kcml.secret_record WHERE id=$1 AND deleted_at IS NULL FOR UPDATE`, [id])).rows[0];
-      if (!current) throw new DomainError('SECRET_NOT_FOUND', 'Secret does not exist', 404);
+      if (!current) throw new DomainError('KCIP_TARGET_NOT_FOUND', 'Secret does not exist', 404);
       if (BigInt(current.state_version) !== expectedStateVersion) throw new DomainError('STATE_VERSION_CONFLICT', 'Secret changed', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
       const displayName = typeof body.displayName === 'string' ? body.displayName : current.display_name;
       const metadata = body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata) ? body.metadata : current.metadata;
@@ -121,7 +121,7 @@ export class SecretManager {
     return inTransaction(this.pool, 'SERIALIZABLE', async (client) => {
       const recovery = await lockAndVerifyPlatformRecovery(client);
       const result = await client.query(`UPDATE kcml.secret_record SET lifecycle='CLOSED',deleted_at=clock_timestamp(),platform_incarnation_id=$3,application_deployment_epoch=$4,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND deleted_at IS NULL AND state_version=$2 RETURNING state_version`, [id, expectedStateVersion.toString(),recovery.platform_incarnation_id,recovery.current_epoch]);
-      if (result.rowCount !== 1) throw new DomainError('STATE_VERSION_CONFLICT_OR_NOT_FOUND', 'Secret is missing or stale', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
+      if (result.rowCount !== 1) throw new DomainError('STATE_VERSION_CONFLICT', 'Secret is missing or stale', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
       const payload = { id, deleted: true, logicalOperationId };
       await appendSecretOutbox(client, recovery, id, 'secret.deleted', payload);
       await client.query(`SELECT * FROM kcml.append_audit_event('secret.deleted','OWNER',$1,'SECRET',$2,$3,NULL,$4,$5)`, [actorId, id, correlationId, payload, Buffer.from(canonicalJson(payload as unknown as CanonicalJsonValue))]);
@@ -169,14 +169,14 @@ export class SecretManager {
       const recovery = await lockAndVerifyPlatformRecovery(client);
       const credentialResult = await client.query(`SELECT * FROM kcml.owner_api_credential WHERE singleton_key=1 FOR UPDATE`);
       const credential = credentialResult.rows[0];
-      if (!credential?.secret_id) throw new DomainError('OWNER_API_KEY_NOT_INITIALIZED', 'Initialize the singleton credential first', 409);
+      if (!credential?.secret_id) throw new DomainError('AGENTIC_OPERATION_CONTEXT_INVALID', 'Initialize the singleton credential first', 409);
       if (BigInt(credential.state_version) !== expectedStateVersion) throw new DomainError('STATE_VERSION_CONFLICT', 'OWNER API key changed', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
       if (credential.last_rotate_logical_operation === logicalOperationId && credential.last_rotate_outcome_digest) {
         return { fingerprint: credential.fingerprint, credentialVersion: String(credential.credential_version), stateVersion: String(credential.state_version) };
       }
       const secretResult = await client.query(`SELECT * FROM kcml.secret_record WHERE id=$1 FOR UPDATE`, [credential.secret_id]);
       const secret = secretResult.rows[0];
-      if (!secret) throw new DomainError('OWNER_API_KEY_SECRET_MISSING', 'Singleton OWNER API secret is missing', 500);
+      if (!secret) throw new DomainError('AGENTIC_OWNER_INTENT_MISSING', 'Singleton OWNER API secret is missing', 500);
       const versionNumber = await allocateContiguousSequence(client, 'SECRET_VERSION', secret.id, 'VERSION_NUMBER');
       const versionId = randomUUID();
       const envelope = this.cipher.encrypt(value, `${secret.id}:${versionId}:KCML_OWNER_API_KEY`);

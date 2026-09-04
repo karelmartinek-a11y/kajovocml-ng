@@ -1,24 +1,21 @@
-import { canonicalErrorView, type CanonicalErrorView, type RetryDirective } from '@kcml/schemas';
+import { canonicalErrorView, type CanonicalErrorView, type ErrorCode, type RetryDirective } from '@kcml/schemas';
 
 export class DomainError extends Error {
   public readonly retryDirective: RetryDirective;
+  public readonly httpStatus: number;
 
   public constructor(
-    public readonly code: string,
+    public readonly code: ErrorCode,
     message: string,
-    public readonly httpStatus: number,
-    retryDirective: RetryDirective = 'DO_NOT_RETRY',
+    _legacyHttpStatus: number,
+    _legacyRetryDirective: RetryDirective = 'DO_NOT_RETRY',
     public readonly details: unknown = null
   ) {
     super(message);
     this.name = 'DomainError';
-    try {
-      this.retryDirective = canonicalErrorView(code).retryDirective;
-    } catch {
-      // Legacy/internal callers can still construct an error, but transport
-      // adapters will fail closed to ERROR_RECOVERY_CONTRACT_INCOMPLETE.
-      this.retryDirective = retryDirective;
-    }
+    const registered = canonicalErrorView(code);
+    this.retryDirective = registered.retryDirective;
+    this.httpStatus = registered.record.httpMappings[0] ?? 500;
   }
 }
 
@@ -28,7 +25,23 @@ export class DomainError extends Error {
  * classification, side-effect point and recovery; HTTP/SDK metadata is not.
  */
 export function canonicalizeDomainError(error: unknown): CanonicalErrorView {
-  const code = error instanceof DomainError ? error.code : 'ERROR_RECOVERY_CONTRACT_INCOMPLETE';
+  const postgresCode = typeof error === 'object' && error !== null && 'code' in error
+    ? String(error.code)
+    : null;
+  const projectedPostgresCode: ErrorCode | null = postgresCode === '23505'
+    ? 'IDEMPOTENCY_CONFLICT'
+    : postgresCode === '23514'
+      ? 'STATE_MACHINE_CONTRACT_INCOMPLETE'
+      : postgresCode === '40001'
+        ? 'STATE_VERSION_CONFLICT'
+        : postgresCode === '40P01'
+          ? 'PLATFORM_RECOVERY_IN_PROGRESS'
+          : postgresCode === '55000'
+            ? 'TERMINAL_STATE_IMMUTABLE'
+            : null;
+  const code = error instanceof DomainError
+    ? error.code
+    : projectedPostgresCode ?? 'ERROR_RECOVERY_CONTRACT_INCOMPLETE';
   try {
     return canonicalErrorView(code);
   } catch {
@@ -37,8 +50,8 @@ export function canonicalizeDomainError(error: unknown): CanonicalErrorView {
 }
 
 export interface CanonicalFailure {
-  readonly code: string;
-  readonly effectiveCode: string;
+  readonly code: ErrorCode;
+  readonly effectiveCode: ErrorCode;
   readonly message: string;
   readonly classification: CanonicalErrorView['classification'];
   readonly sideEffectPoint: CanonicalErrorView['sideEffectPoint'];

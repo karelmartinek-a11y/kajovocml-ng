@@ -68,24 +68,24 @@ async function appendAlertEvidence(client:DatabaseClient,context:MonitorOperatio
     VALUES($1,$2,'DOMAIN_EVENT',$3,$4,$5,$6,$7)`,[`alert:${alertId}`,sequence.toString(),eventType,alertId,safePayload,digestBytes(safePayload),context.recoveryEpoch.toString()]);
 }
 function assertCurrentActivation(context:MonitorOperationContext,sourceActivationEpoch:bigint):void{
-  if(sourceActivationEpoch!==context.activationEpoch)throw new DomainError('ALERT_SOURCE_ACTIVATION_STALE','Alert observation is not from the command-pinned current activation epoch',409,'DO_NOT_RETRY',{sourceActivationEpoch:String(sourceActivationEpoch),currentActivationEpoch:String(context.activationEpoch)});
+  if(sourceActivationEpoch!==context.activationEpoch)throw new DomainError('OPERATION_CONTRACT_INCOMPLETE','Alert observation is not from the command-pinned current activation epoch',409,'DO_NOT_RETRY',{sourceActivationEpoch:String(sourceActivationEpoch),currentActivationEpoch:String(context.activationEpoch)});
 }
 function targetUuid(context:MonitorOperationContext):string{
-  if(!context.targetId||!z.string().uuid().safeParse(context.targetId).success)throw new DomainError('ALERT_TARGET_REQUIRED',`${context.operationName} requires an exact alert UUID`,422,'DO_NOT_RETRY');return context.targetId;
+  if(!context.targetId||!z.string().uuid().safeParse(context.targetId).success)throw new DomainError('AGENTIC_DYNAMIC_TARGET_UNBOUND',`${context.operationName} requires an exact alert UUID`,422,'DO_NOT_RETRY');return context.targetId;
 }
 async function lockAlert(client:DatabaseClient,context:MonitorOperationContext):Promise<AlertRow>{
   const id=targetUuid(context);const row=(await client.query(`SELECT * FROM kcml.operational_alert WHERE id=$1 FOR UPDATE`,[id])).rows[0];
-  if(!row)throw new DomainError('ALERT_NOT_FOUND','Operational alert does not exist',404,'DO_NOT_RETRY');
-  if(context.expectedStateVersion===null)throw new DomainError('STATE_VERSION_REQUIRED','Alert mutation requires expectedStateVersion',428,'REFRESH_AND_RETRY_NEW_COMMAND');
+  if(!row)throw new DomainError('KCIP_TARGET_NOT_FOUND','Operational alert does not exist',404,'DO_NOT_RETRY');
+  if(context.expectedStateVersion===null)throw new DomainError('STATE_VERSION_CONFLICT','Alert mutation requires expectedStateVersion',428,'REFRESH_AND_RETRY_NEW_COMMAND');
   if(BigInt(row.state_version)!==context.expectedStateVersion)throw new DomainError('STATE_VERSION_CONFLICT','Alert state changed before command execution',409,'REFRESH_AND_RETRY_NEW_COMMAND');
-  if(row.status==='CLOSED')throw new DomainError('ALERT_CLOSED_IMMUTABLE','Closed alert episode is terminal and immutable',409,'DO_NOT_RETRY');
+  if(row.status==='CLOSED')throw new DomainError('TERMINAL_STATE_IMMUTABLE','Closed alert episode is terminal and immutable',409,'DO_NOT_RETRY');
   return row;
 }
 function assertObservationProgress(row:AlertRow,sourceSequence:bigint,observedAt:string,digest:Buffer):'NEW'|'DUPLICATE'|'STALE'{
   const current=BigInt(row.latest_source_sequence);
   if(sourceSequence<current)return 'STALE';
-  if(sourceSequence===current){if(!Buffer.from(row.latest_observation_digest).equals(digest))throw new DomainError('ALERT_OBSERVATION_SEQUENCE_CONFLICT','The same alert source sequence has a different observation digest',409,'DO_NOT_RETRY');return 'DUPLICATE';}
-  if(new Date(observedAt).getTime()<new Date(row.last_seen_at).getTime())throw new DomainError('ALERT_OBSERVATION_TIME_REGRESSION','A newer alert source sequence cannot move observed time backwards',409,'DO_NOT_RETRY');
+  if(sourceSequence===current){if(!Buffer.from(row.latest_observation_digest).equals(digest))throw new DomainError('OPERATION_CONTRACT_INCOMPLETE','The same alert source sequence has a different observation digest',409,'DO_NOT_RETRY');return 'DUPLICATE';}
+  if(new Date(observedAt).getTime()<new Date(row.last_seen_at).getTime())throw new DomainError('OPERATION_CONTRACT_INCOMPLETE','A newer alert source sequence cannot move observed time backwards',409,'DO_NOT_RETRY');
   return 'NEW';
 }
 async function recordNonAdvancingObservation(client:DatabaseClient,context:MonitorOperationContext,row:AlertRow,disposition:'DUPLICATE'|'STALE',sourceSequence:bigint,observation:Buffer):Promise<unknown>{
@@ -107,9 +107,9 @@ async function persistObservation(client:DatabaseClient,context:MonitorOperation
 }
 
 async function openAlert(client:DatabaseClient,context:MonitorOperationContext):Promise<unknown>{
-  if(context.targetId!==null)throw new DomainError('ALERT_OPEN_TARGET_FORBIDDEN','monitor.alert.open creates or advances an alert episode by its exact dedupe scope',422,'DO_NOT_RETRY');
-  if(context.expectedStateVersion!==null)throw new DomainError('ALERT_OPEN_STATE_VERSION_FORBIDDEN','Alert open does not accept expectedStateVersion before the episode identity is resolved',422,'DO_NOT_RETRY');
-  const parsed=openSchema.safeParse(context.arguments);if(!parsed.success)throw new DomainError('ALERT_ARGUMENTS_INVALID','Alert open arguments do not match the exact contract',422,'DO_NOT_RETRY',parsed.error.issues);const input=parsed.data;
+  if(context.targetId!==null)throw new DomainError('AGENTIC_DYNAMIC_TARGET_UNBOUND','monitor.alert.open creates or advances an alert episode by its exact dedupe scope',422,'DO_NOT_RETRY');
+  if(context.expectedStateVersion!==null)throw new DomainError('OPERATION_CONTRACT_INCOMPLETE','Alert open does not accept expectedStateVersion before the episode identity is resolved',422,'DO_NOT_RETRY');
+  const parsed=openSchema.safeParse(context.arguments);if(!parsed.success)throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID','Alert open arguments do not match the exact contract',422,'DO_NOT_RETRY',parsed.error.issues);const input=parsed.data;
   assertCurrentActivation(context,input.sourceActivationEpoch);
   const fingerprint=alertFingerprint(input);const observation=observationDigest(input);
   const latest=(await client.query(`SELECT * FROM kcml.operational_alert WHERE fingerprint=$1 ORDER BY (status<>'CLOSED') DESC,last_seen_at DESC,created_at DESC LIMIT 1 FOR UPDATE`,[fingerprint])).rows[0] as AlertRow|undefined;
@@ -130,17 +130,17 @@ async function openAlert(client:DatabaseClient,context:MonitorOperationContext):
 }
 
 async function updateAlert(client:DatabaseClient,context:MonitorOperationContext):Promise<unknown>{
-  const parsed=updateSchema.safeParse(context.arguments);if(!parsed.success)throw new DomainError('ALERT_ARGUMENTS_INVALID','Alert update arguments do not match the exact contract',422,'DO_NOT_RETRY',parsed.error.issues);const input=parsed.data;const row=await lockAlert(client,context);
+  const parsed=updateSchema.safeParse(context.arguments);if(!parsed.success)throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID','Alert update arguments do not match the exact contract',422,'DO_NOT_RETRY',parsed.error.issues);const input=parsed.data;const row=await lockAlert(client,context);
   if(input.action==='OBSERVE'){
-    if(!Buffer.from(row.condition_digest).equals(digestInput(input.conditionDigest)))throw new DomainError('ALERT_CONDITION_MISMATCH','Observation condition digest does not identify the target alert episode',409,'DO_NOT_RETRY');
+    if(!Buffer.from(row.condition_digest).equals(digestInput(input.conditionDigest)))throw new DomainError('OPERATION_CONTRACT_INCOMPLETE','Observation condition digest does not identify the target alert episode',409,'DO_NOT_RETRY');
     assertCurrentActivation(context,input.sourceActivationEpoch);const full={conditionDigest:input.conditionDigest,severity:input.severity??row.severity,title:input.title??row.title,detail:input.detail??row.detail,evidence:input.evidence,observedAt:input.observedAt,sourceSequence:input.sourceSequence,sourceReleaseId:input.sourceReleaseId===undefined?row.source_release_id:input.sourceReleaseId,sourceActivationEpoch:input.sourceActivationEpoch,recommendedAction:input.recommendedAction,repairReference:input.repairReference};const observation=observationDigest(full);const disposition=assertObservationProgress(row,input.sourceSequence,input.observedAt,observation);if(disposition!=='NEW')return recordNonAdvancingObservation(client,context,row,disposition,input.sourceSequence,observation);return persistObservation(client,context,row,full,observation);
   }
   const now=(await client.query(`SELECT clock_timestamp() AS now`)).rows[0].now as Date;
   let status:string,suppressedUntil:Date|null=row.suppressed_until,acknowledgedAt:Date|null=row.acknowledged_at,eventType:string;
   if(input.action==='ACKNOWLEDGE'){
-    if(row.status==='ACKNOWLEDGED')throw new DomainError('ALERT_ALREADY_ACKNOWLEDGED','Alert episode is already acknowledged',409,'DO_NOT_RETRY');status='ACKNOWLEDGED';suppressedUntil=null;acknowledgedAt=now;eventType='monitor.alert.acknowledged';
+    if(row.status==='ACKNOWLEDGED')throw new DomainError('TERMINAL_STATE_IMMUTABLE','Alert episode is already acknowledged',409,'DO_NOT_RETRY');status='ACKNOWLEDGED';suppressedUntil=null;acknowledgedAt=now;eventType='monitor.alert.acknowledged';
   }else{
-    if(row.status==='SUPPRESSED')throw new DomainError('ALERT_ALREADY_SUPPRESSED','Alert episode is already suppressed',409,'DO_NOT_RETRY');suppressedUntil=new Date(input.suppressedUntil);if(suppressedUntil.getTime()<=new Date(now).getTime())throw new DomainError('ALERT_SUPPRESSION_INTERVAL_INVALID','suppressedUntil must be later than the authoritative database time',422,'DO_NOT_RETRY');status='SUPPRESSED';eventType='monitor.alert.suppressed';
+    if(row.status==='SUPPRESSED')throw new DomainError('TERMINAL_STATE_IMMUTABLE','Alert episode is already suppressed',409,'DO_NOT_RETRY');suppressedUntil=new Date(input.suppressedUntil);if(suppressedUntil.getTime()<=new Date(now).getTime())throw new DomainError('OPERATION_CONTRACT_INCOMPLETE','suppressedUntil must be later than the authoritative database time',422,'DO_NOT_RETRY');status='SUPPRESSED';eventType='monitor.alert.suppressed';
   }
   const evidence={lastObservation:row.evidence,stateTransition:{action:input.action,reason:input.reason,evidence:input.evidence,at:new Date(now).toISOString()}};const next:AlertRow={...row,status,evidence,correlation_id:context.correlationId,suppressed_until:suppressedUntil,acknowledged_at:acknowledgedAt,logical_operation_id:context.logicalOperationId,state_version:BigInt(row.state_version)+1n,platform_incarnation_id:context.platformIncarnationId,application_deployment_epoch:context.applicationDeploymentEpoch,recovery_epoch:context.recoveryEpoch};next.canonical_digest=digestBytes(canonicalAlert(next));
   const updated=(await client.query(`UPDATE kcml.operational_alert SET status=$2,evidence=$3,correlation_id=$4,suppressed_until=$5,acknowledged_at=$6,logical_operation_id=$7,canonical_digest=$8,state_version=$9,
@@ -149,9 +149,9 @@ async function updateAlert(client:DatabaseClient,context:MonitorOperationContext
 }
 
 async function closeAlert(client:DatabaseClient,context:MonitorOperationContext):Promise<unknown>{
-  const parsed=closeSchema.safeParse(context.arguments);if(!parsed.success)throw new DomainError('ALERT_ARGUMENTS_INVALID','Alert close arguments do not match the exact contract',422,'DO_NOT_RETRY',parsed.error.issues);const input=parsed.data;const row=await lockAlert(client,context);
-  if(!Buffer.from(row.condition_digest).equals(digestInput(input.conditionDigest)))throw new DomainError('ALERT_CONDITION_MISMATCH','Close condition digest does not identify the target alert episode',409,'DO_NOT_RETRY');assertCurrentActivation(context,input.sourceActivationEpoch);
-  const observation=observationDigest(input);const disposition=assertObservationProgress(row,input.sourceSequence,input.observedAt,observation);if(disposition!=='NEW')throw new DomainError('ALERT_STALE_CLOSE_FORBIDDEN','A duplicate or stale observation cannot close the current alert episode',409,'DO_NOT_RETRY',{disposition,currentSourceSequence:String(row.latest_source_sequence),sourceSequence:String(input.sourceSequence)});
+  const parsed=closeSchema.safeParse(context.arguments);if(!parsed.success)throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID','Alert close arguments do not match the exact contract',422,'DO_NOT_RETRY',parsed.error.issues);const input=parsed.data;const row=await lockAlert(client,context);
+  if(!Buffer.from(row.condition_digest).equals(digestInput(input.conditionDigest)))throw new DomainError('OPERATION_CONTRACT_INCOMPLETE','Close condition digest does not identify the target alert episode',409,'DO_NOT_RETRY');assertCurrentActivation(context,input.sourceActivationEpoch);
+  const observation=observationDigest(input);const disposition=assertObservationProgress(row,input.sourceSequence,input.observedAt,observation);if(disposition!=='NEW')throw new DomainError('OPERATION_CONTRACT_INCOMPLETE','A duplicate or stale observation cannot close the current alert episode',409,'DO_NOT_RETRY',{disposition,currentSourceSequence:String(row.latest_source_sequence),sourceSequence:String(input.sourceSequence)});
   const now=(await client.query(`SELECT clock_timestamp() AS now`)).rows[0].now as Date;const evidence={lastObservation:row.evidence,closureObservation:input.evidence,reason:input.reason};const next:AlertRow={...row,status:'CLOSED',evidence,correlation_id:context.correlationId,last_seen_at:new Date(input.observedAt),latest_source_sequence:input.sourceSequence,latest_observation_digest:observation,source_release_id:input.sourceReleaseId??null,source_activation_epoch:input.sourceActivationEpoch,suppressed_until:null,closed_at:now,logical_operation_id:context.logicalOperationId,state_version:BigInt(row.state_version)+1n,platform_incarnation_id:context.platformIncarnationId,application_deployment_epoch:context.applicationDeploymentEpoch,recovery_epoch:context.recoveryEpoch};next.canonical_digest=digestBytes(canonicalAlert(next));
   const updated=(await client.query(`UPDATE kcml.operational_alert SET status='CLOSED',evidence=$2,correlation_id=$3,last_seen_at=$4,latest_source_sequence=$5,latest_observation_digest=$6,source_release_id=$7,
       source_activation_epoch=$8,suppressed_until=NULL,closed_at=$9,logical_operation_id=$10,canonical_digest=$11,state_version=$12,platform_incarnation_id=$13,application_deployment_epoch=$14,recovery_epoch=$15 WHERE id=$1 RETURNING *`,[
@@ -166,7 +166,7 @@ export async function executeExactMonitorMutation(client:DatabaseClient,context:
   if(context.operationName==='monitor.alert.open')return openAlert(client,context);
   if(context.operationName==='monitor.alert.update')return updateAlert(client,context);
   if(context.operationName==='monitor.alert.close')return closeAlert(client,context);
-  throw new DomainError('MONITOR_OPERATION_NOT_EXACT',`Monitor operation ${context.operationName} has no exact mutation implementation`,500,'DO_NOT_RETRY');
+  throw new DomainError('OPERATION_CONTRACT_INCOMPLETE',`Monitor operation ${context.operationName} has no exact mutation implementation`,500,'DO_NOT_RETRY');
 }
 
 function heartbeatIssueList(row:Record<string,any>,now:Date,currentPlatformIncarnationId:string,currentDeploymentEpoch:bigint):string[]{
@@ -194,8 +194,8 @@ function schedulerIssueList(row:Record<string,any>,now:Date,currentPlatformIncar
 }
 
 async function observeHeartbeats(pool:DatabasePool,targetId:string|null,args:JsonObject):Promise<unknown>{
-  if(targetId!==null)throw new DomainError('MONITOR_HEARTBEAT_TARGET_FORBIDDEN','monitor.heartbeat.observe uses exact service/instance selectors instead of an aggregate target',422,'DO_NOT_RETRY');
-  const parsed=heartbeatObserveSchema.safeParse(args);if(!parsed.success)throw new DomainError('MONITOR_HEARTBEAT_ARGUMENTS_INVALID','Heartbeat observation arguments do not match the exact query contract',422,'DO_NOT_RETRY',parsed.error.issues);const input=parsed.data;
+  if(targetId!==null)throw new DomainError('AGENTIC_DYNAMIC_TARGET_UNBOUND','monitor.heartbeat.observe uses exact service/instance selectors instead of an aggregate target',422,'DO_NOT_RETRY');
+  const parsed=heartbeatObserveSchema.safeParse(args);if(!parsed.success)throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID','Heartbeat observation arguments do not match the exact query contract',422,'DO_NOT_RETRY',parsed.error.issues);const input=parsed.data;
   return inTransaction(pool,'REPEATABLE READ',async client=>{
     await client.query('SET TRANSACTION READ ONLY');
     const authority=(await client.query(`SELECT clock_timestamp() AS database_now,p.platform_incarnation_id,d.current_epoch AS application_deployment_epoch,
@@ -203,7 +203,7 @@ async function observeHeartbeats(pool:DatabasePool,targetId:string|null,args:Jso
         r.platform_incarnation_id=p.platform_incarnation_id AND r.application_deployment_epoch=d.current_epoch AS recovery_lineage_current
       FROM kcml.platform_incarnation p CROSS JOIN kcml.application_deployment_head d CROSS JOIN kcml.platform_recovery_head r
       WHERE p.singleton_key=1 AND d.singleton_key=1 AND r.singleton_key=1`)).rows[0];
-    if(!authority)throw new DomainError('MONITOR_HEARTBEAT_AUTHORITY_MISSING','Current platform/deployment/recovery authority is unavailable',503,'DO_NOT_RETRY');
+    if(!authority)throw new DomainError('OPERATION_CONTRACT_INCOMPLETE','Current platform/deployment/recovery authority is unavailable',503,'DO_NOT_RETRY');
     const now=new Date(authority.database_now);const currentPlatformIncarnationId=String(authority.platform_incarnation_id);const currentDeploymentEpoch=BigInt(authority.application_deployment_epoch);
     const workerRows=(await client.query(`SELECT service_name,instance_id,release_id,source_sha,deployment_epoch,status,details,observed_at,expires_at,
         platform_incarnation_id,heartbeat_sequence,nonce
@@ -233,5 +233,5 @@ async function observeHeartbeats(pool:DatabasePool,targetId:string|null,args:Jso
 
 export async function executeExactMonitorQuery(pool:DatabasePool,operationName:string,targetId:string|null,args:JsonObject):Promise<unknown>{
   if(operationName==='monitor.heartbeat.observe')return observeHeartbeats(pool,targetId,args);
-  throw new DomainError('MONITOR_OPERATION_NOT_EXACT',`Monitor operation ${operationName} has no exact query implementation`,500,'DO_NOT_RETRY');
+  throw new DomainError('OPERATION_CONTRACT_INCOMPLETE',`Monitor operation ${operationName} has no exact query implementation`,500,'DO_NOT_RETRY');
 }

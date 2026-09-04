@@ -15,7 +15,8 @@
     "clean": "pnpm -r --if-present run clean",
     "contracts:build": "node scripts/compile-ssot-surface.mjs && node scripts/compile-contract-pack.mjs",
     "contracts:trace": "node scripts/generate-requirement-trace.mjs",
-    "contracts:check": "node scripts/compile-ssot-surface.mjs --check && node scripts/compile-contract-pack.mjs --check && node scripts/validate-contract-pack.mjs && node scripts/verify-authority-ownership.mjs",
+    "contracts:check": "node scripts/compile-ssot-surface.mjs --check && node scripts/compile-contract-pack.mjs --check && node scripts/validate-contract-pack.mjs && node scripts/verify-authority-ownership.mjs && node scripts/verify-error-codes.mjs",
+    "errors:check": "node scripts/verify-error-codes.mjs",
     "authority:check": "node scripts/verify-authority-ownership.mjs",
     "conformance:audit": "node scripts/compile-ssot-surface.mjs --check && node scripts/compile-contract-pack.mjs --check && node scripts/validate-contract-pack.mjs && node scripts/conformance-audit.mjs",
     "db:migrate": "node --import tsx packages/database/src/cli.ts migrate",
@@ -44,9 +45,10 @@
     "ssot:compile": "node scripts/compile-ssot-surface.mjs"
   },
   "devDependencies": {
+    "@babel/parser": "7.29.8",
     "@kcml/agent-sdk": "workspace:*",
-    "@kcml/browser-runtime-contracts": "workspace:*",
     "@kcml/browser-preview-protocol": "workspace:*",
+    "@kcml/browser-runtime-contracts": "workspace:*",
     "@kcml/content-provenance": "workspace:*",
     "@kcml/database": "workspace:*",
     "@kcml/domain": "workspace:*",
