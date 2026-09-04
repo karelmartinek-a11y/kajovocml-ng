@@ -51,4 +51,10 @@ install_changed "${repository_root}/deploy/tmpfiles/kajovocml-ng.conf" /etc/tmpf
 systemd-tmpfiles --create /etc/tmpfiles.d/kajovocml-ng.conf
 systemctl daemon-reload
 systemctl enable kcml.target kcml-web-api.socket kcml-runtime-gateway.socket kcml-secret-broker.socket kcml-state-broker.socket kcml-egress-gateway.socket kcml-browser-host@primary.service kcml-backup.timer kcml-tls-renew.timer >/dev/null
+# Retire the pre-NG certificate timer after the NG timer is durably enabled.
+# Leaving both active creates competing Certbot locks and a stale failed unit.
+if systemctl list-unit-files kcml-canonical-tls-renew.timer --no-legend 2>/dev/null | grep -q '^kcml-canonical-tls-renew.timer'; then
+  systemctl disable --now kcml-canonical-tls-renew.timer >/dev/null
+  systemctl reset-failed kcml-canonical-tls-renew.service 2>/dev/null || true
+fi
 if [[ -e /opt/kajovocml-ng/current ]]; then systemd-analyze verify /etc/systemd/system/kcml*.service /etc/systemd/system/kcml*.socket /etc/systemd/system/kcml.target; fi

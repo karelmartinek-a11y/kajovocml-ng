@@ -70,6 +70,14 @@ describe('production acceptance contract', () => {
     expect(deploy).toContain('chmod 0400 /etc/kajovocml-ng/master.key /etc/kajovocml-ng/deploy.env');
   });
 
+  it('materializes infrastructure SSH keys correctly and retires the legacy TLS timer', async () => {
+    const workflow = await readFile('.github/workflows/infrastructure-acceptance.yml', 'utf8');
+    const installer = await readFile('deploy/scripts/install-systemd.sh', 'utf8');
+    expect(workflow).toContain(`printf '%s\\n' "$KEY" > ~/.ssh/id_ed25519`);
+    expect(installer).toContain('systemctl disable --now kcml-canonical-tls-renew.timer');
+    expect(installer).toContain('systemctl reset-failed kcml-canonical-tls-renew.service');
+  });
+
   it('executes rollback code from the previously verified immutable release', async () => {
     const deploy = await readFile('deploy/scripts/deploy-production.sh', 'utf8');
     const rollback = await readFile('deploy/scripts/rollback-production.sh', 'utf8');

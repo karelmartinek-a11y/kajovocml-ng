@@ -13,14 +13,35 @@ test('OWNER authenticates and every principal workspace is navigable', async ({ 
 
   const apiKey=process.env.KCML_OWNER_API_KEY;
   test.skip(!apiKey, 'Authenticated production navigation requires KCML_OWNER_API_KEY');
-  const session=await page.request.post('/api/v1/auth/api-key-session', {headers:{Authorization:`Bearer ${apiKey}`,'Idempotency-Key':randomUUID()}});
-  expect(session.ok()).toBe(true);
-  await page.goto('/');
-  await expect(page.getByRole('heading', { name: /Provozní přehled/u })).toBeVisible();
-  await page.goto('/generation');
-  await expect(page.getByText(/Výrobní workspace/u)).toBeVisible();
-  await page.goto('/browser');
-  await expect(page.getByRole('heading', { name: /Browser relace a automatizace/u })).toBeVisible();
+  const session=await page.evaluate(async ({apiKey,idempotencyKey}) => {
+    const response=await fetch('/api/v1/auth/api-key-session', {
+      method:'POST',
+      headers:{Authorization:`Bearer ${apiKey}`,'Idempotency-Key':idempotencyKey}
+    });
+    return {status:response.status,csrfToken:response.headers.get('x-csrf-token')};
+  }, {apiKey:apiKey!,idempotencyKey:randomUUID()});
+  expect(session.status).toBe(200);
+  expect(session.csrfToken).toBeTruthy();
+  await expect.poll(async () => (await page.request.get('/api/v1/session')).status()).toBe(200);
+  try {
+    await page.goto('/');
+    await expect(page.getByRole('heading', { name: /Provozní přehled/u })).toBeVisible();
+    await page.goto('/generation');
+    await expect(page.getByText(/Výrobní workspace/u)).toBeVisible();
+    await page.goto('/browser');
+    await expect(page.getByRole('heading', { name: /Browser relace a automatizace/u })).toBeVisible();
+  } finally {
+    await page.evaluate(async ({csrfToken,idempotencyKey}) => {
+      const current=await fetch('/api/v1/session',{credentials:'same-origin'}).then(response=>response.json()) as {sessionId?:string|null};
+      if (!current.sessionId) return;
+      const response=await fetch(`/api/v1/owner/sessions/${encodeURIComponent(current.sessionId)}`, {
+        method:'DELETE',
+        credentials:'same-origin',
+        headers:{'x-csrf-token':csrfToken!,'Idempotency-Key':idempotencyKey}
+      });
+      if (!response.ok) throw new Error(`Session cleanup failed with HTTP ${response.status}`);
+    }, {csrfToken:session.csrfToken,idempotencyKey:randomUUID()});
+  }
 });
 
 test('first password login requires QR-based MFA enrollment', async ({ page }) => {
