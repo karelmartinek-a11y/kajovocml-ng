@@ -184,6 +184,8 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
   const responses = new ResponsesRuntime(pool, provider);
   const app = Fastify({ logger: false, trustProxy: '127.0.0.1', bodyLimit: 8 * 1024 * 1024, requestTimeout: 130_000, keepAliveTimeout: 72_000, genReqId: () => randomUUID() });
 
+  await installPreviewWebSocket(app, pool, previewKey);
+
   await app.register(cookie, { hook: 'onRequest' });
   await app.register(helmet, { contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'"], styleSrc: ["'self'", "'unsafe-inline'"], imgSrc: ["'self'", 'data:', 'blob:'], connectSrc: ["'self'", 'wss:'], frameAncestors: ["'none'"] } }, hsts: { maxAge: 63_072_000, includeSubDomains: true, preload: true } });
   await app.register(rateLimit, { max: 240, timeWindow: '1 minute', keyGenerator: (request) => request.ip });
@@ -435,8 +437,6 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
   });
 
   registerCompiledSsotRoutes({ app, pool, operations, surface, authenticate, ownerId, specialRouteKeys });
-  installPreviewWebSocket(app, pool, previewKey);
-
   const uiRoot = resolve(process.cwd(), 'apps/owner-ui/dist');
   if (existsSync(uiRoot)) {
     await app.register(fastifyStatic, {
