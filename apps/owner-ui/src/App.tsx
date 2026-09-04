@@ -22,7 +22,7 @@ const nav=[
 
 function useResource<T>(path:string,initial:T){const[data,setData]=useState<T>(initial);const[error,setError]=useState<string|null>(null);const[loading,setLoading]=useState(true);const reload=useCallback(async()=>{setLoading(true);try{setData(await api<T>(path));setError(null);}catch(reason){setError(reason instanceof Error?reason.message:String(reason));}finally{setLoading(false);}},[path]);useEffect(()=>{void reload();},[reload]);return{data,error,loading,reload,setData};}
 
-export function App(){const[auth,setAuth]=useState<AuthState|null|undefined>(undefined);useEffect(()=>{api<AuthState>('/session').then(setAuth).catch(()=>setAuth(null));},[]);if(auth===undefined)return <Splash/>;if(!auth)return <Login onAuthenticated={()=>api<AuthState>('/session').then(setAuth)}/>;return <Shell auth={auth} onLogout={async()=>{await api('/auth/logout',{method:'POST'});clearCsrf();setAuth(null);}}/>;}
+export function App(){const[auth,setAuth]=useState<AuthState|null|undefined>(undefined);useEffect(()=>{api<AuthState>('/session').then(setAuth).catch(()=>setAuth(null));},[]);if(auth===undefined)return <Splash/>;if(!auth)return <Login onAuthenticated={()=>api<AuthState>('/session').then(setAuth)}/>;return <Shell auth={auth} onLogout={async()=>{try{await api('/auth/logout',{method:'POST'});}finally{clearCsrf();setAuth(null);}}}/>;}
 
 function Splash(){return <main className="splash"><Brand/><div className="spinner"/><span>Ověřuji důvěryhodnou relaci…</span></main>;}
 function Brand({compact=false}:{compact?:boolean}){return <div className={`brand ${compact?'brand--compact':''}`}><span className="brand__mark"><Network size={compact?18:25}/></span><strong>Kájovo<span>CML</span></strong><b>NG</b></div>;}
