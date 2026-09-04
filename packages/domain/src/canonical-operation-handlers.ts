@@ -144,6 +144,7 @@ export function validateCanonicalOperationCommand(operation: OperationContract, 
     case 'component.register':
     case 'generation.job.create':
     case 'browser.session.create':
+    case 'browser.runtimeBuild.register':
     case 'browser.upload.create':
     case 'browser.download.started':
     case 'browser.artifact.created':

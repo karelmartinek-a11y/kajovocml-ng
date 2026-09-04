@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { chmod, mkdir, unlink, writeFile } from 'node:fs/promises';
-import { createServer, type Server, type Socket } from 'node:net';
+import { createConnection, createServer, type Server, type Socket } from 'node:net';
 import { dirname, join } from 'node:path';
 import { browserActionNames, validateBrowserActionDescriptor, z, type BrowserActionName } from '@kcml/schemas';
 import { chromium, type Browser, type BrowserContext, type Locator, type Page } from 'playwright';
@@ -23,6 +23,18 @@ export const browserHostRequestSchema = z.discriminatedUnion('kind', [
 export type BrowserHostRequest = z.infer<typeof browserHostRequestSchema>;
 export const browserHostResponseSchema = z.object({ protocol:z.literal('KCML-BROWSER-HOST/1'),requestId:z.string().uuid(),ok:z.boolean(),runtimeBuildId:z.string().min(1),evidence:z.record(z.string(),z.unknown()).optional(),error:z.object({code:z.string(),message:z.string()}).strict().optional() }).strict();
 export type BrowserHostResponse = z.infer<typeof browserHostResponseSchema>;
+
+export class BrowserHostProtocolClient {
+  public constructor(private readonly socketPath:string) {}
+  public invoke(request:BrowserHostRequest):Promise<BrowserHostResponse> {
+    const validated=browserHostRequestSchema.parse(request);
+    return new Promise((resolve,reject)=>{const socket=createConnection(this.socketPath);let pending='';const timeout=Math.max(1,new Date(validated.deadlineAt).getTime()-Date.now());
+      socket.setTimeout(timeout,()=>socket.destroy(new Error('BROWSER_HOST_DEADLINE_EXCEEDED')));socket.once('error',reject);
+      socket.on('data',(chunk:Buffer)=>{pending+=chunk.toString('utf8');if(Buffer.byteLength(pending)>MAX_FRAME_BYTES){socket.destroy(new Error('BROWSER_HOST_FRAME_TOO_LARGE'));return;}const newline=pending.indexOf('\n');if(newline<0)return;try{const response=browserHostResponseSchema.parse(JSON.parse(pending.slice(0,newline)));if(response.requestId!==validated.requestId)throw new Error('BROWSER_HOST_REQUEST_MISMATCH');socket.end();resolve(response);}catch(error){socket.destroy();reject(error);}});
+      socket.once('connect',()=>socket.write(`${JSON.stringify(validated,(_,value)=>typeof value==='bigint'?value.toString():value)}\n`));
+    });
+  }
+}
 
 interface ManagedContext { context:BrowserContext;page:Page;identity:z.infer<typeof identitySchema>;lease:z.infer<typeof leaseSchema>; }
 export interface BrowserHostProtocolOptions { socketPath:string;artifactRoot:string;runtimeBuildId:string;headless?:boolean; }

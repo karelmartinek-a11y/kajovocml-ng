@@ -170,6 +170,9 @@ importers:
 
   apps/browser-worker:
     dependencies:
+      '@kcml/browser-automation-runtime':
+        specifier: workspace:*
+        version: link:../../packages/browser-automation-runtime
       '@kcml/worker-runtime':
         specifier: workspace:*
         version: link:../../packages/worker-runtime

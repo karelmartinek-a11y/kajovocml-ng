@@ -30,6 +30,7 @@ const WRITER_BOUNDARIES = [
   ['packages/mcp-runtime/src/index.ts', 'WRITER-MCP'],
   ['packages/browser-interaction/src/index.ts', 'WRITER-BROWSER'],
   ['packages/browser-automation-runtime/src/index.ts', 'WRITER-BROWSER'],
+  ['packages/browser-automation-runtime/src/session-service.ts', 'WRITER-BROWSER'],
   ['packages/worker-runtime/src/index.ts', 'WRITER-QUEUE'],
   ['apps/server/src/server.ts', 'CANONICAL_OPERATION_SERVICE'],
   ['apps/server/src/preview-ws.ts', 'CANONICAL_OPERATION_SERVICE'],

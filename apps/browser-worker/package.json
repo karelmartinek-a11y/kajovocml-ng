@@ -1,1 +1,1 @@
-{"name":"@kcml/browser-worker","version":"2026.8.30-8","private":true,"type":"module","scripts":{"build":"tsc -p tsconfig.json","start":"node dist/index.js"},"dependencies":{"@kcml/worker-runtime":"workspace:*"}}
+{"name":"@kcml/browser-worker","version":"2026.8.30-8","private":true,"type":"module","scripts":{"build":"tsc -p tsconfig.json","start":"node dist/index.js"},"dependencies":{"@kcml/browser-automation-runtime":"workspace:*","@kcml/worker-runtime":"workspace:*"}}
