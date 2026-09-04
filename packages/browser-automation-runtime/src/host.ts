@@ -36,7 +36,7 @@ export class BrowserHostProtocolClient {
   }
 }
 
-interface ManagedContext { context:BrowserContext;page:Page;identity:z.infer<typeof identitySchema>;lease:z.infer<typeof leaseSchema>; }
+interface ManagedContext { context:BrowserContext;page:Page;identity:z.infer<typeof identitySchema>;lease:z.infer<typeof leaseSchema>;lastActionFence:bigint; }
 export interface BrowserHostProtocolOptions { socketPath:string;artifactRoot:string;runtimeBuildId:string;headless?:boolean; }
 
 function sameIdentity(left:z.infer<typeof identitySchema>,right:z.infer<typeof identitySchema>):boolean {
@@ -88,15 +88,17 @@ export class BrowserHostProtocolServer {
     if(request.kind==='ATTACH') {
       if(this.#contexts.has(request.identity.sessionId))throw new Error('BROWSER_HOST_CONTEXT_EXISTS');if(!this.#browser)throw new Error('BROWSER_HOST_NOT_STARTED');
       const context=await this.#browser.newContext({acceptDownloads:true,viewport:{width:1440,height:900},locale:'cs-CZ',timezoneId:'Europe/Prague',serviceWorkers:'block'});const page=await context.newPage();
-      const managed={context,page,identity:request.identity,lease:request.lease};this.#contexts.set(request.identity.sessionId,managed);page.on('close',()=>this.#contexts.delete(request.identity.sessionId));
+      const managed={context,page,identity:request.identity,lease:request.lease,lastActionFence:0n};this.#contexts.set(request.identity.sessionId,managed);page.on('close',()=>this.#contexts.delete(request.identity.sessionId));
       if(request.initialUrl)await page.goto(request.initialUrl,{waitUntil:'domcontentloaded',timeout:30_000});return {attached:true,url:page.url()};
     }
     if(request.kind==='SYNCHRONIZE'){const managed=this.#contexts.get(request.identity.sessionId);if(!managed)throw new Error('BROWSER_HOST_CONTEXT_MISSING');if(managed.lease.fencingToken>request.lease.fencingToken)throw new Error('BROWSER_HOST_LEASE_STALE');managed.identity=request.identity;managed.lease=request.lease;return {synchronized:true};}
     const managed=this.current(request);
     if(request.kind==='CLOSE'){await managed.context.close();this.#contexts.delete(request.identity.sessionId);return {closed:true};}
     if(request.kind==='OBSERVE')return this.observe(managed);
+    if(request.actionFence<=managed.lastActionFence)throw new Error('BROWSER_HOST_ACTION_FENCE_STALE');
     const descriptor=validateBrowserActionDescriptor(request.action,request.locatorAst?request.actionId:null,request.payload);
-    const origin=currentOrigin(managed.page);if(!exactOriginAllowed(origin,request.allowedOrigins))throw new Error('BROWSER_HOST_ORIGIN_DENIED');
+    const origin=request.action==='NAVIGATE'?new URL(String(request.payload.url)).origin:currentOrigin(managed.page);if(!exactOriginAllowed(origin,request.allowedOrigins))throw new Error('BROWSER_HOST_ORIGIN_DENIED');
+    managed.lastActionFence=request.actionFence;
     const locator=request.locatorAst?this.resolveLocator(managed.page,request.locatorAst):null;const dispatched=await this.dispatch(managed.page,request.action,locator,request.payload);
     return {actionId:request.actionId,actionFence:request.actionFence.toString(),descriptor,origin,...dispatched,observation:await this.observe(managed)};
   }
