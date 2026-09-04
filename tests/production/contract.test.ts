@@ -69,7 +69,11 @@ describe('production acceptance contract', () => {
 
   it('executes rollback code from the previously verified immutable release', async () => {
     const deploy = await readFile('deploy/scripts/deploy-production.sh', 'utf8');
-    expect(deploy).toContain('"${previous_path}/deploy/scripts/rollback-production.sh" --release-path "${previous_path}"');
+    const rollback = await readFile('deploy/scripts/rollback-production.sh', 'utf8');
+    expect(deploy).toContain('[[ -x ${release_path}/deploy/scripts/rollback-production.sh ]]&&rollback_script="${release_path}/deploy/scripts/rollback-production.sh"');
     expect(deploy).not.toContain('/opt/kajovocml-ng/current/deploy/scripts/rollback-production.sh --release-path');
+    expect(rollback).toContain('"${release_path}/deploy/scripts/install-systemd.sh" "${release_path}"');
+    expect(rollback).toContain("grep -q 'KCML_DATABASE_URL_FILE=%d/database-url'");
+    expect(rollback).toContain('install -o root -g root -m 0644 "${release_path}/deploy/nginx/kajovocml-ng.conf"');
   });
 });

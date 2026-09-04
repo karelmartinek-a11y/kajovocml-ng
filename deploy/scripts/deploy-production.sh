@@ -28,7 +28,12 @@ fail(){
   psql "${DATABASE_URL}" -v deployment_id="${deployment_id}" -v status="${status}" >/dev/null 2>&1 <<'SQL' || true
 UPDATE kcml.deployment_run SET status='FAILED',evidence=evidence||jsonb_build_object('failureExit',(:'status')::int),completed_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp() WHERE id=:'deployment_id'::uuid;
 SQL
-  if [[ ${rolling_back} -eq 0 && -n ${previous_path} && -d ${previous_path} ]]; then rolling_back=1; "${previous_path}/deploy/scripts/rollback-production.sh" --release-path "${previous_path}" --failed-release "${release_id}" || true; fi
+  if [[ ${rolling_back} -eq 0 && -n ${previous_path} && -d ${previous_path} ]]; then
+    rolling_back=1
+    local rollback_script="${previous_path}/deploy/scripts/rollback-production.sh"
+    [[ -x ${release_path}/deploy/scripts/rollback-production.sh ]]&&rollback_script="${release_path}/deploy/scripts/rollback-production.sh"
+    "${rollback_script}" --release-path "${previous_path}" --failed-release "${release_id}" || true
+  fi
   echo "DEPLOYMENT FAILED exit=${status}" >&2
   exit "${status}"
 }
