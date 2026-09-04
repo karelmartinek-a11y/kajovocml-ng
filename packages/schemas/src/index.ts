@@ -12,6 +12,59 @@ export const canonicalJsonValueSchema: z.ZodType<CanonicalJsonValue> = z.lazy(()
 
 export type CanonicalJsonValue = null | boolean | number | string | CanonicalJsonValue[] | { [key: string]: CanonicalJsonValue };
 
+export class CanonicalJsonConversionError extends TypeError {
+  public constructor(
+    public readonly path: string,
+    public readonly valueKind: string
+  ) {
+    super(`Value at ${path} is not representable as canonical JSON (${valueKind})`);
+    this.name = 'CanonicalJsonConversionError';
+  }
+}
+
+/**
+ * Materialize the one JSON representation used by persistence, digests,
+ * idempotency replay and transports.  The conversion is intentionally strict:
+ * silently dropping a function/symbol or accepting a class instance would make
+ * the persisted outcome differ from the response digest.
+ */
+export function toCanonicalJsonValue(value: unknown): CanonicalJsonValue {
+  const ancestors = new Set<object>();
+  const visit = (input: unknown, path: string): CanonicalJsonValue => {
+    if (input === null || typeof input === 'string' || typeof input === 'boolean') return input;
+    if (typeof input === 'bigint') return input.toString(10);
+    if (typeof input === 'number') {
+      if (!Number.isFinite(input)) throw new CanonicalJsonConversionError(path, 'non-finite number');
+      return Object.is(input, -0) ? 0 : input;
+    }
+    if (typeof input === 'undefined' || typeof input === 'function' || typeof input === 'symbol') {
+      throw new CanonicalJsonConversionError(path, typeof input);
+    }
+    if (input instanceof Date) {
+      if (Number.isNaN(input.getTime())) throw new CanonicalJsonConversionError(path, 'invalid Date');
+      return input.toISOString();
+    }
+    if (typeof input !== 'object') throw new CanonicalJsonConversionError(path, typeof input);
+    if (ancestors.has(input)) throw new CanonicalJsonConversionError(path, 'cycle');
+    const prototype = Object.getPrototypeOf(input);
+    if (!Array.isArray(input) && prototype !== Object.prototype && prototype !== null) {
+      throw new CanonicalJsonConversionError(path, prototype?.constructor?.name ?? 'unknown prototype');
+    }
+    ancestors.add(input);
+    try {
+      if (Array.isArray(input)) return input.map((item, index) => visit(item, `${path}[${index}]`));
+      const output: Record<string, CanonicalJsonValue> = {};
+      for (const key of Object.keys(input).sort((left, right) => left.localeCompare(right))) {
+        output[key] = visit((input as Record<string, unknown>)[key], `${path}.${key}`);
+      }
+      return output;
+    } finally {
+      ancestors.delete(input);
+    }
+  };
+  return visit(value, '$');
+}
+
 export function canonicalJson(value: CanonicalJsonValue): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;

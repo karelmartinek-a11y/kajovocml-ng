@@ -2,8 +2,8 @@ import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseClient, DatabasePool } from '@kcml/database';
 import { allocateContiguousSequence, inTransactionProfile, lockAdvisory } from '@kcml/database';
 import { authorityForOperation, loadAuthorityOwnershipRegistry, loadOperationCatalog, loadRegistry, validateAuthorityOwnership, validateExposureParity, type AuthorityOwnershipRecord, type ExposureParityContract, type OperationContract, type StateMachineContract } from '@kcml/contract-pack';
-import { canonicalDigest, canonicalJson, operationCommandSchema, sha256, type CanonicalJsonValue, type OperationResult } from '@kcml/schemas';
-import { canonicalizeDomainError, DomainError } from './errors.js';
+import { canonicalDigest, canonicalJson, operationCommandSchema, sha256, toCanonicalJsonValue, CanonicalJsonConversionError, type CanonicalJsonValue, type OperationResult } from '@kcml/schemas';
+import { canonicalFailure, DomainError } from './errors.js';
 import { assertOperationHandlerCoverage, operationHandlerFor } from './operation-handler-catalog.js';
 import { exactComponentMutationOperations, exactComponentQueryOperations, executeExactComponentMutation, executeExactComponentQuery } from './component-operations.js';
 import { exactRuntimeQueryOperations, executeExactRuntimeQuery } from './runtime-operations.js';
@@ -23,7 +23,14 @@ function requiredSourceSha(): string {
 type JsonObject = Record<string, unknown>;
 
 function jsonSafe(value: unknown): CanonicalJsonValue {
-  return JSON.parse(JSON.stringify(value, (_key,item)=>typeof item==='bigint'?item.toString():item)) as CanonicalJsonValue;
+  try {
+    return toCanonicalJsonValue(value);
+  } catch (error) {
+    if (error instanceof CanonicalJsonConversionError) {
+      throw new DomainError('ERROR_RECOVERY_CONTRACT_INCOMPLETE', 'Operation result is not representable as canonical JSON', 500, 'DO_NOT_RETRY', { path: error.path, valueKind: error.valueKind });
+    }
+    throw error;
+  }
 }
 
 function digestBytes(digest: string): Buffer { return Buffer.from(digest.replace(/^sha256:/u,''),'hex'); }
@@ -196,7 +203,7 @@ export class CanonicalOperationService {
 
   private acceptedResult(commandId:string,logicalOperationId:string,correlationId:string,stateVersion:bigint,eventSequence:bigint,activationEpoch:bigint,idempotencyReplay:boolean,result:unknown,status:'ACCEPTED'|'SUCCEEDED'='ACCEPTED'):OperationResult{
     const safeResult=jsonSafe(result);
-    return {status,metadata:{correlationId,logicalOperationId,commandId,stateVersion,eventSequence,activationEpoch,resultDigest:canonicalDigest(safeResult),idempotencyReplay,serverTime:new Date().toISOString()},result,error:null};
+    return {status,metadata:{correlationId,logicalOperationId,commandId,stateVersion,eventSequence,activationEpoch,resultDigest:canonicalDigest(safeResult),idempotencyReplay,serverTime:new Date().toISOString()},result:safeResult,error:null};
   }
 }
 
@@ -349,30 +356,23 @@ export class CanonicalCommandWorker {
     await terminalizeCommandGuards(client,row.command_id,row.logical_operation_id,row.concurrency_claim_id??null);
     await audit(client,'domain.command.succeeded',this.options.workerId,'DOMAIN_COMMAND',row.command_id,row.correlation_id,null,{commandId:row.command_id,operationName:row.operation_name,resultDigest:canonicalDigest(safeOutput)});
   });}
-  private async fail(row:any,error:unknown):Promise<void>{const message=error instanceof Error?error.message:String(error);await inTransactionProfile(this.pool,'WORKER_COMMIT',async(client)=>{
+  private async fail(row:any,error:unknown):Promise<void>{await inTransactionProfile(this.pool,'WORKER_COMMIT',async(client)=>{
     const recoveryHead=await lockAndVerifyPlatformRecovery(client);if(BigInt(row.recovery_epoch)!==BigInt(recoveryHead.recovery_epoch))throw new DomainError('STALE_RECOVERY_EPOCH','Worker failure write recovery epoch is stale',409,'RECONCILE_THEN_RETRY');
     const checkpointExists=Number((await client.query(`SELECT count(*)::int AS count FROM kcml.domain_command_execution_checkpoint WHERE command_id=$1`,[row.command_id])).rows[0]?.count??0)>0;
     if(checkpointExists)throw new DomainError('APPLIED_COMMAND_CANNOT_FAIL','An applied command with immutable checkpoint must resume terminal replay instead of becoming failed',409,'RECONCILE_THEN_RETRY');
     await verifyWorkerClaimAndAdmission(client,row,['ADMITTED'],false);
     const locked=await client.query(`SELECT * FROM kcml.queue_item WHERE id=$1 FOR UPDATE`,[row.id]);const current=locked.rows[0];if(!current||current.status!=='CLAIMED'||current.lease_owner!==this.options.workerId)return;
-    const canonicalError = canonicalizeDomainError(error);
-    // A domain handler may expose a narrower, exact contract code while the
-    // transport projection is still supplied by the stable error registry.
-    // Never turn its explicit DO_NOT_RETRY terminality into a retry merely
-    // because the projection is conservative.
-    const effectiveRetryDirective=error instanceof DomainError?error.retryDirective:canonicalError.retryDirective;
-    const effectiveCode=error instanceof DomainError?error.code:canonicalError.code;
-    const retry=Number(current.attempt_count)<Number(current.max_attempts)&&effectiveRetryDirective!=='DO_NOT_RETRY';
+    const failure=canonicalFailure(error);
+    const retry=Number(current.attempt_count)<Number(current.max_attempts)&&failure.retryDirective==='RETRY_SAME_OPERATION';
     if(retry){
       await client.query(`UPDATE kcml.queue_item SET status='READY',available_at=clock_timestamp()+make_interval(secs=>least(300,power(2,attempt_count)::int)),lease_owner=NULL,lease_expires_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`,[row.id]);
-      await client.query(`UPDATE kcml.domain_command SET status='ACCEPTED',error=$2,state_version=state_version+1 WHERE id=$1`,[row.command_id,{code:canonicalError.code,message,classification:canonicalError.classification,sideEffectPoint:canonicalError.sideEffectPoint,retryDirective:canonicalError.retryDirective,recordDigest:canonicalError.recordDigest,details:error instanceof DomainError?error.details:null}]);
+      await client.query(`UPDATE kcml.domain_command SET status='ACCEPTED',error=$2,state_version=state_version+1 WHERE id=$1`,[row.command_id,failure]);
     }else{
-      const failure={code:effectiveCode,message,classification:canonicalError.classification,sideEffectPoint:canonicalError.sideEffectPoint,retryDirective:effectiveRetryDirective,recordDigest:canonicalError.recordDigest,details:error instanceof DomainError?error.details:null};
       const failureDigest=canonicalDigest(jsonSafe(failure));const terminalResponse:OperationResult={status:'FAILED_FINAL',metadata:{correlationId:row.correlation_id,logicalOperationId:row.logical_operation_id,commandId:row.command_id,stateVersion:0n,eventSequence:0n,activationEpoch:0n,resultDigest:failureDigest,idempotencyReplay:false,serverTime:new Date().toISOString()},result:null,error:failure};
       const safeTerminal=jsonSafe(terminalResponse);const terminalDigest=digestBytes(canonicalDigest(safeTerminal));
       await client.query(`UPDATE kcml.queue_item SET status='FAILED_FINAL',lease_owner=NULL,lease_expires_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`,[row.id]);
       await client.query(`UPDATE kcml.domain_command SET status='FAILED_FINAL',error=$2,completed_at=clock_timestamp(),state_version=state_version+1 WHERE id=$1`,[row.command_id,failure]);
-      await client.query(`UPDATE kcml.domain_idempotency_record SET lifecycle='FAILED_FINAL',response_status=$2,response_body=$3,response_digest=$4,terminal_outcome_digest=$4,completed_at=clock_timestamp(),updated_at=clock_timestamp(),state_version=state_version+1 WHERE command_id=$1`,[row.command_id,canonicalError.record.httpMappings[0] ?? (error instanceof DomainError ? error.httpStatus : 500),safeTerminal,terminalDigest]);
+      await client.query(`UPDATE kcml.domain_idempotency_record SET lifecycle='FAILED_FINAL',response_status=$2,response_body=$3,response_digest=$4,terminal_outcome_digest=$4,completed_at=clock_timestamp(),updated_at=clock_timestamp(),state_version=state_version+1 WHERE command_id=$1`,[row.command_id,canonicalFailure(error).classification==='INTERNAL'?500:(error instanceof DomainError?error.httpStatus:500),safeTerminal,terminalDigest]);
       await terminalizeCommandGuards(client,row.command_id,row.logical_operation_id,row.concurrency_claim_id??null);
     }
   });}

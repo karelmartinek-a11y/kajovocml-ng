@@ -36,6 +36,38 @@ export function canonicalizeDomainError(error: unknown): CanonicalErrorView {
   }
 }
 
+export interface CanonicalFailure {
+  readonly code: string;
+  readonly effectiveCode: string;
+  readonly message: string;
+  readonly classification: CanonicalErrorView['classification'];
+  readonly sideEffectPoint: CanonicalErrorView['sideEffectPoint'];
+  readonly retryDirective: CanonicalErrorView['retryDirective'];
+  readonly recordDigest: string;
+  readonly registryVersion: string;
+  readonly details: unknown;
+  readonly cause: { readonly kind: string; readonly originalCode: string | null } | null;
+}
+
+export function canonicalFailure(error: unknown): CanonicalFailure {
+  const view = canonicalizeDomainError(error);
+  const originalCode = error instanceof DomainError ? error.code : null;
+  return Object.freeze({
+    code: view.code,
+    effectiveCode: view.code,
+    message: view.canonicalMeaning,
+    classification: view.classification,
+    sideEffectPoint: view.sideEffectPoint,
+    retryDirective: view.retryDirective,
+    recordDigest: view.recordDigest,
+    registryVersion: view.record.schemaVersion,
+    details: error instanceof DomainError && originalCode === view.code ? error.details : null,
+    cause: originalCode && originalCode !== view.code
+      ? Object.freeze({ kind: 'UNREGISTERED_DOMAIN_ERROR', originalCode })
+      : error instanceof DomainError ? null : Object.freeze({ kind: 'NON_DOMAIN_ERROR', originalCode: null })
+  });
+}
+
 export function canonicalRetryDirective(error: unknown): RetryDirective {
   return canonicalizeDomainError(error).retryDirective;
 }
