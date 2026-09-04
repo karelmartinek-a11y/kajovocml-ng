@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { DatabaseClient, DatabasePool } from '@kcml/database';
 import { allocateContiguousSequence } from '@kcml/database';
-import { canonicalDigest, canonicalJson, toCanonicalJsonValue, type CanonicalJsonValue } from '@kcml/schemas';
+import { browserActionNames, validateBrowserActionDescriptor, canonicalDigest, canonicalJson, toCanonicalJsonValue, type BrowserActionName, type CanonicalJsonValue } from '@kcml/schemas';
 import { DomainError } from './errors.js';
 import { generationWorkerPool, type GenerationPhase } from './generation-lifecycle.js';
 import type {
@@ -631,10 +631,27 @@ async function handleBrowserAccountLogout(client: DatabaseClient, context: Canon
 async function handleBrowserActionStart(client: DatabaseClient, context: CanonicalHandlerContext): Promise<unknown> {
   const sessionId = browserSessionId(context);
   const session = row((await client.query(`SELECT * FROM kcml.browser_session WHERE id=$1 FOR UPDATE`, [sessionId])).rows as Row[], 'BROWSER_SESSION_NOT_FOUND', 'Browser session does not exist');
+  if (!['AI','OWNER','AUTOMATION'].includes(String(session.control_holder)) || !session.control_expires_at || new Date(String(session.control_expires_at)).getTime() <= Date.now()) {
+    throw new DomainError('BROWSER_CONTROL_HELD', 'A current control-holder lease is required before accepting a browser action', 409, 'RECONCILE_THEN_RETRY');
+  }
+  for (const [argument, column] of [['expectedControlEpoch','control_epoch'],['expectedDocumentEpoch','document_epoch'],['expectedObservationRevision','observation_revision']] as const) {
+    if (BigInt(numberArg(context, argument)) !== BigInt(String(session[column]))) throw new DomainError('FENCING_TOKEN_STALE', `${argument} does not match the current browser session fence`, 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
+  }
+  const actionName = textArg(context, 'action');
+  if (!(browserActionNames as readonly string[]).includes(actionName)) throw new DomainError('BROWSER_ACTIONABILITY_FAILED', 'Browser action is not registered', 422, 'DO_NOT_RETRY', { action: actionName });
+  const targetReferenceId = context.arguments.targetReferenceId === undefined || context.arguments.targetReferenceId === null ? null : uuidArg(context, 'targetReferenceId');
+  try { validateBrowserActionDescriptor(actionName as BrowserActionName, targetReferenceId, objectArg(context, 'payload')); }
+  catch (error) { throw new DomainError('BROWSER_ACTIONABILITY_FAILED', error instanceof Error ? error.message : 'Browser action descriptor rejected the request', 422, 'DO_NOT_RETRY'); }
+  if (targetReferenceId) {
+    const reference = row((await client.query(`SELECT * FROM kcml.browser_target_reference WHERE id=$1 AND session_id=$2 FOR SHARE`, [targetReferenceId, sessionId])).rows as Row[], 'BROWSER_TARGET_MISSING', 'Browser target reference does not belong to the session');
+    if (String(reference.locator_schema_version) !== '1.0' || BigInt(String(reference.context_generation)) !== BigInt(String(session.context_generation)) || BigInt(String(reference.page_generation)) !== BigInt(String(session.page_generation)) || String(reference.page_id) !== String(session.current_page_id) || String(reference.frame_id) !== String(session.current_frame_id) || BigInt(String(reference.document_epoch)) !== BigInt(String(session.document_epoch))) {
+      throw new DomainError('BROWSER_DOCUMENT_STALE', 'LocatorRef does not match the current context/page/frame/document identity fence', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
+    }
+  }
   const id = randomUUID();
   const action = row((await client.query(`INSERT INTO kcml.browser_action_run(id,session_id,logical_operation_id,action,target_reference_id,payload,expected_control_epoch,expected_document_epoch,expected_observation_revision,dispatch_phase,earliest_mutation_trigger)
     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'INTENT_RECORDED',$10) RETURNING *`, [
-    id, sessionId, context.logicalOperationId, textArg(context, 'action'), context.arguments.targetReferenceId ?? null, objectArg(context, 'payload'), numberArg(context, 'expectedControlEpoch', Number(session.control_epoch ?? 0)), numberArg(context, 'expectedDocumentEpoch', Number(session.document_epoch ?? 0)), numberArg(context, 'expectedObservationRevision', Number(session.observation_revision ?? 0)), context.arguments.earliestMutationTrigger ?? null
+    id, sessionId, context.logicalOperationId, actionName, targetReferenceId, objectArg(context, 'payload'), numberArg(context, 'expectedControlEpoch', Number(session.control_epoch ?? 0)), numberArg(context, 'expectedDocumentEpoch', Number(session.document_epoch ?? 0)), numberArg(context, 'expectedObservationRevision', Number(session.observation_revision ?? 0)), context.arguments.earliestMutationTrigger ?? null
   ])).rows as Row[], 'BROWSER_ACTION_NOT_CREATED', 'Browser action was not persisted');
   await recordAudit(client, context, 'BROWSER_ACTION_RUN', id, { actionId: id, sessionId, dispatchPhase: 'INTENT_RECORDED' });
   return result(context, 'browser_action_run', action, action.state_version, { sessionStateVersion: session.state_version });
@@ -1273,10 +1290,19 @@ async function handleBrowserStateInvalidate(client: DatabaseClient, context: Can
 
 async function handleBrowserTargetPick(client: DatabaseClient, context: CanonicalHandlerContext): Promise<unknown> {
   const sessionId = browserSessionId(context);
+  const session = row((await client.query(`SELECT * FROM kcml.browser_session WHERE id=$1 FOR SHARE`, [sessionId])).rows as Row[], 'BROWSER_SESSION_NOT_FOUND', 'Browser session does not exist');
+  const document = row((await client.query(`SELECT d.id,d.page_id,d.frame_id,d.document_epoch,p.page_generation
+    FROM kcml.browser_document d JOIN kcml.browser_page p ON p.id=d.page_id
+    WHERE d.id=$1 AND d.page_id=$2 AND d.frame_id=$3 AND d.document_epoch=$4 AND d.document_lifecycle='ACTIVE' FOR SHARE OF d,p`, [uuidArg(context, 'documentId'), uuidArg(context, 'pageId'), uuidArg(context, 'frameId'), numberArg(context, 'documentEpoch')])).rows as Row[], 'BROWSER_DOCUMENT_STALE', 'LocatorRef document identity is not active');
+  if (BigInt(String(session.context_generation)) !== BigInt(String(context.arguments.contextGeneration)) || BigInt(String(document.page_generation)) !== BigInt(String(context.arguments.pageGeneration)) || String(session.current_page_id) !== String(document.page_id) || String(session.current_frame_id) !== String(document.frame_id) || BigInt(String(session.document_epoch)) !== BigInt(String(document.document_epoch))) {
+    throw new DomainError('BROWSER_DOCUMENT_STALE', 'LocatorRef fence is not the current session identity', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
+  }
+  const framePath = listArg(context, 'framePath');
+  if (framePath.length > 64 || framePath.some(value => !Number.isSafeInteger(Number(value)) || Number(value) < 0)) throw new DomainError('BROWSER_ACTIONABILITY_FAILED', 'LocatorRef framePath is invalid', 422, 'DO_NOT_RETRY');
   const id = randomUUID();
-  const reference = row((await client.query(`INSERT INTO kcml.browser_target_reference(id,session_id,page_id,frame_id,document_epoch,semantic_description,locator_ast,target_fingerprint,created_from_observation_revision)
-    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`, [
-    id, sessionId, uuidArg(context, 'pageId'), uuidArg(context, 'frameId'), numberArg(context, 'documentEpoch'), textArg(context, 'semanticDescription'), objectArg(context, 'locatorAst'), digestArgument(context, 'targetFingerprint', objectArg(context, 'locatorAst')), numberArg(context, 'observationRevision')
+  const reference = row((await client.query(`INSERT INTO kcml.browser_target_reference(id,session_id,locator_schema_version,context_generation,page_id,page_generation,frame_id,frame_path,document_id,document_epoch,semantic_description,locator_ast,target_fingerprint,created_from_observation_revision)
+    VALUES($1,$2,'1.0',$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`, [
+    id, sessionId, String(session.context_generation), document.page_id, String(document.page_generation), document.frame_id, framePath, document.id, String(document.document_epoch), textArg(context, 'semanticDescription'), objectArg(context, 'locatorAst'), digestArgument(context, 'targetFingerprint', objectArg(context, 'locatorAst')), numberArg(context, 'observationRevision')
   ])).rows as Row[], 'BROWSER_TARGET_NOT_CREATED', 'Browser target reference was not persisted');
   await recordAudit(client, context, 'BROWSER_TARGET_REFERENCE', id, { targetReferenceId: id, sessionId });
   return result(context, 'browser_target_reference', reference, undefined, { targetReferenceId: id });

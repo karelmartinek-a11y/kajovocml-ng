@@ -1,4 +1,6 @@
-import { digestSchema, uuidSchema, z } from '@kcml/schemas';
+import { browserActionNames, browserActionRegistry, digestSchema, uuidSchema, z } from '@kcml/schemas';
+
+export { browserActionNames, browserActionRegistry } from '@kcml/schemas';
 
 export const runtimeBuildManifestSchema = z.object({
   buildId: z.string().min(1),
@@ -34,10 +36,15 @@ export const browserObservationSchema = z.object({
 export type BrowserObservation = z.infer<typeof browserObservationSchema>;
 
 export const targetReferenceSchema = z.object({
+  schemaVersion: z.literal('1.0'),
   targetReferenceId: uuidSchema,
   sessionId: uuidSchema,
+  contextGeneration: z.coerce.bigint().positive(),
   pageId: uuidSchema,
+  pageGeneration: z.coerce.bigint().positive(),
   frameId: uuidSchema,
+  framePath: z.array(z.number().int().nonnegative()).max(64),
+  documentId: uuidSchema,
   documentEpoch: z.coerce.bigint().nonnegative(),
   semanticDescription: z.string().min(1),
   locatorAst: z.record(z.string(), z.unknown()),
@@ -45,6 +52,18 @@ export const targetReferenceSchema = z.object({
   createdFromObservationRevision: z.coerce.bigint().positive()
 }).strict();
 export type TargetReference = z.infer<typeof targetReferenceSchema>;
+
+export const browserActionDescriptorSchema = z.object({
+  action: z.enum(browserActionNames),
+  target: z.enum(['REQUIRED', 'FORBIDDEN', 'OPTIONAL']),
+  effect: z.enum(['READ_ONLY', 'NAVIGATION', 'POSSIBLE_MUTATION', 'ARTIFACT_TRANSFER', 'OWNER_CHALLENGE']),
+  requiredPayload: z.array(z.string()),
+  independentPostcondition: z.boolean()
+}).strict();
+
+export function browserActionDescriptor(action: typeof browserActionNames[number]): z.infer<typeof browserActionDescriptorSchema> {
+  return browserActionDescriptorSchema.parse(browserActionRegistry[action]);
+}
 
 export const actionOutcomeSchema = z.object({
   actionId: uuidSchema,
@@ -57,7 +76,7 @@ export const actionOutcomeSchema = z.object({
 export type ActionOutcome = z.infer<typeof actionOutcomeSchema>;
 
 export function assertObservationFence(reference: TargetReference, observation: BrowserObservation): void {
-  if (reference.sessionId !== observation.sessionId || reference.pageId !== observation.pageId || reference.frameId !== observation.frameId || reference.documentEpoch !== observation.documentEpoch) {
+  if (reference.sessionId !== observation.sessionId || reference.contextGeneration !== observation.contextGeneration || reference.pageId !== observation.pageId || reference.pageGeneration !== observation.pageGeneration || reference.frameId !== observation.frameId || reference.documentEpoch !== observation.documentEpoch) {
     throw new Error('BROWSER_TARGET_REFERENCE_STALE');
   }
   if (reference.createdFromObservationRevision > observation.observationRevision) throw new Error('BROWSER_OBSERVATION_REGRESSION');

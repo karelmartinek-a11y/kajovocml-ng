@@ -114,6 +114,48 @@
           "snippetDigest": "sha256:bb5a9aaf42aeb12c1a5c6488dac0818bcde7808f5a972a3d805d547829dbaed1"
         }
       ]
+    },
+    {
+      "repositoryPath": "database/migrations/20260904000108_browser_locator_action_contract.sql",
+      "requirementIds": [
+        "KCML-REQ-BROWSER-454cc296ba45b8343d9c1f242f56258164f73d8af5ab38ac1fc318f4f61746dc",
+        "KCML-REQ-BROWSER-82474e6166309fcf08cb95400802c7f8ff95d423069d8e5b4855b9149d4319be",
+        "KCML-REQ-BROWSER-b0336a6d2897cc6737f1babb440e05ac0f613cb7ea59e2eef50b46d1b83c882b"
+      ],
+      "operationIds": ["OP-BROWSER-TARGET-PICK", "OP-BROWSER-ACTION-START"],
+      "stateMachineIds": ["SM-BROWSER_SESSION"],
+      "registryRecordIds": [],
+      "testIds": [],
+      "traceAnchors": []
+    },
+    {
+      "repositoryPath": "tests/unit/browser-action-contract.test.ts",
+      "requirementIds": [
+        "KCML-REQ-BROWSER-3690ec100272b2c0c53fbd0dcf7f6d796ae2afa6bd3f6948e4ea58669d939bc9",
+        "KCML-REQ-BROWSER-8389e8aa226691619aebb86638ce8f659e6f2df1026034de4f5a73c68e8bc077",
+        "KCML-REQ-RUNTIME-1de1faa3588077cf70b4c928c25574ff4b559606f08340d6df26eac871be66b7"
+      ],
+      "operationIds": ["OP-BROWSER-TARGET-PICK", "OP-BROWSER-ACTION-START"],
+      "stateMachineIds": ["SM-BROWSER_SESSION"],
+      "registryRecordIds": [],
+      "testIds": [],
+      "traceAnchors": []
+    },
+    {
+      "repositoryPath": "packages/browser-runtime-contracts/src/index.ts",
+      "requirementIds": ["KCML-REQ-BROWSER-71d650e3609549826d33178e76df07a260ddbdb05b4f02e23ecb358ce74cb0e7"],
+      "operationIds": [],
+      "stateMachineIds": [],
+      "registryRecordIds": [],
+      "testIds": [],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-BROWSER-71d650e3609549826d33178e76df07a260ddbdb05b4f02e23ecb358ce74cb0e7",
+          "locator": "packages/browser-runtime-contracts/src/index.ts:1",
+          "symbol": "file-start",
+          "snippetDigest": "sha256:9dde8eed96bbff0e54603e21a69ce7d84318dd32e19bd4981a4d126d945ea5b5"
+        }
+      ]
     }
   ]
 }

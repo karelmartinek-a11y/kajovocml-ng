@@ -186,9 +186,42 @@ export const browserSessionInputSchema = z.object({
   operationScope: z.record(z.string(), z.unknown()).default({})
 }).strict();
 
+export const browserActionNames = ['NAVIGATE', 'CLICK', 'FILL', 'TYPE', 'KEYBOARD', 'POINTER', 'TOUCH', 'UPLOAD', 'DOWNLOAD', 'DIALOG', 'PERMISSION', 'CHALLENGE', 'OBSERVE'] as const;
+export type BrowserActionName = typeof browserActionNames[number];
+export interface BrowserActionDescriptor {
+  readonly action: BrowserActionName;
+  readonly target: 'REQUIRED' | 'FORBIDDEN' | 'OPTIONAL';
+  readonly effect: 'READ_ONLY' | 'NAVIGATION' | 'POSSIBLE_MUTATION' | 'ARTIFACT_TRANSFER' | 'OWNER_CHALLENGE';
+  readonly requiredPayload: readonly string[];
+  readonly independentPostcondition: boolean;
+}
+export const browserActionRegistry: Readonly<Record<BrowserActionName, BrowserActionDescriptor>> = Object.freeze({
+  NAVIGATE: Object.freeze({ action: 'NAVIGATE', target: 'FORBIDDEN', effect: 'NAVIGATION', requiredPayload: ['url'], independentPostcondition: true }),
+  CLICK: Object.freeze({ action: 'CLICK', target: 'REQUIRED', effect: 'POSSIBLE_MUTATION', requiredPayload: [], independentPostcondition: true }),
+  FILL: Object.freeze({ action: 'FILL', target: 'REQUIRED', effect: 'POSSIBLE_MUTATION', requiredPayload: ['value'], independentPostcondition: true }),
+  TYPE: Object.freeze({ action: 'TYPE', target: 'REQUIRED', effect: 'POSSIBLE_MUTATION', requiredPayload: ['value'], independentPostcondition: true }),
+  KEYBOARD: Object.freeze({ action: 'KEYBOARD', target: 'OPTIONAL', effect: 'POSSIBLE_MUTATION', requiredPayload: ['key'], independentPostcondition: true }),
+  POINTER: Object.freeze({ action: 'POINTER', target: 'FORBIDDEN', effect: 'POSSIBLE_MUTATION', requiredPayload: ['x', 'y'], independentPostcondition: true }),
+  TOUCH: Object.freeze({ action: 'TOUCH', target: 'FORBIDDEN', effect: 'POSSIBLE_MUTATION', requiredPayload: ['x', 'y'], independentPostcondition: true }),
+  UPLOAD: Object.freeze({ action: 'UPLOAD', target: 'REQUIRED', effect: 'ARTIFACT_TRANSFER', requiredPayload: ['uploadHandleId'], independentPostcondition: true }),
+  DOWNLOAD: Object.freeze({ action: 'DOWNLOAD', target: 'REQUIRED', effect: 'ARTIFACT_TRANSFER', requiredPayload: [], independentPostcondition: true }),
+  DIALOG: Object.freeze({ action: 'DIALOG', target: 'FORBIDDEN', effect: 'OWNER_CHALLENGE', requiredPayload: ['response'], independentPostcondition: true }),
+  PERMISSION: Object.freeze({ action: 'PERMISSION', target: 'FORBIDDEN', effect: 'OWNER_CHALLENGE', requiredPayload: ['permission'], independentPostcondition: true }),
+  CHALLENGE: Object.freeze({ action: 'CHALLENGE', target: 'FORBIDDEN', effect: 'OWNER_CHALLENGE', requiredPayload: ['kind'], independentPostcondition: true }),
+  OBSERVE: Object.freeze({ action: 'OBSERVE', target: 'FORBIDDEN', effect: 'READ_ONLY', requiredPayload: [], independentPostcondition: false })
+});
+
+export function validateBrowserActionDescriptor(action: BrowserActionName, targetReferenceId: string | null, payload: Record<string, unknown>): BrowserActionDescriptor {
+  const descriptor = browserActionRegistry[action];
+  if (descriptor.target === 'REQUIRED' && !targetReferenceId) throw new Error('BROWSER_TARGET_REQUIRED');
+  if (descriptor.target === 'FORBIDDEN' && targetReferenceId) throw new Error('BROWSER_TARGET_FORBIDDEN');
+  for (const key of descriptor.requiredPayload) if (payload[key] === undefined || payload[key] === null) throw new Error(`BROWSER_ACTION_PAYLOAD_REQUIRED:${key}`);
+  return descriptor;
+}
+
 export const browserActionInputSchema = z.object({
   sessionId: uuidSchema,
-  action: z.enum(['NAVIGATE', 'CLICK', 'FILL', 'TYPE', 'KEYBOARD', 'POINTER', 'TOUCH', 'UPLOAD', 'DOWNLOAD', 'DIALOG', 'PERMISSION', 'CHALLENGE', 'OBSERVE']),
+  action: z.enum(browserActionNames),
   targetReferenceId: uuidSchema.nullable().default(null),
   payload: z.record(z.string(), z.unknown()).default({}),
   expectedControlEpoch: nonNegativeBigIntSchema,
