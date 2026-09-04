@@ -45,6 +45,7 @@ export interface CanonicalFailure {
   readonly retryDirective: CanonicalErrorView['retryDirective'];
   readonly recordDigest: string;
   readonly registryVersion: string;
+  readonly httpStatus: number;
   readonly details: unknown;
   readonly cause: { readonly kind: string; readonly originalCode: string | null } | null;
 }
@@ -61,6 +62,7 @@ export function canonicalFailure(error: unknown): CanonicalFailure {
     retryDirective: view.retryDirective,
     recordDigest: view.recordDigest,
     registryVersion: view.record.schemaVersion,
+    httpStatus: view.record.httpMappings[0] ?? 500,
     details: error instanceof DomainError && originalCode === view.code ? error.details : null,
     cause: originalCode && originalCode !== view.code
       ? Object.freeze({ kind: 'UNREGISTERED_DOMAIN_ERROR', originalCode })

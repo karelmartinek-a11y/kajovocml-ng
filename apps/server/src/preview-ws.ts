@@ -22,12 +22,15 @@ function ticketFingerprint(token: string): Buffer {
   return createHash('sha256').update(token).digest();
 }
 
-export function installPreviewWebSocket(app: FastifyInstance, pool: DatabasePool, previewKey: Buffer): void {
+export function installPreviewWebSocket(app: FastifyInstance, pool: DatabasePool, previewKey: Buffer | null): void {
   app.server.on('upgrade', (request, socket) => {
     void (async () => {
       const url = new URL(request.url ?? '/', 'http://localhost');
       const match = /^\/api\/v1\/browser-sessions\/([0-9a-f-]{36})\/preview\/ws$/iu.exec(url.pathname);
       if (!match) return;
+      if (!previewKey) {
+        socket.write('HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n'); socket.destroy(); return;
+      }
       const sessionId = match[1]!;
       const ticket = url.searchParams.get('ticket');
       const websocketKey = request.headers['sec-websocket-key'];

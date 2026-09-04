@@ -1,96 +1,2666 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { QRCodeSVG } from 'qrcode.react';
 import {
-  Activity, AlertTriangle, Archive, Bot, Boxes, Braces, ChevronDown, ChevronRight, CircleHelp, ClipboardCheck, CloudCog,
-  Command, Component, Database, ExternalLink, Eye, EyeOff, FileClock, Fingerprint, Gauge, Globe2, KeyRound, LayoutDashboard,
-  Link2, LockKeyhole, LogOut, Menu, MessageSquareMore, MonitorDot, MoreHorizontal, Network, Play, Plus, RefreshCw,
-  Rocket, Search, Send, Settings2, ShieldCheck, Sparkles, Square, TerminalSquare, TestTube2, UserRound, Vault, Workflow, X
-} from 'lucide-react';
-import { ApiError, api, clearCsrf, operation, setCsrf } from './api';
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
+import {
+  NavLink,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
+import { QRCodeSVG } from "qrcode.react";
+import {
+  Activity,
+  AlertTriangle,
+  Archive,
+  Bot,
+  Boxes,
+  Braces,
+  ChevronDown,
+  ChevronRight,
+  CircleHelp,
+  ClipboardCheck,
+  CloudCog,
+  Command,
+  Component,
+  Database,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  FileClock,
+  Fingerprint,
+  Gauge,
+  Globe2,
+  KeyRound,
+  LayoutDashboard,
+  Link2,
+  LockKeyhole,
+  LogOut,
+  Menu,
+  MessageSquareMore,
+  MonitorDot,
+  MoreHorizontal,
+  Network,
+  Play,
+  Plus,
+  RefreshCw,
+  Rocket,
+  Search,
+  Send,
+  Settings2,
+  ShieldCheck,
+  Sparkles,
+  Square,
+  TerminalSquare,
+  TestTube2,
+  UserRound,
+  Vault,
+  Workflow,
+  X,
+} from "lucide-react";
+import { ApiError, api, clearCsrf, operation, setCsrf } from "./api";
 
-type Row=Record<string,any>;
-type AuthState={username:string;mfaVerified:boolean;sessionId:string|null;authKind:string};
+type Row = Record<string, any>;
+type AuthState = {
+  username: string;
+  mfaVerified: boolean;
+  sessionId: string | null;
+  authKind: string;
+};
 
-const nav=[
-  ['/',LayoutDashboard,'Dashboard'],['/generation',Sparkles,'Generování'],['/agents',Bot,'AI agenti'],['/mcp',Braces,'MCP servery a nástroje'],
-  ['/browser',Globe2,'Browser'],['/registered',Component,'Registrované prvky'],['/catalog',Boxes,'Katalog komponent'],['/external',CloudCog,'Externí systémy'],
-  ['/monitoring',MonitorDot,'Monitoring'],['/api-key',KeyRound,'API klíč a runtime vazby'],['/secrets',Vault,'Secrets a hesla'],['/bindings',Link2,'Technické vazby'],
-  ['/audit',FileClock,'Audit a logy'],['/settings',Settings2,'Konfigurace'],['/security',ShieldCheck,'Bezpečnost'],['/owner',UserRound,'Pevná identita OWNERa'],
-  ['/releases',Rocket,'Releases a provoz'],['/chat',MessageSquareMore,'Centrální chat'],['/tests',TestTube2,'Testy a API']
+const nav = [
+  ["/", LayoutDashboard, "Dashboard"],
+  ["/generation", Sparkles, "Generování"],
+  ["/agents", Bot, "AI agenti"],
+  ["/mcp", Braces, "MCP servery a nástroje"],
+  ["/browser", Globe2, "Browser"],
+  ["/registered", Component, "Registrované prvky"],
+  ["/catalog", Boxes, "Katalog komponent"],
+  ["/external", CloudCog, "Externí systémy"],
+  ["/monitoring", MonitorDot, "Monitoring"],
+  ["/api-key", KeyRound, "API klíč a runtime vazby"],
+  ["/secrets", Vault, "Secrets a hesla"],
+  ["/bindings", Link2, "Technické vazby"],
+  ["/audit", FileClock, "Audit a logy"],
+  ["/settings", Settings2, "Konfigurace"],
+  ["/security", ShieldCheck, "Bezpečnost"],
+  ["/owner", UserRound, "Pevná identita OWNERa"],
+  ["/releases", Rocket, "Releases a provoz"],
+  ["/chat", MessageSquareMore, "Centrální chat"],
+  ["/tests", TestTube2, "Testy a API"],
 ] as const;
 
-function useResource<T>(path:string,initial:T){const[data,setData]=useState<T>(initial);const[error,setError]=useState<string|null>(null);const[loading,setLoading]=useState(true);const reload=useCallback(async()=>{setLoading(true);try{setData(await api<T>(path));setError(null);}catch(reason){setError(reason instanceof Error?reason.message:String(reason));}finally{setLoading(false);}},[path]);useEffect(()=>{void reload();},[reload]);return{data,error,loading,reload,setData};}
-
-export function App(){const[auth,setAuth]=useState<AuthState|null|undefined>(undefined);useEffect(()=>{api<AuthState>('/session').then(setAuth).catch(()=>setAuth(null));},[]);if(auth===undefined)return <Splash/>;if(!auth)return <Login onAuthenticated={()=>api<AuthState>('/session').then(setAuth)}/>;return <Shell auth={auth} onLogout={async()=>{try{await api('/auth/logout',{method:'POST'});}finally{clearCsrf();setAuth(null);}}}/>;}
-
-function Splash(){return <main className="splash"><Brand/><div className="spinner"/><span>Ověřuji důvěryhodnou relaci…</span></main>;}
-function Brand({compact=false}:{compact?:boolean}){return <div className={`brand ${compact?'brand--compact':''}`}><span className="brand__mark"><Network size={compact?18:25}/></span><strong>Kájovo<span>CML</span></strong><b>NG</b></div>;}
-
-function Login({onAuthenticated}:{onAuthenticated:()=>void}){const[username,setUsername]=useState('');const[password,setPassword]=useState('');const[code,setCode]=useState('');const[step,setStep]=useState<'PASSWORD'|'MFA'|'ENROLL'>('PASSWORD');const[enrollment,setEnrollment]=useState<{secret:string;otpauthUri:string;expiresAt:string}|null>(null);const[recovery,setRecovery]=useState<string[]|null>(null);const[busy,setBusy]=useState(false);const[error,setError]=useState<string|null>(null);
-  async function submit(event:FormEvent){event.preventDefault();setBusy(true);setError(null);try{if(step==='PASSWORD'){const result=await api<any>('/auth/login',{method:'POST',body:JSON.stringify({username,password})});setPassword('');setCsrf(result.csrfToken);if(result.state==='MFA_REQUIRED')setStep('MFA');else if(result.state==='MFA_ENROLLMENT_REQUIRED'){const started=await api<{secret:string;otpauthUri:string;expiresAt:string}>('/owner/mfa/enroll',{method:'POST'});setEnrollment(started);setStep('ENROLL');}else onAuthenticated();}else if(step==='MFA'){await api('/auth/login/mfa',{method:'POST',body:JSON.stringify({code})});setCode('');onAuthenticated();}else{const result=await api<{recoveryCodes:string[]}>('/owner/mfa/verify',{method:'POST',body:JSON.stringify({code})});setCode('');setRecovery(result.recoveryCodes);}}catch(reason){setError(reason instanceof Error?reason.message:String(reason));}finally{setBusy(false);}}
-  const heading=step==='PASSWORD'?'Vítejte zpět':step==='MFA'?'Druhý faktor':'Nastavení dvoufaktorového přihlášení';
-  const description=step==='PASSWORD'?'Zadejte své přihlašovací údaje.':step==='MFA'?'Zadejte TOTP nebo nepoužitý recovery kód.':'Naskenujte QR kód autentizační aplikací a zadejte její první šestimístný kód.';
-  return <main className="login"><section className="login__visual"><div className="login__grid"/><div className="login__copy"><Brand/><h1>Řídicí rovina KájovoCML NG.</h1><p>Komponenty, agenti, MCP, browser runtime a release lifecycle pod singleton OWNER autoritou.</p><div className="login__signals"><span><i/>PostgreSQL authority</span><span><i/>Fail-closed readiness</span><span><i/>Audit evidence</span></div></div></section><section className="login__form"><div className="auth-card"><span className="eyebrow">OWNER ZÓNA</span><h2>{heading}</h2><p>{description}</p>{recovery?<div className="recovery"><h3>Recovery kódy</h3><p>Uložte je teď. Každý lze použít právě jednou.</p><pre>{recovery.join('\n')}</pre><button className="button button--primary" onClick={onAuthenticated}>Pokračovat</button></div>:<form onSubmit={submit}>{step==='PASSWORD'&&<label>Uživatelské jméno<input autoFocus autoComplete="off" value={username} onChange={event=>setUsername(event.target.value)} required/></label>}{step==='PASSWORD'?<label>Heslo<input type="password" autoComplete="current-password" value={password} onChange={event=>setPassword(event.target.value)} required/></label>:<>{step==='ENROLL'&&enrollment?<section className="mfa-enrollment" aria-label="Registrace autentizační aplikace" style={{display:'grid',gap:12,marginBottom:18}}><div className="mfa-qr" style={{width:'max-content',maxWidth:'100%',margin:'0 auto',padding:10,border:'1px solid var(--line)',borderRadius:10,background:'#fff'}}><QRCodeSVG value={enrollment.otpauthUri} size={200} level="M" marginSize={2} title="QR kód pro registraci dvoufaktorového přihlášení" style={{display:'block',maxWidth:'100%',height:'auto'}}/></div><details><summary>Nelze QR kód naskenovat?</summary><p>Zadejte tento klíč do autentizační aplikace ručně:</p><code className="secret-code">{enrollment.secret}</code></details></section>:null}<label>{step==='ENROLL'?'První šestimístný kód':'Ověřovací kód'}<input autoFocus autoComplete="one-time-code" inputMode={step==='ENROLL'?'numeric':'text'} pattern={step==='ENROLL'?'[0-9]{6}':undefined} maxLength={64} value={code} onChange={event=>setCode(event.target.value)} placeholder="000000" required/></label></>}{error&&<div className="form-error"><AlertTriangle size={17}/>{error}</div>}<button className="button button--primary button--wide" disabled={busy}>{busy?<><RefreshCw className="spin" size={17}/>Ověřuji…</>:<>{step==='ENROLL'?'Ověřit a aktivovat MFA':step==='MFA'?'Přihlásit':'Pokračovat'}<ChevronRight size={17}/></>}</button></form>}<footer><LockKeyhole size={14}/>Relace je HttpOnly, SameSite=Strict a chráněná CSRF tokenem.</footer></div></section></main>;
+function useResource<T>(path: string | null, initial: T) {
+  const [data, setData] = useState<T>(initial);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(path !== null);
+  const reload = useCallback(async () => {
+    if (path === null) {
+      setData(initial);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      setData(await api<T>(path));
+      setError(null);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setLoading(false);
+    }
+  }, [path]);
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+  return { data, error, loading, reload, setData };
 }
 
-function Shell({auth,onLogout}:{auth:AuthState;onLogout:()=>Promise<void>}){const[collapsed,setCollapsed]=useState(false);const[palette,setPalette]=useState(false);const[mobile,setMobile]=useState(false);const location=useLocation();useEffect(()=>{setMobile(false);},[location.pathname]);useEffect(()=>{const handler=(event:KeyboardEvent)=>{if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='k'){event.preventDefault();setPalette(true);}};addEventListener('keydown',handler);return()=>removeEventListener('keydown',handler);},[]);const title=nav.find(([path])=>path===location.pathname)?.[2]??'KájovoCML NG';return <div className={`app-shell ${collapsed?'is-collapsed':''}`}><aside className={`sidebar ${mobile?'is-open':''}`}><div className="sidebar__head"><Brand compact={collapsed}/><button className="icon-button sidebar__close" onClick={()=>setMobile(false)}><X/></button></div><nav>{nav.map(([path,Icon,label])=><NavLink key={path} to={path} end={path==='/'} title={label}><Icon/><span>{label}</span></NavLink>)}</nav><div className="sidebar__foot"><NavLink to="/monitoring" className="system-ok"><Activity/><span>Ověřit stav služeb</span></NavLink><button className="sidebar__collapse" onClick={()=>setCollapsed(value=>!value)}><ChevronDown/><span>{collapsed?'Rozbalit':'Sbalit navigaci'}</span></button></div></aside><div className="workspace"><header className="topbar"><button className="icon-button mobile-menu" onClick={()=>setMobile(true)}><Menu/></button><div><span className="eyebrow">OWNER CONTROL PLANE</span><h1>{title}</h1></div><button className="command-trigger" onClick={()=>setPalette(true)}><Search/><span>Zadejte příkaz nebo hledejte objekt…</span><kbd>⌘ K</kbd></button><div className="topbar__actions"><NavLink to="/chat" className="icon-button" title="Centrální chat"><MessageSquareMore/></NavLink><NavLink to="/tests" className="icon-button" title="Testy a API"><CircleHelp/></NavLink><div className="owner-chip"><span>KR</span><div><strong>{auth.username}</strong><small>OWNER_FULL</small></div></div><button className="icon-button" onClick={()=>void onLogout()} title="Odhlásit"><LogOut/></button></div></header><main className="content"><Routes><Route path="/" element={<Dashboard/>}/><Route path="/generation" element={<Generation/>}/><Route path="/agents" element={<Agents/>}/><Route path="/mcp" element={<Mcp/>}/><Route path="/browser" element={<Browser/>}/><Route path="/registered" element={<ObjectPage type="COMPONENT" title="Registrované prvky" description="Aktuální provozní stav komponent, release, heartbeat a dostupné akce." createOperation="component.register"/>}/><Route path="/catalog" element={<Catalog/>}/><Route path="/external" element={<ObjectPage type="EXTERNAL" title="Externí systémy" description="Targety, auth bindings, inbound/outbound vazby, webhooky a circuits."/>}/><Route path="/monitoring" element={<Monitoring/>}/><Route path="/api-key" element={<ApiKey/>}/><Route path="/secrets" element={<Secrets/>}/><Route path="/bindings" element={<ObjectPage type="BINDING" title="Technické vazby" description="Exact source-revision × target-revision bindings a activation sety."/>}/><Route path="/audit" element={<Audit/>}/><Route path="/settings" element={<Settings/>}/><Route path="/security" element={<Security auth={auth}/>}/><Route path="/owner" element={<Owner auth={auth}/>}/><Route path="/releases" element={<Releases/>}/><Route path="/chat" element={<Chat/>}/><Route path="/tests" element={<Tests/>}/><Route path="*" element={<Navigate to="/" replace/>}/></Routes></main></div>{palette&&<CommandPalette close={()=>setPalette(false)}/>}<div className={`scrim ${mobile?'is-visible':''}`} onClick={()=>setMobile(false)}/></div>;
+export function App() {
+  const [auth, setAuth] = useState<AuthState | null | undefined>(undefined);
+  useEffect(() => {
+    api<AuthState>("/session")
+      .then(setAuth)
+      .catch(() => setAuth(null));
+  }, []);
+  if (auth === undefined) return <Splash />;
+  if (!auth)
+    return (
+      <Login onAuthenticated={() => api<AuthState>("/session").then(setAuth)} />
+    );
+  return (
+    <Shell
+      auth={auth}
+      onLogout={async () => {
+        try {
+          await api("/auth/logout", { method: "POST" });
+        } finally {
+          clearCsrf();
+          setAuth(null);
+        }
+      }}
+    />
+  );
 }
 
-function PageHeader({title,description,actions}:{title:string;description:string;actions?:ReactNode}){return <header className="page-header"><div><h2>{title}</h2><p>{description}</p></div><div className="page-actions">{actions}</div></header>;}
-function Status({value}:{value:unknown}){const text=String(value??'UNKNOWN');const tone=/(ACTIVE|READY|SUCCEEDED|PASS|HEALTHY)/u.test(text)?'good':/(FAIL|ERROR|UNHEALTHY|CLOSED|REVOKED|OPEN)/u.test(text)?'bad':/(DEGRADED|WAIT|DRAFT|SUSPENDED|MANUAL)/u.test(text)?'warn':'neutral';return <span className={`status status--${tone}`}><i/>{text.replaceAll('_',' ')}</span>;}
-function Panel({title,action,children,className=''}:{title:string;action?:ReactNode;children:ReactNode;className?:string}){return <section className={`panel ${className}`}><header><h3>{title}</h3>{action}</header>{children}</section>;}
-function ErrorNotice({message,retry}:{message:string;retry?:()=>void}){return <div className="notice notice--error"><AlertTriangle/ ><div><strong>Data se nepodařilo načíst</strong><span>{message}</span></div>{retry&&<button className="button" onClick={retry}>Zkusit znovu</button>}</div>;}
-function Loading(){return <div className="loading-list">{[1,2,3,4].map(item=><i key={item}/>)}</div>;}
+function Splash() {
+  return (
+    <main className="splash">
+      <Brand />
+      <div className="spinner" />
+      <span>Ověřuji důvěryhodnou relaci…</span>
+    </main>
+  );
+}
+function Brand({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={`brand ${compact ? "brand--compact" : ""}`}>
+      <span className="brand__mark">
+        <Network size={compact ? 18 : 25} />
+      </span>
+      <strong>
+        Kájovo<span>CML</span>
+      </strong>
+      <b>NG</b>
+    </div>
+  );
+}
 
-function Dashboard(){const{data,error,loading,reload}=useResource<any>('/system/readiness',{});const services=(data.services??[]) as Row[];const timeline=(data.timeline??[]) as Row[];const metrics=[['Aktivní komponenty',data.active_components??0,Component,'good'],['Nezdravé / degradované',data.degraded??0,AlertTriangle,'warn'],['Otevřené alarmy',data.open_alerts??0,MonitorDot,'bad'],['Běžící joby / runy',data.running_work??0,Play,'info']] as const;return <><PageHeader title="Provozní přehled" description="Živý stav produkčního control plane a exact release epoch." actions={<button className="button" onClick={()=>void reload()}><RefreshCw/>Obnovit</button>}/>{error&&<ErrorNotice message={error} retry={()=>void reload()}/>}<div className="metric-grid">{metrics.map(([label,value,Icon,tone])=><section className={`metric metric--${tone}`} key={label}><span className="metric__icon"><Icon/></span><div><small>{label}</small><strong>{value}</strong><span>aktuální databázový stav</span></div></section>)}</div><div className="health-strip">{['API','Workers','PostgreSQL','TLS','DNS'].map((name,index)=><div key={name}><span>{index===2?<Database/>:index===3?<LockKeyhole/>:index===4?<Network/>:<Activity/>}</span><div><strong>{name}</strong><Status value={services.find(service=>String(service.service_name).toLowerCase().includes(name.toLowerCase()))?.status??'NO_EVIDENCE'}/></div></div>)}</div><div className="dashboard-grid"><Panel title="Topologie systému" className="topology"><Topology/></Panel><Panel title="Poslední KCIP / PULSE události" action={<NavLink to="/audit">Zobrazit vše</NavLink>}>{loading?<Loading/>:<div className="event-list">{timeline.length?timeline.map(event=><div key={event.id}><span className="event-kind">{String(event.event_type).split('.')[0]}</span><div><strong>{event.event_type}</strong><small>{event.correlation_id}</small></div><time>{formatTime(event.created_at)}</time></div>):<QuietState text="Zatím nejsou auditní události."/>}</div>}</Panel><Panel title="Service heartbeats" action={<NavLink to="/monitoring">Monitoring</NavLink>}><div className="service-list">{services.length?services.map(service=><div key={`${service.service_name}-${service.observed_at}`}><span className="service-icon"><Activity/></span><div><strong>{service.service_name}</strong><small>{service.release_id} · epoch {service.deployment_epoch}</small></div><Status value={service.status}/></div>):<QuietState text="Nebyl přijat žádný platný heartbeat."/>}</div></Panel></div></>}
+function Login({ onAuthenticated }: { onAuthenticated: () => void }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [step, setStep] = useState<"PASSWORD" | "MFA" | "ENROLL">("PASSWORD");
+  const [enrollment, setEnrollment] = useState<{
+    secret: string;
+    otpauthUri: string;
+    expiresAt: string;
+  } | null>(null);
+  const [recovery, setRecovery] = useState<string[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      if (step === "PASSWORD") {
+        const result = await api<any>("/auth/login", {
+          method: "POST",
+          body: JSON.stringify({ username, password }),
+        });
+        setPassword("");
+        setCsrf(result.csrfToken);
+        if (result.state === "MFA_REQUIRED") setStep("MFA");
+        else if (result.state === "MFA_ENROLLMENT_REQUIRED") {
+          const started = await api<{
+            secret: string;
+            otpauthUri: string;
+            expiresAt: string;
+          }>("/owner/mfa/enroll", { method: "POST" });
+          setEnrollment(started);
+          setStep("ENROLL");
+        } else onAuthenticated();
+      } else if (step === "MFA") {
+        await api("/auth/login/mfa", {
+          method: "POST",
+          body: JSON.stringify({ code }),
+        });
+        setCode("");
+        onAuthenticated();
+      } else {
+        const result = await api<{ recoveryCodes: string[] }>(
+          "/owner/mfa/verify",
+          { method: "POST", body: JSON.stringify({ code }) },
+        );
+        setCode("");
+        setRecovery(result.recoveryCodes);
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setBusy(false);
+    }
+  }
+  const heading =
+    step === "PASSWORD"
+      ? "Vítejte zpět"
+      : step === "MFA"
+        ? "Druhý faktor"
+        : "Nastavení dvoufaktorového přihlášení";
+  const description =
+    step === "PASSWORD"
+      ? "Zadejte své přihlašovací údaje."
+      : step === "MFA"
+        ? "Zadejte TOTP nebo nepoužitý recovery kód."
+        : "Naskenujte QR kód autentizační aplikací a zadejte její první šestimístný kód.";
+  return (
+    <main className="login">
+      <section className="login__visual">
+        <div className="login__grid" />
+        <div className="login__copy">
+          <Brand />
+          <h1>Řídicí rovina KájovoCML NG.</h1>
+          <p>
+            Komponenty, agenti, MCP, browser runtime a release lifecycle pod
+            singleton OWNER autoritou.
+          </p>
+          <div className="login__signals">
+            <span>
+              <i />
+              PostgreSQL authority
+            </span>
+            <span>
+              <i />
+              Fail-closed readiness
+            </span>
+            <span>
+              <i />
+              Audit evidence
+            </span>
+          </div>
+        </div>
+      </section>
+      <section className="login__form">
+        <div className="auth-card">
+          <span className="eyebrow">OWNER ZÓNA</span>
+          <h2>{heading}</h2>
+          <p>{description}</p>
+          {recovery ? (
+            <div className="recovery">
+              <h3>Recovery kódy</h3>
+              <p>Uložte je teď. Každý lze použít právě jednou.</p>
+              <pre>{recovery.join("\n")}</pre>
+              <button
+                className="button button--primary"
+                onClick={onAuthenticated}
+              >
+                Pokračovat
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={submit}>
+              {step === "PASSWORD" && (
+                <label>
+                  Uživatelské jméno
+                  <input
+                    autoFocus
+                    autoComplete="off"
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                    required
+                  />
+                </label>
+              )}
+              {step === "PASSWORD" ? (
+                <label>
+                  Heslo
+                  <input
+                    type="password"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    required
+                  />
+                </label>
+              ) : (
+                <>
+                  {step === "ENROLL" && enrollment ? (
+                    <section
+                      className="mfa-enrollment"
+                      aria-label="Registrace autentizační aplikace"
+                      style={{ display: "grid", gap: 12, marginBottom: 18 }}
+                    >
+                      <div
+                        className="mfa-qr"
+                        style={{
+                          width: "max-content",
+                          maxWidth: "100%",
+                          margin: "0 auto",
+                          padding: 10,
+                          border: "1px solid var(--line)",
+                          borderRadius: 10,
+                          background: "#fff",
+                        }}
+                      >
+                        <QRCodeSVG
+                          value={enrollment.otpauthUri}
+                          size={200}
+                          level="M"
+                          marginSize={2}
+                          title="QR kód pro registraci dvoufaktorového přihlášení"
+                          style={{
+                            display: "block",
+                            maxWidth: "100%",
+                            height: "auto",
+                          }}
+                        />
+                      </div>
+                      <details>
+                        <summary>Nelze QR kód naskenovat?</summary>
+                        <p>
+                          Zadejte tento klíč do autentizační aplikace ručně:
+                        </p>
+                        <code className="secret-code">{enrollment.secret}</code>
+                      </details>
+                    </section>
+                  ) : null}
+                  <label>
+                    {step === "ENROLL"
+                      ? "První šestimístný kód"
+                      : "Ověřovací kód"}
+                    <input
+                      autoFocus
+                      autoComplete="one-time-code"
+                      inputMode={step === "ENROLL" ? "numeric" : "text"}
+                      pattern={step === "ENROLL" ? "[0-9]{6}" : undefined}
+                      maxLength={64}
+                      value={code}
+                      onChange={(event) => setCode(event.target.value)}
+                      placeholder="000000"
+                      required
+                    />
+                  </label>
+                </>
+              )}
+              {error && (
+                <div className="form-error">
+                  <AlertTriangle size={17} />
+                  {error}
+                </div>
+              )}
+              <button
+                className="button button--primary button--wide"
+                disabled={busy}
+              >
+                {busy ? (
+                  <>
+                    <RefreshCw className="spin" size={17} />
+                    Ověřuji…
+                  </>
+                ) : (
+                  <>
+                    {step === "ENROLL"
+                      ? "Ověřit a aktivovat MFA"
+                      : step === "MFA"
+                        ? "Přihlásit"
+                        : "Pokračovat"}
+                    <ChevronRight size={17} />
+                  </>
+                )}
+              </button>
+            </form>
+          )}
+          <footer>
+            <LockKeyhole size={14} />
+            Relace je HttpOnly, SameSite=Strict a chráněná CSRF tokenem.
+          </footer>
+        </div>
+      </section>
+    </main>
+  );
+}
 
-function Topology(){return <div className="topology-map" aria-label="Konfigurační topologie; provozní stav je uveden v heartbeatech"><div className="topology-node top"><Globe2/><strong>Internet</strong></div><span className="topology-line vertical"/><div className="topology-node gateway"><Network/><strong>Nginx + API</strong></div><div className="topology-row"><div className="topology-node"><ShieldCheck/><strong>Auth</strong></div><div className="topology-node"><Workflow/><strong>Orchestrator</strong></div><div className="topology-node"><Archive/><strong>Outbox</strong></div></div><div className="topology-row bottom"><div className="topology-node"><Bot/><strong>Agents</strong></div><div className="topology-node"><Braces/><strong>MCP</strong></div><div className="topology-node"><Globe2/><strong>Browser</strong></div><div className="topology-node"><Database/><strong>PostgreSQL</strong></div></div></div>}
+function Shell({
+  auth,
+  onLogout,
+}: {
+  auth: AuthState;
+  onLogout: () => Promise<void>;
+}) {
+  const [collapsed, setCollapsed] = useState(false);
+  const [palette, setPalette] = useState(false);
+  const [mobile, setMobile] = useState(false);
+  const location = useLocation();
+  useEffect(() => {
+    setMobile(false);
+  }, [location.pathname]);
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setPalette(true);
+      }
+    };
+    addEventListener("keydown", handler);
+    return () => removeEventListener("keydown", handler);
+  }, []);
+  const title =
+    nav.find(([path]) => path === location.pathname)?.[2] ?? "KájovoCML NG";
+  return (
+    <div className={`app-shell ${collapsed ? "is-collapsed" : ""}`}>
+      <aside className={`sidebar ${mobile ? "is-open" : ""}`}>
+        <div className="sidebar__head">
+          <Brand compact={collapsed} />
+          <button
+            className="icon-button sidebar__close"
+            onClick={() => setMobile(false)}
+            aria-label="Zavřít navigaci"
+          >
+            <X />
+          </button>
+        </div>
+        <nav>
+          {nav.map(([path, Icon, label]) => (
+            <NavLink key={path} to={path} end={path === "/"} title={label}>
+              <Icon />
+              <span>{label}</span>
+            </NavLink>
+          ))}
+        </nav>
+        <div className="sidebar__foot">
+          <NavLink to="/monitoring" className="system-ok">
+            <Activity />
+            <span>Ověřit stav služeb</span>
+          </NavLink>
+          <button
+            className="sidebar__collapse"
+            onClick={() => setCollapsed((value) => !value)}
+          >
+            <ChevronDown />
+            <span>{collapsed ? "Rozbalit" : "Sbalit navigaci"}</span>
+          </button>
+        </div>
+      </aside>
+      <div className="workspace">
+        <header className="topbar">
+          <button
+            className="icon-button mobile-menu"
+            onClick={() => setMobile(true)}
+            aria-label="Otevřít navigaci"
+          >
+            <Menu />
+          </button>
+          <div>
+            <span className="eyebrow">OWNER CONTROL PLANE</span>
+            <h1>{title}</h1>
+          </div>
+          <button
+            className="command-trigger"
+            onClick={() => setPalette(true)}
+            aria-label="Vyhledat příkaz"
+            aria-haspopup="dialog"
+          >
+            <Search />
+            <span>Zadejte příkaz nebo hledejte objekt…</span>
+            <kbd>⌘ K</kbd>
+          </button>
+          <div className="topbar__actions">
+            <NavLink to="/chat" className="icon-button" title="Centrální chat">
+              <MessageSquareMore />
+            </NavLink>
+            <NavLink to="/tests" className="icon-button" title="Testy a API">
+              <CircleHelp />
+            </NavLink>
+            <div className="owner-chip">
+              <span>KR</span>
+              <div>
+                <strong>{auth.username}</strong>
+                <small>OWNER_FULL</small>
+              </div>
+            </div>
+            <button
+              className="icon-button"
+              onClick={() => void onLogout()}
+              title="Odhlásit"
+              aria-label="Odhlásit"
+            >
+              <LogOut />
+            </button>
+          </div>
+        </header>
+        <main className="content">
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/generation" element={<Generation />} />
+            <Route path="/agents" element={<Agents />} />
+            <Route path="/mcp" element={<Mcp />} />
+            <Route path="/browser" element={<Browser />} />
+            <Route
+              path="/registered"
+              element={
+                <ObjectPage
+                  type="COMPONENT"
+                  title="Registrované prvky"
+                  description="Aktuální provozní stav komponent, release, heartbeat a dostupné akce."
+                  createOperation="component.register"
+                />
+              }
+            />
+            <Route path="/catalog" element={<Catalog />} />
+            <Route
+              path="/external"
+              element={
+                <ObjectPage
+                  type="EXTERNAL"
+                  title="Externí systémy"
+                  description="Targety, auth bindings, inbound/outbound vazby, webhooky a circuits."
+                />
+              }
+            />
+            <Route path="/monitoring" element={<Monitoring />} />
+            <Route path="/api-key" element={<ApiKey />} />
+            <Route path="/secrets" element={<Secrets />} />
+            <Route
+              path="/bindings"
+              element={
+                <ObjectPage
+                  type="BINDING"
+                  title="Technické vazby"
+                  description="Exact source-revision × target-revision bindings a activation sety."
+                />
+              }
+            />
+            <Route path="/audit" element={<Audit />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/security" element={<Security auth={auth} />} />
+            <Route path="/owner" element={<Owner auth={auth} />} />
+            <Route path="/releases" element={<Releases />} />
+            <Route path="/chat" element={<Chat />} />
+            <Route path="/tests" element={<Tests />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+      </div>
+      {palette && <CommandPalette close={() => setPalette(false)} />}
+      <div
+        className={`scrim ${mobile ? "is-visible" : ""}`}
+        onClick={() => setMobile(false)}
+      />
+    </div>
+  );
+}
 
-function resourceEndpoint(type:string):string{return type==='COMPONENT'?'/components':type==='EXTERNAL'?'/external/targets':type==='BINDING'?'/bindings':type==='CONFIG'?'/config/settings':type==='AGENT'?'/agents':'/components';}
-function ObjectPage({type,title,description,createOperation}:{type:string;title:string;description:string;createOperation?:string}){const path=resourceEndpoint(type);const{data,error,loading,reload}=useResource<Row[]>(path,[]);const[dialog,setDialog]=useState(false);const[query,setQuery]=useState('');const filtered=data.filter(row=>JSON.stringify(row).toLowerCase().includes(query.toLowerCase()));return <><PageHeader title={title} description={description} actions={<><button className="button" onClick={()=>void reload()}><RefreshCw/>Obnovit</button>{createOperation&&<button className="button button--primary" onClick={()=>setDialog(true)}><Plus/>Registrovat</button>}</>}/>{error&&<ErrorNotice message={error} retry={()=>void reload()}/>}<Panel title={`${filtered.length} objektů`} action={<div className="table-tools"><Search/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Filtrovat aktuální pohled"/></div>}>{loading?<Loading/>:<DataTable rows={filtered}/>}</Panel>{dialog&&createOperation&&<OperationDialog name={createOperation} close={()=>setDialog(false)} completed={()=>{setDialog(false);void reload();}}/>}</>}
+function PageHeader({
+  title,
+  description,
+  actions,
+}: {
+  title: string;
+  description: string;
+  actions?: ReactNode;
+}) {
+  return (
+    <header className="page-header">
+      <div>
+        <h2>{title}</h2>
+        <p>{description}</p>
+      </div>
+      <div className="page-actions">{actions}</div>
+    </header>
+  );
+}
+type StatusTone = "good" | "bad" | "warn" | "neutral";
+const STATUS_TONES: Readonly<Record<string, StatusTone>> = {
+  ACTIVE: "good",
+  READY: "good",
+  SUCCEEDED: "good",
+  PASS: "good",
+  HEALTHY: "good",
+  VERIFIED: "good",
+  COMPLETED: "good",
+  FAILED: "bad",
+  FAIL: "bad",
+  ERROR: "bad",
+  UNHEALTHY: "bad",
+  REVOKED: "bad",
+  EXPIRED: "bad",
+  DEGRADED: "warn",
+  WAITING: "warn",
+  DRAFT: "warn",
+  SUSPENDED: "warn",
+  MANUAL_REVIEW: "warn",
+  REQUIRED: "warn",
+  INITIALIZATION_REQUIRED: "warn",
+  OPEN: "neutral",
+  CLOSED: "neutral",
+  NO_EVIDENCE: "neutral",
+  UNKNOWN: "neutral",
+};
+function Status({ value, tone }: { value: unknown; tone?: StatusTone }) {
+  const text = String(value ?? "UNKNOWN");
+  const effectiveTone = tone ?? STATUS_TONES[text] ?? "neutral";
+  return (
+    <span className={`status status--${effectiveTone}`}>
+      <i />
+      {text.replaceAll("_", " ")}
+    </span>
+  );
+}
+function Panel({
+  title,
+  action,
+  children,
+  className = "",
+}: {
+  title: string;
+  action?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={`panel ${className}`}>
+      <header>
+        <h3>{title}</h3>
+        {action}
+      </header>
+      {children}
+    </section>
+  );
+}
+function ErrorNotice({
+  message,
+  retry,
+}: {
+  message: string;
+  retry?: () => void;
+}) {
+  return (
+    <div className="notice notice--error">
+      <AlertTriangle />
+      <div>
+        <strong>Data se nepodařilo načíst</strong>
+        <span>{message}</span>
+      </div>
+      {retry && (
+        <button className="button" onClick={retry}>
+          Zkusit znovu
+        </button>
+      )}
+    </div>
+  );
+}
+function Loading() {
+  return (
+    <div className="loading-list">
+      {[1, 2, 3, 4].map((item) => (
+        <i key={item} />
+      ))}
+    </div>
+  );
+}
 
-function DataTable({rows}:{rows:Row[]}){if(!rows.length)return <QuietState text="Žádné záznamy zatím neodpovídají filtru."/>;const columns=['display_name','stable_key','object_type','lifecycle','state_version','updated_at'];return <div className="table-wrap"><table><thead><tr>{columns.map(column=><th key={column}>{human(column)}</th>)}<th>Detail</th></tr></thead><tbody>{rows.map((row,index)=><tr key={row.id??index}>{columns.map(column=><td key={column}>{column==='lifecycle'?<Status value={row[column]}/>:column.includes('_at')?formatDate(row[column]):renderCell(row[column])}</td>)}<td><details><summary className="icon-button" aria-label="Zobrazit celý záznam"><MoreHorizontal/></summary><pre>{JSON.stringify(row,null,2)}</pre></details></td></tr>)}</tbody></table></div>}
+function Dashboard() {
+  const { data, error, loading, reload } = useResource<any>(
+    "/system/readiness",
+    {},
+  );
+  const serviceGroups = (data.serviceGroups ?? []) as Row[];
+  const timeline = (data.timeline ?? []) as Row[];
+  const summary = (data.summary ?? {}) as Row;
+  const metrics = [
+    ["Aktivní komponenty", summary.activeComponents ?? "UNKNOWN", Component, "good"],
+    ["Nezdravé / degradované", summary.degraded ?? "UNKNOWN", AlertTriangle, "warn"],
+    ["Otevřené alarmy", summary.openAlerts ?? "UNKNOWN", MonitorDot, "bad"],
+    ["Běžící joby / runy", summary.runningWork ?? "UNKNOWN", Play, "info"],
+  ] as const;
+  return (
+    <>
+      <PageHeader
+        title="Provozní přehled"
+        description="Živý stav produkčního control plane a exact release epoch."
+        actions={
+          <button className="button" onClick={() => void reload()}>
+            <RefreshCw />
+            Obnovit
+          </button>
+        }
+      />
+      {error && <ErrorNotice message={error} retry={() => void reload()} />}
+      <div className="metric-grid">
+        {metrics.map(([label, value, Icon, tone]) => (
+          <section className={`metric metric--${tone}`} key={label}>
+            <span className="metric__icon">
+              <Icon />
+            </span>
+            <div>
+              <small>{label}</small>
+              <strong>{value}</strong>
+              <span>aktuální databázový stav</span>
+            </div>
+          </section>
+        ))}
+      </div>
+      <div className="health-strip">
+        {["API", "Workers", "PostgreSQL", "TLS", "DNS"].map((name, index) => (
+          <div key={name}>
+            <span>
+              {index === 2 ? (
+                <Database />
+              ) : index === 3 ? (
+                <LockKeyhole />
+              ) : index === 4 ? (
+                <Network />
+              ) : (
+                <Activity />
+              )}
+            </span>
+            <div>
+              <strong>{name}</strong>
+              <Status
+                value={
+                  serviceGroups.find(
+                    (service) => String(service.group) === name.toUpperCase(),
+                  )?.status ?? "UNKNOWN"
+                }
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="dashboard-grid">
+        <Panel title="Topologie systému" className="topology">
+          <Topology />
+        </Panel>
+        <Panel
+          title="Poslední KCIP / PULSE události"
+          action={<NavLink to="/audit">Zobrazit vše</NavLink>}
+        >
+          {loading ? (
+            <Loading />
+          ) : (
+            <div className="event-list">
+              {timeline.length ? (
+                timeline.map((event) => (
+                  <div key={event.id}>
+                    <span className="event-kind">
+                      {String(event.event_type).split(".")[0]}
+                    </span>
+                    <div>
+                      <strong>{event.event_type}</strong>
+                      <small>{event.correlation_id}</small>
+                    </div>
+                    <time>{formatTime(event.created_at)}</time>
+                  </div>
+                ))
+              ) : (
+                <QuietState text="Zatím nejsou auditní události." />
+              )}
+            </div>
+          )}
+        </Panel>
+        <Panel
+          title="Service heartbeats"
+          action={<NavLink to="/monitoring">Monitoring</NavLink>}
+        >
+          <div className="service-list">
+            {services.length ? (
+              services.map((service) => (
+                <div key={`${service.service_name}-${service.observed_at}`}>
+                  <span className="service-icon">
+                    <Activity />
+                  </span>
+                  <div>
+                    <strong>{service.service_name}</strong>
+                    <small>
+                      {service.release_id} · epoch {service.deployment_epoch}
+                    </small>
+                  </div>
+                  <Status value={service.status} />
+                </div>
+              ))
+            ) : (
+              <QuietState text="Nebyl přijat žádný platný heartbeat." />
+            )}
+          </div>
+        </Panel>
+      </div>
+    </>
+  );
+}
 
-function OperationDialog({name,targetId=null,close,completed}:{name:string;targetId?:string|null;close:()=>void;completed:()=>void}){const[body,setBody]=useState('{\n  "name": "Nový objekt",\n  "stableKey": "new-object"\n}');const[busy,setBusy]=useState(false);const[error,setError]=useState<string|null>(null);async function submit(event:FormEvent){event.preventDefault();setBusy(true);try{await operation(name,JSON.parse(body),targetId);completed();}catch(reason){setError(reason instanceof Error?reason.message:String(reason));}finally{setBusy(false);}}return <div className="modal-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)close();}}><form className="modal" onSubmit={submit}><header><div><span className="eyebrow">KANONICKÁ OPERACE</span><h2>{name}</h2></div><button type="button" className="icon-button" onClick={close}><X/></button></header><label>Argumenty (JSON)<textarea rows={12} value={body} onChange={event=>setBody(event.target.value)} spellCheck={false}/></label>{error&&<div className="form-error"><AlertTriangle/>{error}</div>}<footer><button type="button" className="button" onClick={close}>Zrušit</button><button className="button button--primary" disabled={busy}>{busy?<RefreshCw className="spin"/>:<Play/>}Spustit</button></footer></form></div>}
+function Topology() {
+  return (
+    <div
+      className="topology-map"
+      aria-label="Konfigurační topologie; provozní stav je uveden v heartbeatech"
+    >
+      <div className="topology-node top">
+        <Globe2 />
+        <strong>Internet</strong>
+      </div>
+      <span className="topology-line vertical" />
+      <div className="topology-node gateway">
+        <Network />
+        <strong>Nginx + API</strong>
+      </div>
+      <div className="topology-row">
+        <div className="topology-node">
+          <ShieldCheck />
+          <strong>Auth</strong>
+        </div>
+        <div className="topology-node">
+          <Workflow />
+          <strong>Orchestrator</strong>
+        </div>
+        <div className="topology-node">
+          <Archive />
+          <strong>Outbox</strong>
+        </div>
+      </div>
+      <div className="topology-row bottom">
+        <div className="topology-node">
+          <Bot />
+          <strong>Agents</strong>
+        </div>
+        <div className="topology-node">
+          <Braces />
+          <strong>MCP</strong>
+        </div>
+        <div className="topology-node">
+          <Globe2 />
+          <strong>Browser</strong>
+        </div>
+        <div className="topology-node">
+          <Database />
+          <strong>PostgreSQL</strong>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-function Generation(){const{data,error,loading,reload}=useResource<Row[]>('/generation/jobs',[]);const[create,setCreate]=useState(false);const[selected,setSelected]=useState<Row|null>(null);return <><PageHeader title="Generování" description="Job catalog, výrobní workspace, validace a atomická aktivace candidate graphu." actions={<button className="button button--primary" onClick={()=>setCreate(true)}><Sparkles/>Nový generation job</button>}/>{error&&<ErrorNotice message={error} retry={()=>void reload()}/>}<div className="split-catalog"><Panel title="Job catalog"><div className="job-list">{loading?<Loading/>:data.length?data.map(job=><button key={job.id} className={selected?.id===job.id?'selected':''} onClick={()=>setSelected(job)}><span className="job-icon"><Sparkles/></span><div><strong>{job.objective}</strong><small>{job.mode} · {job.current_phase} · aktualizace {formatDate(job.updated_at)}</small><span className="progress"><i style={{width:`${job.progress}%`}}/></span></div><Status value={job.lifecycle}/></button>):<QuietState text="Vytvořte první výrobní job."/>}</div></Panel><GenerationWorkspace job={selected??data[0]??null}/></div>{create&&<GenerationCreate close={()=>setCreate(false)} completed={()=>{setCreate(false);void reload();}}/>}</>}
-function GenerationCreate({close,completed}:{close:()=>void;completed:()=>void}){const[objective,setObjective]=useState('');const[mode,setMode]=useState('CREATE');const[error,setError]=useState<string|null>(null);async function submit(event:FormEvent){event.preventDefault();try{await operation('generation.job.create',{mode,objective,targetObjectIds:[],sourceArtifactIds:[],model:null});completed();}catch(reason){setError(reason instanceof Error?reason.message:String(reason));}}return <div className="modal-backdrop"><form className="modal" onSubmit={submit}><header><div><span className="eyebrow">GENERATION INTAKE</span><h2>Nový výrobní job</h2></div><button type="button" className="icon-button" onClick={close}><X/></button></header><label>Režim<select value={mode} onChange={event=>setMode(event.target.value)}><option>CREATE</option><option>UPDATE</option><option>REPAIR</option><option>FOLLOW_UP</option></select></label><label>Cíl výroby<textarea rows={8} value={objective} onChange={event=>setObjective(event.target.value)} required placeholder="Popište výsledný objekt a acceptance podmínky…"/></label>{error&&<div className="form-error">{error}</div>}<footer><button type="button" className="button" onClick={close}>Zrušit</button><button className="button button--primary"><Sparkles/>Založit job</button></footer></form></div>}
-function GenerationWorkspace({job}:{job:Row|null}){const tabs=['Diskuse','Web','Zdroje a fakta','Capability','Specifikace','Architektura','Plán','Workspace','Validace','Průběh','Aktivace','Audit'];const[tab,setTab]=useState('Validace');if(!job)return <Panel title="Výrobní workspace"><QuietState text="Vyberte job v katalogu."/></Panel>;return <Panel title={job.objective} className="generation-workspace" action={<Status value={job.lifecycle}/> }><div className="workspace-meta"><span>ID <code>{job.id}</code></span><span>Fáze <strong>{job.current_phase}</strong></span><span>Progress <strong>{job.progress}%</strong></span><span>Lease <Status value={job.lease_expires_at?'ACTIVE':'AVAILABLE'}/></span></div><div className="tabs">{tabs.map(item=><button key={item} className={tab===item?'active':''} onClick={()=>setTab(item)}>{item}</button>)}</div><div className="validation-layout"><div className="gate-list"><h4>Acceptance evidence</h4><div><ClipboardCheck/><span>Výsledky se zobrazí pouze z persistovaného validation runu.</span><Status value="NO_EVIDENCE"/></div></div><div className="gate-detail"><header><div><span className="eyebrow">{tab.toUpperCase()}</span><h3>{tab}</h3></div><Status value={job.blocker?'MANUAL_REVIEW':job.lifecycle}/></header><div className="workspace-canvas"><div><h4>Souhrn</h4><dl><dt>Výsledek</dt><dd>{job.blocker?'Vyžaduje OWNER rozhodnutí':'Bez syntetického hodnocení'}</dd><dt>State version</dt><dd>{job.state_version}</dd><dt>Activation epoch</dt><dd>{job.activation_epoch}</dd></dl></div><div><h4>Evidence</h4><p>Workspace zobrazuje pouze persistované evidence a exact digests. Žádný gate nelze ručně označit jako PASS.</p><pre>{JSON.stringify(job.blocker??{phase:job.current_phase,progress:job.progress},null,2)}</pre></div></div></div></div></Panel>}
+function resourceEndpoint(type: string): string {
+  return type === "COMPONENT"
+    ? "/components"
+    : type === "EXTERNAL"
+      ? "/external/targets"
+      : type === "BINDING"
+        ? "/bindings"
+        : type === "CONFIG"
+          ? "/config/settings"
+          : type === "AGENT"
+            ? "/agents"
+            : "/components";
+}
+function ObjectPage({
+  type,
+  title,
+  description,
+  createOperation,
+}: {
+  type: string;
+  title: string;
+  description: string;
+  createOperation?: string;
+}) {
+  const path = resourceEndpoint(type);
+  const { data, error, loading, reload } = useResource<Row[]>(path, []);
+  const [dialog, setDialog] = useState(false);
+  const [query, setQuery] = useState("");
+  const filtered = data.filter((row) =>
+    JSON.stringify(row).toLowerCase().includes(query.toLowerCase()),
+  );
+  return (
+    <>
+      <PageHeader
+        title={title}
+        description={description}
+        actions={
+          <>
+            <button className="button" onClick={() => void reload()}>
+              <RefreshCw />
+              Obnovit
+            </button>
+            {createOperation && (
+              <button
+                className="button button--primary"
+                onClick={() => setDialog(true)}
+              >
+                <Plus />
+                Registrovat
+              </button>
+            )}
+          </>
+        }
+      />
+      {error && <ErrorNotice message={error} retry={() => void reload()} />}
+      <Panel
+        title={`${filtered.length} objektů`}
+        action={
+          <div className="table-tools">
+            <Search />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Filtrovat aktuální pohled"
+            />
+          </div>
+        }
+      >
+        {loading ? <Loading /> : <DataTable rows={filtered} />}
+      </Panel>
+      {dialog && createOperation && (
+        <OperationDialog
+          name={createOperation}
+          close={() => setDialog(false)}
+          completed={() => {
+            setDialog(false);
+            void reload();
+          }}
+        />
+      )}
+    </>
+  );
+}
 
-function Agents(){return <TabbedResource title="AI agenti" description="Definitions, immutable revisions, exact tools, runs, checkpointy a eval promotion." type="AGENT" extraEndpoint="/agents" tabs={['Přehled','Instrukce a schemas','Nástroje a aliasy','Handoffs','Guardrails','Sessions a paměť','Runs','Evaluace','Monitoring','Audit']}/>}
-function Mcp(){const{data,error,loading}=useResource<any>('/operations/catalog',{operations:[]});const tools=(data.operations??[]).filter((item:Row)=>item.operationFamily==='MCP');return <><PageHeader title="MCP servery a nástroje" description="Moderní i legacy era, immutable discovery, schemas, tasks, MRTR a wire evidence." actions={<button className="button button--primary" onClick={()=>void operation('mcp.server.discover',{})}><RefreshCw/>Discover</button>}/>{error&&<ErrorNotice message={error}/>}<div className="summary-grid"><Summary icon={<Braces/>} label="MCP operací" value={tools.length}/><Summary icon={<Fingerprint/>} label="Preferovaná protocol revision" value="2025-11-25"/><Summary icon={<Activity/>} label="Wire evidence" value="NO_EVIDENCE"/></div><Panel title="Kanonický MCP operation catalog">{loading?<Loading/>:<DataTable rows={tools.map((tool:Row)=>({display_name:tool.operationName,stable_key:tool.operationId,object_type:tool.exposureClass,lifecycle:tool.sideEffectClass,state_version:tool.operationRevision,updated_at:tool.canonicalDigest}))}/>}</Panel></>}
-function Catalog(){return <TabbedResource title="Katalog komponent" description="Registrace, immutable revisions, releases, manifests, evidence, E2E a recertification." type="COMPONENT" tabs={['Cards','Tabulka','Revisions','Releases','Manifest','Dokumentace','Dependencies','E2E']}/>}
-function TabbedResource({title,description,type,tabs,extraEndpoint}:{title:string;description:string;type:string;tabs:string[];extraEndpoint?:string}){const[tab,setTab]=useState(tabs[0]!);const{data,error,loading,reload}=useResource<Row[]>(extraEndpoint??resourceEndpoint(type),[]);return <><PageHeader title={title} description={description} actions={<button className="button" onClick={()=>void reload()}><RefreshCw/>Obnovit</button>}/><div className="tabs tabs--page">{tabs.map(item=><button key={item} className={tab===item?'active':''} onClick={()=>setTab(item)}>{item}</button>)}</div>{error&&<ErrorNotice message={error}/>}<Panel title={tab}>{loading?<Loading/>:<DataTable rows={data}/>}</Panel></>}
+function DataTable({ rows }: { rows: Row[] }) {
+  if (!rows.length)
+    return <QuietState text="Žádné záznamy zatím neodpovídají filtru." />;
+  const columns = [
+    "display_name",
+    "stable_key",
+    "object_type",
+    "lifecycle",
+    "state_version",
+    "updated_at",
+  ];
+  return (
+    <div className="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            {columns.map((column) => (
+              <th key={column}>{human(column)}</th>
+            ))}
+            <th>Detail</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={row.id ?? index}>
+              {columns.map((column) => (
+                <td key={column}>
+                  {column === "lifecycle" ? (
+                    <Status value={row[column]} />
+                  ) : column.includes("_at") ? (
+                    formatDate(row[column])
+                  ) : (
+                    renderCell(row[column])
+                  )}
+                </td>
+              ))}
+              <td>
+                <details>
+                  <summary
+                    className="icon-button"
+                    aria-label="Zobrazit celý záznam"
+                  >
+                    <MoreHorizontal />
+                  </summary>
+                  <pre>{JSON.stringify(row, null, 2)}</pre>
+                </details>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
-function Browser(){const{data,error,loading,reload}=useResource<Row[]>('/browser-sessions',[]);const[selected,setSelected]=useState<Row|null>(null);const[create,setCreate]=useState(false);return <><PageHeader title="Browser relace a automatizace" description="Řízené sessions, semantické targets, účty, bridges a persistentní reconciliation." actions={<button className="button button--primary" onClick={()=>setCreate(true)}><Plus/>Nová relace</button>}/>{error&&<ErrorNotice message={error}/>}<div className="browser-layout"><Panel title="Živé relace"><div className="session-list">{loading?<Loading/>:data.length?data.map(session=><button key={session.id} onClick={()=>setSelected(session)} className={selected?.id===session.id?'selected':''}><span><Globe2/></span><div><strong>{session.purpose}</strong><small>{session.current_url??'about:blank'} · document {session.document_epoch}</small></div><Status value={session.lifecycle}/></button>):<QuietState text="Není otevřená žádná browser relace."/>}</div></Panel><BrowserDetail session={selected??data[0]??null} changed={()=>void reload()}/></div>{create&&<OperationDialog name="browser.session.create" close={()=>setCreate(false)} completed={()=>{setCreate(false);void reload();}}/>}</>}
-function BrowserDetail({session,changed}:{session:Row|null;changed:()=>void}){const[dialog,setDialog]=useState(false);const detail=useResource<any>(session?`/browser-sessions/${session.id}`:'/browser-sessions/00000000-0000-0000-0000-000000000000',{session:null,observations:[],actions:[],targets:[]});if(!session)return <Panel title="Browser session detail"><QuietState text="Vyberte relaci nebo založte novou."/></Panel>;const current=detail.data.session??session;async function transfer(holder:'AI'|'OWNER'|'AUTOMATION'){const path=holder==='AI'?`/browser-sessions/${session.id}/control/return-to-ai`:`/browser-sessions/${session.id}/control/acquire`;await api(path,{method:'POST',body:JSON.stringify({holder,expectedControlEpoch:current.control_epoch,expectedStateVersion:current.state_version??null,ttlSeconds:300})});await detail.reload();changed();}return <Panel title={current.purpose} className="browser-detail" action={<Status value={current.lifecycle}/> }>{detail.error&&<ErrorNotice message={detail.error} retry={()=>void detail.reload()}/>}<div className="browser-bar"><div><Globe2/><span>{current.current_url??'about:blank'}</span></div><button className="button" onClick={()=>void detail.reload()}><RefreshCw/>Načíst stav</button></div><div className="browser-stats"><span><small>Page / Frame</small><strong>{short(current.current_page_id)} / {short(current.current_frame_id)}</strong></span><span><small>Document epoch</small><strong>{current.document_epoch}</strong></span><span><small>Control holder</small><strong>{current.control_holder}</strong></span><span><small>Control epoch</small><strong>{current.control_epoch}</strong></span></div><div className="preview"><Globe2/><h3>Poslední autoritativní pozorování</h3>{detail.data.observations?.[0]?<pre>{JSON.stringify(detail.data.observations[0],null,2)}</pre>:<p>Host zatím nepersistoval žádný browser observation frame.</p>}</div><div className="browser-controls"><button onClick={()=>void transfer('OWNER')}><UserRound/><span>Převzít OWNERem</span></button><button onClick={()=>void transfer('AI')}><Bot/><span>Vrátit AI</span></button><button onClick={()=>void transfer('AUTOMATION')}><Workflow/><span>Předat automatizaci</span></button><button onClick={()=>setDialog(true)}><Play/><span>Nová akce</span></button></div>{dialog&&<BrowserActionDialog session={current} close={()=>setDialog(false)} completed={()=>{setDialog(false);void detail.reload();changed();}}/>}</Panel>}
-function BrowserActionDialog({session,close,completed}:{session:Row;close:()=>void;completed:()=>void}){const[action,setAction]=useState('OBSERVE');const[payload,setPayload]=useState('{}');const[targetReferenceId,setTargetReferenceId]=useState('');const[error,setError]=useState('');async function submit(event:FormEvent){event.preventDefault();try{await api(`/browser-sessions/${session.id}/actions`,{method:'POST',body:JSON.stringify({action,targetReferenceId:targetReferenceId||null,payload:JSON.parse(payload),expectedControlEpoch:session.control_epoch,expectedDocumentEpoch:session.document_epoch,expectedObservationRevision:session.observation_revision})});completed();}catch(reason){setError(reason instanceof Error?reason.message:String(reason));}}return <div className="modal-backdrop"><form className="modal" onSubmit={submit}><header><h2>Browser action</h2><button type="button" className="icon-button" onClick={close}><X/></button></header><label>Akce<select value={action} onChange={event=>setAction(event.target.value)}>{['OBSERVE','NAVIGATE','CLICK','FILL','TYPE','KEYBOARD','POINTER','TOUCH'].map(value=><option key={value}>{value}</option>)}</select></label><label>Target reference ID<input value={targetReferenceId} onChange={event=>setTargetReferenceId(event.target.value)} placeholder="volitelné pro OBSERVE/NAVIGATE"/></label><label>Payload JSON<textarea rows={8} value={payload} onChange={event=>setPayload(event.target.value)}/></label>{error&&<div className="form-error">{error}</div>}<footer><button type="button" className="button" onClick={close}>Zrušit</button><button className="button button--primary"><Play/>Commitnout intent</button></footer></form></div>}
+function OperationDialog({
+  name,
+  targetId = null,
+  close,
+  completed,
+}: {
+  name: string;
+  targetId?: string | null;
+  close: () => void;
+  completed: () => void;
+}) {
+  const [body, setBody] = useState(
+    '{\n  "name": "Nový objekt",\n  "stableKey": "new-object"\n}',
+  );
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      await operation(name, JSON.parse(body), targetId);
+      completed();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div
+      className="modal-backdrop"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) close();
+      }}
+    >
+      <form className="modal" onSubmit={submit}>
+        <header>
+          <div>
+            <span className="eyebrow">KANONICKÁ OPERACE</span>
+            <h2>{name}</h2>
+          </div>
+          <button type="button" className="icon-button" onClick={close}>
+            <X />
+          </button>
+        </header>
+        <label>
+          Argumenty (JSON)
+          <textarea
+            rows={12}
+            value={body}
+            onChange={(event) => setBody(event.target.value)}
+            spellCheck={false}
+          />
+        </label>
+        {error && (
+          <div className="form-error">
+            <AlertTriangle />
+            {error}
+          </div>
+        )}
+        <footer>
+          <button type="button" className="button" onClick={close}>
+            Zrušit
+          </button>
+          <button className="button button--primary" disabled={busy}>
+            {busy ? <RefreshCw className="spin" /> : <Play />}Spustit
+          </button>
+        </footer>
+      </form>
+    </div>
+  );
+}
 
-function Secrets(){const{data,error,loading,reload}=useResource<Row[]>('/secrets',[]);const[show,setShow]=useState<Row|null>(null);const[value,setValue]=useState<string|null>(null);const[create,setCreate]=useState(false);const[presentation,setPresentation]=useState(false);async function reveal(row:Row){if(presentation)return;const result=await api<any>(`/secrets/${row.id}/value`);setShow(row);setValue(result.value);}return <><PageHeader title="Secrets a hesla" description="OWNER Password Manager; hodnoty jsou envelope-encrypted a každé reveal použití je auditované." actions={<><label className="presentation-toggle"><EyeOff/>Presentation mode<input type="checkbox" checked={presentation} onChange={event=>{setPresentation(event.target.checked);setShow(null);setValue(null);}}/></label><button className="button button--primary" onClick={()=>setCreate(true)}><Plus/>Přidat secret</button></>}/>{error&&<ErrorNotice message={error}/>}<Panel title={`${data.length} secretů`}>{loading?<Loading/>:<div className="secret-grid">{data.map(secret=><article key={secret.id}><span className="secret-icon"><Vault/></span><div><small>{secret.kind}</small><h3>{secret.displayName}</h3><code>{secret.stableName}</code><p>Fingerprint {presentation?'skrytý':secret.fingerprint??'—'} · v{secret.secretActivationEpoch}</p></div><button className="button" disabled={presentation} onClick={()=>void reveal(secret)}><Eye/>Reveal</button></article>)}</div>}</Panel>{show&&<SecretReveal row={show} value={value??''} close={()=>{setShow(null);setValue(null);}}/>}{create&&<SecretCreate close={()=>setCreate(false)} complete={()=>{setCreate(false);void reload();}}/>}</>}
-function SecretCreate({close,complete}:{close:()=>void;complete:()=>void}){const[form,setForm]=useState({stableName:'OPENAI_API_KEY',displayName:'OpenAI API key',kind:'API_KEY',value:''});const[error,setError]=useState('');async function submit(event:FormEvent){event.preventDefault();try{await api('/secrets',{method:'POST',body:JSON.stringify({...form,metadata:{provider:'openai'}})});complete();}catch(reason){setError(reason instanceof Error?reason.message:String(reason));}}return <div className="modal-backdrop"><form className="modal" onSubmit={submit}><header><h2>Nový secret</h2><button type="button" className="icon-button" onClick={close}><X/></button></header><label>Stable name<input value={form.stableName} onChange={event=>setForm({...form,stableName:event.target.value.toUpperCase()})}/></label><label>Zobrazovaný název<input value={form.displayName} onChange={event=>setForm({...form,displayName:event.target.value})}/></label><label>Typ<select value={form.kind} onChange={event=>setForm({...form,kind:event.target.value})}><option>API_KEY</option><option>PASSWORD</option><option>TOKEN</option><option>CERTIFICATE</option><option>PRIVATE_KEY</option><option>OPAQUE</option></select></label><label>Hodnota<input type="password" autoComplete="off" value={form.value} onChange={event=>setForm({...form,value:event.target.value})} required/></label>{error&&<div className="form-error">{error}</div>}<footer><button type="button" className="button" onClick={close}>Zrušit</button><button className="button button--primary"><Vault/>Zašifrovat a uložit</button></footer></form></div>}
-function SecretReveal({row,value,close}:{row:Row;value:string;close:()=>void}){const[visible,setVisible]=useState(false);return <div className="modal-backdrop"><section className="modal"><header><div><span className="eyebrow">AUDITOVANÝ REVEAL</span><h2>{row.stableName}</h2></div><button className="icon-button" onClick={close}><X/></button></header><div className="revealed-value"><code>{visible?value:'•'.repeat(Math.min(value.length,42))}</code><button className="icon-button" onClick={()=>setVisible(current=>!current)}>{visible?<EyeOff/>:<Eye/>}</button><button className="button" onClick={()=>void navigator.clipboard.writeText(value)}>Kopírovat</button></div><p className="sensitive-warning"><ShieldCheck/>Hodnota neopouští OWNER zónu; toto zobrazení bylo zapsáno do auditního řetězce.</p></section></div>}
+function Generation() {
+  const { data, error, loading, reload } = useResource<Row[]>(
+    "/generation/jobs",
+    [],
+  );
+  const [create, setCreate] = useState(false);
+  const [selected, setSelected] = useState<Row | null>(null);
+  return (
+    <>
+      <PageHeader
+        title="Generování"
+        description="Job catalog, výrobní workspace, validace a atomická aktivace candidate graphu."
+        actions={
+          <button
+            className="button button--primary"
+            onClick={() => setCreate(true)}
+          >
+            <Sparkles />
+            Nový generation job
+          </button>
+        }
+      />
+      {error && <ErrorNotice message={error} retry={() => void reload()} />}
+      <div className="split-catalog">
+        <Panel title="Job catalog">
+          <div className="job-list">
+            {loading ? (
+              <Loading />
+            ) : data.length ? (
+              data.map((job) => (
+                <button
+                  key={job.id}
+                  className={selected?.id === job.id ? "selected" : ""}
+                  onClick={() => setSelected(job)}
+                >
+                  <span className="job-icon">
+                    <Sparkles />
+                  </span>
+                  <div>
+                    <strong>{job.objective}</strong>
+                    <small>
+                      {job.mode} · {job.current_phase} · aktualizace{" "}
+                      {formatDate(job.updated_at)}
+                    </small>
+                    <span className="progress">
+                      <i style={{ width: `${job.progress}%` }} />
+                    </span>
+                  </div>
+                  <Status value={job.lifecycle} />
+                </button>
+              ))
+            ) : (
+              <QuietState text="Vytvořte první výrobní job." />
+            )}
+          </div>
+        </Panel>
+        <GenerationWorkspace job={selected ?? data[0] ?? null} />
+      </div>
+      {create && (
+        <GenerationCreate
+          close={() => setCreate(false)}
+          completed={() => {
+            setCreate(false);
+            void reload();
+          }}
+        />
+      )}
+    </>
+  );
+}
+function GenerationCreate({
+  close,
+  completed,
+}: {
+  close: () => void;
+  completed: () => void;
+}) {
+  const [objective, setObjective] = useState("");
+  const [mode, setMode] = useState("CREATE");
+  const [error, setError] = useState<string | null>(null);
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    try {
+      await operation("generation.job.create", {
+        mode,
+        objective,
+        targetObjectIds: [],
+        sourceArtifactIds: [],
+        model: null,
+      });
+      completed();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
+  }
+  return (
+    <div className="modal-backdrop">
+      <form className="modal" onSubmit={submit}>
+        <header>
+          <div>
+            <span className="eyebrow">GENERATION INTAKE</span>
+            <h2>Nový výrobní job</h2>
+          </div>
+          <button type="button" className="icon-button" onClick={close}>
+            <X />
+          </button>
+        </header>
+        <label>
+          Režim
+          <select
+            value={mode}
+            onChange={(event) => setMode(event.target.value)}
+          >
+            <option>CREATE</option>
+            <option>UPDATE</option>
+            <option>REPAIR</option>
+            <option>FOLLOW_UP</option>
+          </select>
+        </label>
+        <label>
+          Cíl výroby
+          <textarea
+            rows={8}
+            value={objective}
+            onChange={(event) => setObjective(event.target.value)}
+            required
+            placeholder="Popište výsledný objekt a acceptance podmínky…"
+          />
+        </label>
+        {error && <div className="form-error">{error}</div>}
+        <footer>
+          <button type="button" className="button" onClick={close}>
+            Zrušit
+          </button>
+          <button className="button button--primary">
+            <Sparkles />
+            Založit job
+          </button>
+        </footer>
+      </form>
+    </div>
+  );
+}
+function GenerationWorkspace({ job }: { job: Row | null }) {
+  const tabs = [
+    "Diskuse",
+    "Web",
+    "Zdroje a fakta",
+    "Capability",
+    "Specifikace",
+    "Architektura",
+    "Plán",
+    "Workspace",
+    "Validace",
+    "Průběh",
+    "Aktivace",
+    "Audit",
+  ];
+  const [tab, setTab] = useState("Validace");
+  if (!job)
+    return (
+      <Panel title="Výrobní workspace">
+        <QuietState text="Vyberte job v katalogu." />
+      </Panel>
+    );
+  return (
+    <Panel
+      title={job.objective}
+      className="generation-workspace"
+      action={<Status value={job.lifecycle} />}
+    >
+      <div className="workspace-meta">
+        <span>
+          ID <code>{job.id}</code>
+        </span>
+        <span>
+          Fáze <strong>{job.current_phase}</strong>
+        </span>
+        <span>
+          Progress <strong>{job.progress}%</strong>
+        </span>
+        <span>
+          Lease <Status value={job.lease_expires_at ? "ACTIVE" : "AVAILABLE"} />
+        </span>
+      </div>
+      <div className="tabs">
+        {tabs.map((item) => (
+          <button
+            key={item}
+            className={tab === item ? "active" : ""}
+            onClick={() => setTab(item)}
+          >
+            {item}
+          </button>
+        ))}
+      </div>
+      <div className="validation-layout">
+        <div className="gate-list">
+          <h4>Acceptance evidence</h4>
+          <div>
+            <ClipboardCheck />
+            <span>
+              Výsledky se zobrazí pouze z persistovaného validation runu.
+            </span>
+            <Status value="NO_EVIDENCE" />
+          </div>
+        </div>
+        <div className="gate-detail">
+          <header>
+            <div>
+              <span className="eyebrow">{tab.toUpperCase()}</span>
+              <h3>{tab}</h3>
+            </div>
+            <Status value={job.blocker ? "MANUAL_REVIEW" : job.lifecycle} />
+          </header>
+          <div className="workspace-canvas">
+            <div>
+              <h4>Souhrn</h4>
+              <dl>
+                <dt>Výsledek</dt>
+                <dd>
+                  {job.blocker
+                    ? "Vyžaduje OWNER rozhodnutí"
+                    : "Bez syntetického hodnocení"}
+                </dd>
+                <dt>State version</dt>
+                <dd>{job.state_version}</dd>
+                <dt>Activation epoch</dt>
+                <dd>{job.activation_epoch}</dd>
+              </dl>
+            </div>
+            <div>
+              <h4>Evidence</h4>
+              <p>
+                Workspace zobrazuje pouze persistované evidence a exact digests.
+                Žádný gate nelze ručně označit jako PASS.
+              </p>
+              <pre>
+                {JSON.stringify(
+                  job.blocker ?? {
+                    phase: job.current_phase,
+                    progress: job.progress,
+                  },
+                  null,
+                  2,
+                )}
+              </pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Panel>
+  );
+}
 
-function Monitoring(){const{data,error,loading,reload}=useResource<Row[]>('/alerts',[]);return <><PageHeader title="Monitoring" description="Probes, heartbeats, alerts, deliveries, SLO a scheduler profiles." actions={<button className="button" onClick={()=>void reload()}><RefreshCw/>Obnovit</button>}/><div className="summary-grid"><Summary icon={<Activity/>} label="Open alerts" value={data.filter(row=>row.status==='OPEN').length}/><Summary icon={<Gauge/>} label="SLO window" value="30 dní"/><Summary icon={<MonitorDot/>} label="Writer" value="PRIMARY"/></div>{error&&<ErrorNotice message={error}/>}<Panel title="Alarm timeline">{loading?<Loading/>:<DataTable rows={data}/>}</Panel></>}
-function ApiKey(){const{data,error,loading}=useResource<Row>('/owner/api-key',{});const[revealed,setRevealed]=useState<string|null>(null);async function reveal(){const result=await api<any>('/owner/api-key/value');setRevealed(result.value);}return <><PageHeader title="API klíč a runtime vazby" description="Jediný singleton OWNER_FULL credential; prvotní inicializaci provádí deployment bootstrap, rotaci kanonické API."/>{error&&<ErrorNotice message={error}/>}<section className="credential-card"><div className="credential-card__icon"><KeyRound/></div><div><span className="eyebrow">SINGLETON CREDENTIAL</span><h2>KCML_OWNER_API_KEY</h2><p>Fingerprint <code>{data.fingerprint??'čeká na deployment bootstrap'}</code></p><div><Status value={data.secret_id?'ACTIVE':'INITIALIZATION_REQUIRED'}/><span>Credential version {data.credential_version??0}</span><span>Epoch {data.credential_activation_epoch??0}</span></div></div><div className="credential-actions">{data.secret_id?<button className="button" onClick={()=>void reveal()}><Eye/>Reveal</button>:<span className="status status--warn"><i/>BOOTSTRAP REQUIRED</span>}</div></section>{revealed&&<div className="notice notice--sensitive"><KeyRound/><div><strong>Hodnota je auditovaně zobrazena</strong><code>{revealed}</code></div><button className="button" onClick={()=>void navigator.clipboard.writeText(revealed)}>Kopírovat</button><button className="icon-button" onClick={()=>setRevealed(null)}><X/></button></div>}<Panel title="Runtime execution contexts"><QuietState text="Contexty se naplní při prvním component/agent/browser runu."/></Panel></>}
+function Agents() {
+  return (
+    <TabbedResource
+      title="AI agenti"
+      description="Definitions, immutable revisions, exact tools, runs, checkpointy a eval promotion."
+      type="AGENT"
+      extraEndpoint="/agents"
+      tabs={[
+        "Přehled",
+        "Instrukce a schemas",
+        "Nástroje a aliasy",
+        "Handoffs",
+        "Guardrails",
+        "Sessions a paměť",
+        "Runs",
+        "Evaluace",
+        "Monitoring",
+        "Audit",
+      ]}
+    />
+  );
+}
+function Mcp() {
+  const { data, error, loading } = useResource<any>("/operations/catalog", {
+    operations: [],
+  });
+  const tools = (data.operations ?? []).filter(
+    (item: Row) => item.operationFamily === "MCP",
+  );
+  return (
+    <>
+      <PageHeader
+        title="MCP servery a nástroje"
+        description="Moderní i legacy era, immutable discovery, schemas, tasks, MRTR a wire evidence."
+        actions={
+          <button
+            className="button button--primary"
+            onClick={() => void operation("mcp.server.discover", {})}
+          >
+            <RefreshCw />
+            Discover
+          </button>
+        }
+      />
+      {error && <ErrorNotice message={error} />}
+      <div className="summary-grid">
+        <Summary icon={<Braces />} label="MCP operací" value={tools.length} />
+        <Summary
+          icon={<Fingerprint />}
+          label="Preferovaná protocol revision"
+          value="2025-11-25"
+        />
+        <Summary
+          icon={<Activity />}
+          label="Wire evidence"
+          value="NO_EVIDENCE"
+        />
+      </div>
+      <Panel title="Kanonický MCP operation catalog">
+        {loading ? (
+          <Loading />
+        ) : (
+          <DataTable
+            rows={tools.map((tool: Row) => ({
+              display_name: tool.operationName,
+              stable_key: tool.operationId,
+              object_type: tool.exposureClass,
+              lifecycle: tool.sideEffectClass,
+              state_version: tool.operationRevision,
+              updated_at: tool.canonicalDigest,
+            }))}
+          />
+        )}
+      </Panel>
+    </>
+  );
+}
+function Catalog() {
+  return (
+    <TabbedResource
+      title="Katalog komponent"
+      description="Registrace, immutable revisions, releases, manifests, evidence, E2E a recertification."
+      type="COMPONENT"
+      tabs={[
+        "Cards",
+        "Tabulka",
+        "Revisions",
+        "Releases",
+        "Manifest",
+        "Dokumentace",
+        "Dependencies",
+        "E2E",
+      ]}
+    />
+  );
+}
+function TabbedResource({
+  title,
+  description,
+  type,
+  tabs,
+  extraEndpoint,
+}: {
+  title: string;
+  description: string;
+  type: string;
+  tabs: string[];
+  extraEndpoint?: string;
+}) {
+  const [tab, setTab] = useState(tabs[0]!);
+  const { data, error, loading, reload } = useResource<Row[]>(
+    extraEndpoint ?? resourceEndpoint(type),
+    [],
+  );
+  return (
+    <>
+      <PageHeader
+        title={title}
+        description={description}
+        actions={
+          <button className="button" onClick={() => void reload()}>
+            <RefreshCw />
+            Obnovit
+          </button>
+        }
+      />
+      <div className="tabs tabs--page">
+        {tabs.map((item) => (
+          <button
+            key={item}
+            className={tab === item ? "active" : ""}
+            onClick={() => setTab(item)}
+          >
+            {item}
+          </button>
+        ))}
+      </div>
+      {error && <ErrorNotice message={error} />}
+      <Panel title={tab}>
+        {loading ? <Loading /> : <DataTable rows={data} />}
+      </Panel>
+    </>
+  );
+}
 
-function Audit(){const{data,error,loading,reload}=useResource<Row[]>('/audit/events',[]);return <><PageHeader title="Audit a logy" description="Globální SHA‑256 hash chain a correlation graph napříč HTTP, DB, KCIP, browserem a releases." actions={<button className="button" onClick={()=>void operation('audit.integrity.verify',{})}><ShieldCheck/>Ověřit integritu</button>}/>{error&&<ErrorNotice message={error}/>}<Panel title="Hash chain" action={<button className="text-button" onClick={()=>void reload()}>Live stream</button>}>{loading?<Loading/>:<div className="audit-list">{data.map(event=><article key={event.id}><span className="audit-seq">#{event.chain_sequence}</span><div><strong>{event.event_type}</strong><small>{event.actor_kind} · {event.actor_id}</small><code>{event.correlation_id}</code></div><time>{formatDate(event.created_at)}</time></article>)}</div>}</Panel></>}
-function Settings(){return <ObjectPage type="CONFIG" title="Konfigurace" description="Validované settings, affected services, restart badge, version history a apply summary."/>}
-function Security({auth}:{auth:AuthState}){const{data}=useResource<Row[]>('/owner/sessions',[]);return <><PageHeader title="Bezpečnost" description="Password source, MFA, recovery, sessions, login evidence, certificates a master-key health."/><div className="security-grid"><Panel title="Pevná identita"><dl className="details"><dt>Username</dt><dd>KRMAR78</dd><dt>Authority</dt><dd>OWNER_FULL</dd><dt>MFA</dt><dd><Status value={auth.mfaVerified?'VERIFIED':'REQUIRED'}/></dd><dt>Password source</dt><dd>GitHub Actions secret PASS</dd></dl></Panel><Panel title="Security boundary"><ul className="check-list"><li><ShieldCheck/>HttpOnly + SameSite=Strict session</li><li><ShieldCheck/>CSRF on every session mutation</li><li><ShieldCheck/>Argon2id password verifier</li><li><ShieldCheck/>AES‑256‑GCM secret envelopes</li><li><ShieldCheck/>No public runtime endpoints</li></ul></Panel></div><Panel title={`Aktivní relace (${data.length})`}><DataTable rows={data}/></Panel></>}
-function Owner({auth}:{auth:AuthState}){return <><PageHeader title="Pevná identita OWNERa" description="Systém má právě jednu deployment-managed lidskou identitu."/><section className="owner-profile"><span>KR</span><div><span className="eyebrow">IMMUTABLE USERNAME</span><h2>KRMAR78</h2><p>Plná OWNER autorita bez rolí, groups, permission matrix nebo dalšího account lifecycle.</p><div><Status value="ACTIVE"/><b>deploymentManaged</b><b>{auth.mfaVerified?'MFA verified':'MFA enrollment'}</b></div></div><NavLink className="button" to="/security">Otevřít bezpečnost</NavLink></section></>}
-function Releases(){const{data,error,loading,reload}=useResource<Row[]>('/releases',[]);return <><PageHeader title="Releases a provoz" description="Signed bundles, exact SHA, migrations, backups, immutable install, atomic current a rollback." actions={<button className="button" onClick={()=>void reload()}><RefreshCw/>Obnovit</button>}/><div className="release-flow">{['Verify SHA','Backup','Migrations','Install','Switch current','Systemd','Readiness','Samples'].map((step,index)=><div key={step}><span>{index+1}</span><strong>{step}</strong></div>)}</div>{error&&<ErrorNotice message={error}/>}<Panel title="Deployment runs">{loading?<Loading/>:<DataTable rows={data}/>}</Panel></>}
+function Browser() {
+  const { data, error, loading, reload } = useResource<Row[]>(
+    "/browser-sessions",
+    [],
+  );
+  const [selected, setSelected] = useState<Row | null>(null);
+  const [create, setCreate] = useState(false);
+  return (
+    <>
+      <PageHeader
+        title="Browser relace a automatizace"
+        description="Řízené sessions, semantické targets, účty, bridges a persistentní reconciliation."
+        actions={
+          <button
+            className="button button--primary"
+            onClick={() => setCreate(true)}
+          >
+            <Plus />
+            Nová relace
+          </button>
+        }
+      />
+      {error && <ErrorNotice message={error} />}
+      <div className="browser-layout">
+        <Panel title="Živé relace">
+          <div className="session-list">
+            {loading ? (
+              <Loading />
+            ) : data.length ? (
+              data.map((session) => (
+                <button
+                  key={session.id}
+                  onClick={() => setSelected(session)}
+                  className={selected?.id === session.id ? "selected" : ""}
+                >
+                  <span>
+                    <Globe2 />
+                  </span>
+                  <div>
+                    <strong>{session.purpose}</strong>
+                    <small>
+                      {session.current_url ?? "about:blank"} · document{" "}
+                      {session.document_epoch}
+                    </small>
+                  </div>
+                  <Status value={session.lifecycle} />
+                </button>
+              ))
+            ) : (
+              <QuietState text="Není otevřená žádná browser relace." />
+            )}
+          </div>
+        </Panel>
+        <BrowserDetail
+          session={selected ?? data[0] ?? null}
+          changed={() => void reload()}
+        />
+      </div>
+      {create && (
+        <OperationDialog
+          name="browser.session.create"
+          close={() => setCreate(false)}
+          completed={() => {
+            setCreate(false);
+            void reload();
+          }}
+        />
+      )}
+    </>
+  );
+}
+function BrowserDetail({
+  session,
+  changed,
+}: {
+  session: Row | null;
+  changed: () => void;
+}) {
+  const [dialog, setDialog] = useState(false);
+  const detail = useResource<any>(
+    session ? `/browser-sessions/${session.id}` : null,
+    { session: null, observations: [], actions: [], targets: [] },
+  );
+  if (!session)
+    return (
+      <Panel title="Browser session detail">
+        <QuietState text="Vyberte relaci nebo založte novou." />
+      </Panel>
+    );
+  const current = detail.data.session ?? session;
+  async function transfer(holder: "AI" | "OWNER" | "AUTOMATION") {
+    const path =
+      holder === "AI"
+        ? `/browser-sessions/${session!.id}/control/return-to-ai`
+        : `/browser-sessions/${session!.id}/control/acquire`;
+    await api(path, {
+      method: "POST",
+      body: JSON.stringify({
+        holder,
+        expectedControlEpoch: current.control_epoch,
+        expectedStateVersion: current.state_version ?? null,
+        ttlSeconds: 300,
+      }),
+    });
+    await detail.reload();
+    changed();
+  }
+  return (
+    <Panel
+      title={current.purpose}
+      className="browser-detail"
+      action={<Status value={current.lifecycle} />}
+    >
+      {detail.error && (
+        <ErrorNotice
+          message={detail.error}
+          retry={() => void detail.reload()}
+        />
+      )}
+      <div className="browser-bar">
+        <div>
+          <Globe2 />
+          <span>{current.current_url ?? "about:blank"}</span>
+        </div>
+        <button className="button" onClick={() => void detail.reload()}>
+          <RefreshCw />
+          Načíst stav
+        </button>
+      </div>
+      <div className="browser-stats">
+        <span>
+          <small>Page / Frame</small>
+          <strong>
+            {short(current.current_page_id)} / {short(current.current_frame_id)}
+          </strong>
+        </span>
+        <span>
+          <small>Document epoch</small>
+          <strong>{current.document_epoch}</strong>
+        </span>
+        <span>
+          <small>Control holder</small>
+          <strong>{current.control_holder}</strong>
+        </span>
+        <span>
+          <small>Control epoch</small>
+          <strong>{current.control_epoch}</strong>
+        </span>
+      </div>
+      <div className="preview">
+        <Globe2 />
+        <h3>Poslední autoritativní pozorování</h3>
+        {detail.data.observations?.[0] ? (
+          <pre>{JSON.stringify(detail.data.observations[0], null, 2)}</pre>
+        ) : (
+          <p>Host zatím nepersistoval žádný browser observation frame.</p>
+        )}
+      </div>
+      <div className="browser-controls">
+        <button onClick={() => void transfer("OWNER")}>
+          <UserRound />
+          <span>Převzít OWNERem</span>
+        </button>
+        <button onClick={() => void transfer("AI")}>
+          <Bot />
+          <span>Vrátit AI</span>
+        </button>
+        <button onClick={() => void transfer("AUTOMATION")}>
+          <Workflow />
+          <span>Předat automatizaci</span>
+        </button>
+        <button onClick={() => setDialog(true)}>
+          <Play />
+          <span>Nová akce</span>
+        </button>
+      </div>
+      {dialog && (
+        <BrowserActionDialog
+          session={current}
+          close={() => setDialog(false)}
+          completed={() => {
+            setDialog(false);
+            void detail.reload();
+            changed();
+          }}
+        />
+      )}
+    </Panel>
+  );
+}
+function BrowserActionDialog({
+  session,
+  close,
+  completed,
+}: {
+  session: Row;
+  close: () => void;
+  completed: () => void;
+}) {
+  const [action, setAction] = useState("OBSERVE");
+  const [payload, setPayload] = useState("{}");
+  const [targetReferenceId, setTargetReferenceId] = useState("");
+  const [error, setError] = useState("");
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    try {
+      await api(`/browser-sessions/${session.id}/actions`, {
+        method: "POST",
+        body: JSON.stringify({
+          action,
+          targetReferenceId: targetReferenceId || null,
+          payload: JSON.parse(payload),
+          expectedControlEpoch: session.control_epoch,
+          expectedDocumentEpoch: session.document_epoch,
+          expectedObservationRevision: session.observation_revision,
+        }),
+      });
+      completed();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
+  }
+  return (
+    <div className="modal-backdrop">
+      <form className="modal" onSubmit={submit}>
+        <header>
+          <h2>Browser action</h2>
+          <button type="button" className="icon-button" onClick={close}>
+            <X />
+          </button>
+        </header>
+        <label>
+          Akce
+          <select
+            value={action}
+            onChange={(event) => setAction(event.target.value)}
+          >
+            {[
+              "OBSERVE",
+              "NAVIGATE",
+              "CLICK",
+              "FILL",
+              "TYPE",
+              "KEYBOARD",
+              "POINTER",
+              "TOUCH",
+            ].map((value) => (
+              <option key={value}>{value}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Target reference ID
+          <input
+            value={targetReferenceId}
+            onChange={(event) => setTargetReferenceId(event.target.value)}
+            placeholder="volitelné pro OBSERVE/NAVIGATE"
+          />
+        </label>
+        <label>
+          Payload JSON
+          <textarea
+            rows={8}
+            value={payload}
+            onChange={(event) => setPayload(event.target.value)}
+          />
+        </label>
+        {error && <div className="form-error">{error}</div>}
+        <footer>
+          <button type="button" className="button" onClick={close}>
+            Zrušit
+          </button>
+          <button className="button button--primary">
+            <Play />
+            Commitnout intent
+          </button>
+        </footer>
+      </form>
+    </div>
+  );
+}
 
-function Chat(){const[messages,setMessages]=useState<Array<{role:'owner'|'assistant';text:string;meta?:Row}>>([]);const[conversationId]=useState(()=>crypto.randomUUID());const[input,setInput]=useState('');const[busy,setBusy]=useState(false);async function send(event:FormEvent){event.preventDefault();if(!input.trim()||busy)return;const text=input;setInput('');setMessages(current=>[...current,{role:'owner',text}]);setBusy(true);try{const result=await api<any>('/chat/ask',{method:'POST',body:JSON.stringify({conversationId,messageId:crypto.randomUUID(),message:text,model:'gpt-5.4',context:{screen:location.pathname}})});setMessages(current=>[...current,{role:'assistant',text:result.outputText||'Provider nevrátil textový output.',meta:{callId:result.callId,responseId:result.responseId,authorityLineage:result.authorityLineage}}]);}catch(reason){const error=reason as ApiError;setMessages(current=>[...current,{role:'assistant',text:error.code==='OPENAI_CONFIGURATION_REQUIRED'?'OpenAI credential ještě není uložen. Otevřete Secrets a hesla a přidejte OPENAI_API_KEY.':error.message,meta:{code:error.code}}]);}finally{setBusy(false);}}return <div className="chat-page"><PageHeader title="Centrální chat" description="Aktuální OWNER konverzace s operation, authority lineage a browser kontextem."/><section className="chat-surface"><div className="chat-history">{messages.length?messages.map((message,index)=><article className={`message message--${message.role}`} key={index}><span>{message.role==='owner'?'KR':<Bot/>}</span><div><small>{message.role==='owner'?'KRMAR78 · OWNER':'KájovoCML assistant'}</small><p>{message.text}</p>{message.meta&&<details><summary>Technická evidence</summary><pre>{JSON.stringify(message.meta,null,2)}</pre></details>}</div></article>):<div className="chat-welcome"><span><MessageSquareMore/></span><h2>Co dnes řídíme?</h2><p>Mohu spouštět pouze katalogové operace pod exact OWNER authority lineage. OpenAI klíč doplníte kdykoli v Password Manageru.</p><div>{['Prověř připravenost platformy','Zobraz otevřené alarmy','Založ generation job'].map(prompt=><button key={prompt} onClick={()=>setInput(prompt)}>{prompt}<ChevronRight/></button>)}</div></div>}</div><form className="composer" onSubmit={send}><textarea value={input} onChange={event=>setInput(event.target.value)} placeholder="Napište pokyn…" rows={2}/><div><span>gpt-5.4 · OWNER_FULL · {short(conversationId)}</span><button className="send-button" disabled={busy}>{busy?<Square/>:<Send/>}</button></div></form></section></div>}
+function Secrets() {
+  const { data, error, loading, reload } = useResource<Row[]>("/secrets", []);
+  const [show, setShow] = useState<Row | null>(null);
+  const [value, setValue] = useState<string | null>(null);
+  const [create, setCreate] = useState(false);
+  const [presentation, setPresentation] = useState(false);
+  async function reveal(row: Row) {
+    if (presentation) return;
+    const result = await api<any>(`/secrets/${row.id}/value`);
+    setShow(row);
+    setValue(result.value);
+  }
+  return (
+    <>
+      <PageHeader
+        title="Secrets a hesla"
+        description="OWNER Password Manager; hodnoty jsou envelope-encrypted a každé reveal použití je auditované."
+        actions={
+          <>
+            <label className="presentation-toggle">
+              <EyeOff />
+              Presentation mode
+              <input
+                type="checkbox"
+                checked={presentation}
+                onChange={(event) => {
+                  setPresentation(event.target.checked);
+                  setShow(null);
+                  setValue(null);
+                }}
+              />
+            </label>
+            <button
+              className="button button--primary"
+              onClick={() => setCreate(true)}
+            >
+              <Plus />
+              Přidat secret
+            </button>
+          </>
+        }
+      />
+      {error && <ErrorNotice message={error} />}
+      <Panel title={`${data.length} secretů`}>
+        {loading ? (
+          <Loading />
+        ) : (
+          <div className="secret-grid">
+            {data.map((secret) => (
+              <article key={secret.id}>
+                <span className="secret-icon">
+                  <Vault />
+                </span>
+                <div>
+                  <small>{secret.kind}</small>
+                  <h3>{secret.displayName}</h3>
+                  <code>{secret.stableName}</code>
+                  <p>
+                    Fingerprint{" "}
+                    {presentation ? "skrytý" : (secret.fingerprint ?? "—")} · v
+                    {secret.secretActivationEpoch}
+                  </p>
+                </div>
+                <button
+                  className="button"
+                  disabled={presentation}
+                  onClick={() => void reveal(secret)}
+                >
+                  <Eye />
+                  Reveal
+                </button>
+              </article>
+            ))}
+          </div>
+        )}
+      </Panel>
+      {show && (
+        <SecretReveal
+          row={show}
+          value={value ?? ""}
+          close={() => {
+            setShow(null);
+            setValue(null);
+          }}
+        />
+      )}
+      {create && (
+        <SecretCreate
+          close={() => setCreate(false)}
+          complete={() => {
+            setCreate(false);
+            void reload();
+          }}
+        />
+      )}
+    </>
+  );
+}
+function SecretCreate({
+  close,
+  complete,
+}: {
+  close: () => void;
+  complete: () => void;
+}) {
+  const [form, setForm] = useState({
+    stableName: "OPENAI_API_KEY",
+    displayName: "OpenAI API key",
+    kind: "API_KEY",
+    value: "",
+  });
+  const [error, setError] = useState("");
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    try {
+      await api("/secrets", {
+        method: "POST",
+        body: JSON.stringify({ ...form, metadata: { provider: "openai" } }),
+      });
+      complete();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
+  }
+  return (
+    <div className="modal-backdrop">
+      <form className="modal" onSubmit={submit}>
+        <header>
+          <h2>Nový secret</h2>
+          <button type="button" className="icon-button" onClick={close}>
+            <X />
+          </button>
+        </header>
+        <label>
+          Stable name
+          <input
+            value={form.stableName}
+            onChange={(event) =>
+              setForm({ ...form, stableName: event.target.value.toUpperCase() })
+            }
+          />
+        </label>
+        <label>
+          Zobrazovaný název
+          <input
+            value={form.displayName}
+            onChange={(event) =>
+              setForm({ ...form, displayName: event.target.value })
+            }
+          />
+        </label>
+        <label>
+          Typ
+          <select
+            value={form.kind}
+            onChange={(event) => setForm({ ...form, kind: event.target.value })}
+          >
+            <option>API_KEY</option>
+            <option>PASSWORD</option>
+            <option>TOKEN</option>
+            <option>CERTIFICATE</option>
+            <option>PRIVATE_KEY</option>
+            <option>OPAQUE</option>
+          </select>
+        </label>
+        <label>
+          Hodnota
+          <input
+            type="password"
+            autoComplete="off"
+            value={form.value}
+            onChange={(event) =>
+              setForm({ ...form, value: event.target.value })
+            }
+            required
+          />
+        </label>
+        {error && <div className="form-error">{error}</div>}
+        <footer>
+          <button type="button" className="button" onClick={close}>
+            Zrušit
+          </button>
+          <button className="button button--primary">
+            <Vault />
+            Zašifrovat a uložit
+          </button>
+        </footer>
+      </form>
+    </div>
+  );
+}
+function SecretReveal({
+  row,
+  value,
+  close,
+}: {
+  row: Row;
+  value: string;
+  close: () => void;
+}) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="modal-backdrop">
+      <section className="modal">
+        <header>
+          <div>
+            <span className="eyebrow">AUDITOVANÝ REVEAL</span>
+            <h2>{row.stableName}</h2>
+          </div>
+          <button className="icon-button" onClick={close}>
+            <X />
+          </button>
+        </header>
+        <div className="revealed-value">
+          <code>
+            {visible ? value : "•".repeat(Math.min(value.length, 42))}
+          </code>
+          <button
+            className="icon-button"
+            onClick={() => setVisible((current) => !current)}
+          >
+            {visible ? <EyeOff /> : <Eye />}
+          </button>
+          <button
+            className="button"
+            onClick={() => void navigator.clipboard.writeText(value)}
+          >
+            Kopírovat
+          </button>
+        </div>
+        <p className="sensitive-warning">
+          <ShieldCheck />
+          Hodnota neopouští OWNER zónu; toto zobrazení bylo zapsáno do auditního
+          řetězce.
+        </p>
+      </section>
+    </div>
+  );
+}
 
-function Tests(){const{data,error,loading,reload}=useResource<Row[]>('/self-tests/runs',[]);const{data:ops}=useResource<any>('/operations/catalog',{operations:[]});async function start(){await operation('selfTest.run.start',{suiteKey:'production-self-test',runKind:'SELF_TEST'});void reload();}return <><PageHeader title="Testy a API" description="Operation explorer, self-test, stateful models, fault injection, chaos, recovery a evidence." actions={<button className="button button--primary" onClick={()=>void start()}><Play/>Spustit self-test</button>}/><div className="summary-grid"><Summary icon={<Braces/>} label="Katalogové operace" value={ops.operations?.length??0}/><Summary icon={<TestTube2/>} label="Runy" value={data.length}/><Summary icon={<ShieldCheck/>} label="Exact SHA" value="ENFORCED"/></div>{error&&<ErrorNotice message={error}/>}<Panel title="Test runs">{loading?<Loading/>:<DataTable rows={data}/>}</Panel><Panel title="API operation explorer"><OperationExplorer operations={ops.operations??[]}/></Panel></>}
-function OperationExplorer({operations}:{operations:Row[]}){const[query,setQuery]=useState('');const filtered=operations.filter(item=>item.operationName.toLowerCase().includes(query.toLowerCase())).slice(0,100);return <><div className="table-tools operation-search"><Search/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="operation name"/></div><div className="operation-list">{filtered.map(item=><div key={item.operationId}><code>{item.operationName}</code><span>{item.operationFamily}</span><Status value={item.sideEffectClass}/><small>{item.canonicalDigest}</small></div>)}</div></>}
+function Monitoring() {
+  const { data, error, loading, reload } = useResource<Row[]>("/alerts", []);
+  return (
+    <>
+      <PageHeader
+        title="Monitoring"
+        description="Probes, heartbeats, alerts, deliveries, SLO a scheduler profiles."
+        actions={
+          <button className="button" onClick={() => void reload()}>
+            <RefreshCw />
+            Obnovit
+          </button>
+        }
+      />
+      <div className="summary-grid">
+        <Summary
+          icon={<Activity />}
+          label="Open alerts"
+          value={data.filter((row) => row.status === "OPEN").length}
+        />
+        <Summary icon={<Gauge />} label="SLO window" value="30 dní" />
+        <Summary icon={<MonitorDot />} label="Writer" value="PRIMARY" />
+      </div>
+      {error && <ErrorNotice message={error} />}
+      <Panel title="Alarm timeline">
+        {loading ? <Loading /> : <DataTable rows={data} />}
+      </Panel>
+    </>
+  );
+}
+function ApiKey() {
+  const { data, error, loading } = useResource<Row>("/owner/api-key", {});
+  const [revealed, setRevealed] = useState<string | null>(null);
+  async function reveal() {
+    const result = await api<any>("/owner/api-key/value");
+    setRevealed(result.value);
+  }
+  return (
+    <>
+      <PageHeader
+        title="API klíč a runtime vazby"
+        description="Jediný singleton OWNER_FULL credential; prvotní inicializaci provádí deployment bootstrap, rotaci kanonické API."
+      />
+      {error && <ErrorNotice message={error} />}
+      <section className="credential-card">
+        <div className="credential-card__icon">
+          <KeyRound />
+        </div>
+        <div>
+          <span className="eyebrow">SINGLETON CREDENTIAL</span>
+          <h2>KCML_OWNER_API_KEY</h2>
+          <p>
+            Fingerprint{" "}
+            <code>{data.fingerprint ?? "čeká na deployment bootstrap"}</code>
+          </p>
+          <div>
+            <Status
+              value={data.secret_id ? "ACTIVE" : "INITIALIZATION_REQUIRED"}
+            />
+            <span>Credential version {data.credential_version ?? 0}</span>
+            <span>Epoch {data.credential_activation_epoch ?? 0}</span>
+          </div>
+        </div>
+        <div className="credential-actions">
+          {data.secret_id ? (
+            <button className="button" onClick={() => void reveal()}>
+              <Eye />
+              Reveal
+            </button>
+          ) : (
+            <span className="status status--warn">
+              <i />
+              BOOTSTRAP REQUIRED
+            </span>
+          )}
+        </div>
+      </section>
+      {revealed && (
+        <div className="notice notice--sensitive">
+          <KeyRound />
+          <div>
+            <strong>Hodnota je auditovaně zobrazena</strong>
+            <code>{revealed}</code>
+          </div>
+          <button
+            className="button"
+            onClick={() => void navigator.clipboard.writeText(revealed)}
+          >
+            Kopírovat
+          </button>
+          <button className="icon-button" onClick={() => setRevealed(null)}>
+            <X />
+          </button>
+        </div>
+      )}
+      <Panel title="Runtime execution contexts">
+        <QuietState text="Contexty se naplní při prvním component/agent/browser runu." />
+      </Panel>
+    </>
+  );
+}
 
-function CommandPalette({close}:{close:()=>void}){const{data}=useResource<any>('/operations/catalog',{operations:[]});const[query,setQuery]=useState('');const[named,setNamed]=useState<string|null>(null);const navigate=useNavigate();const filtered=useMemo(()=>{const pages=nav.map(([path,_Icon,label])=>({kind:'PAGE',name:label,path}));const operations=(data.operations??[]).map((item:Row)=>({kind:'OPERATION',name:item.operationName,path:null}));return[...pages,...operations].filter(item=>item.name.toLowerCase().includes(query.toLowerCase())).slice(0,14);},[data,query]);if(named)return <OperationDialog name={named} close={()=>setNamed(null)} completed={close}/>;return <div className="palette-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)close();}}><section className="palette"><header><Search/><input autoFocus value={query} onChange={event=>setQuery(event.target.value)} placeholder="Přejít na obrazovku nebo spustit katalogovou operaci"/><kbd>ESC</kbd></header><div>{filtered.map(item=><button key={`${item.kind}-${item.name}`} onClick={()=>{if(item.kind==='PAGE'){navigate(item.path!);close();}else setNamed(item.name);}}><span>{item.kind==='PAGE'?<LayoutDashboard/>:<Command/>}</span><div><strong>{item.name}</strong><small>{item.kind==='PAGE'?'Obrazovka':'Canonical operation'}</small></div><ChevronRight/></button>)}</div><footer><span>↑↓ navigace</span><span>↵ otevřít</span><span>Každá mutace vyžaduje idempotency key</span></footer></section></div>}
+function Audit() {
+  const { data, error, loading, reload } = useResource<Row[]>(
+    "/audit/events",
+    [],
+  );
+  return (
+    <>
+      <PageHeader
+        title="Audit a logy"
+        description="Globální SHA‑256 hash chain a correlation graph napříč HTTP, DB, KCIP, browserem a releases."
+        actions={
+          <button
+            className="button"
+            onClick={() => void operation("audit.integrity.verify", {})}
+          >
+            <ShieldCheck />
+            Ověřit integritu
+          </button>
+        }
+      />
+      {error && <ErrorNotice message={error} />}
+      <Panel
+        title="Hash chain"
+        action={
+          <button className="text-button" onClick={() => void reload()}>
+            Live stream
+          </button>
+        }
+      >
+        {loading ? (
+          <Loading />
+        ) : (
+          <div className="audit-list">
+            {data.map((event) => (
+              <article key={event.id}>
+                <span className="audit-seq">#{event.chain_sequence}</span>
+                <div>
+                  <strong>{event.event_type}</strong>
+                  <small>
+                    {event.actor_kind} · {event.actor_id}
+                  </small>
+                  <code>{event.correlation_id}</code>
+                </div>
+                <time>{formatDate(event.created_at)}</time>
+              </article>
+            ))}
+          </div>
+        )}
+      </Panel>
+    </>
+  );
+}
+function Settings() {
+  return (
+    <ObjectPage
+      type="CONFIG"
+      title="Konfigurace"
+      description="Validované settings, affected services, restart badge, version history a apply summary."
+    />
+  );
+}
+function Security({ auth }: { auth: AuthState }) {
+  const { data } = useResource<Row[]>("/owner/sessions", []);
+  return (
+    <>
+      <PageHeader
+        title="Bezpečnost"
+        description="Password source, MFA, recovery, sessions, login evidence, certificates a master-key health."
+      />
+      <div className="security-grid">
+        <Panel title="Pevná identita">
+          <dl className="details">
+            <dt>Username</dt>
+            <dd>KRMAR78</dd>
+            <dt>Authority</dt>
+            <dd>OWNER_FULL</dd>
+            <dt>MFA</dt>
+            <dd>
+              <Status value={auth.mfaVerified ? "VERIFIED" : "REQUIRED"} />
+            </dd>
+            <dt>Password source</dt>
+            <dd>GitHub Actions secret PASS</dd>
+          </dl>
+        </Panel>
+        <Panel title="Security boundary">
+          <ul className="check-list">
+            <li>
+              <ShieldCheck />
+              HttpOnly + SameSite=Strict session
+            </li>
+            <li>
+              <ShieldCheck />
+              CSRF on every session mutation
+            </li>
+            <li>
+              <ShieldCheck />
+              Argon2id password verifier
+            </li>
+            <li>
+              <ShieldCheck />
+              AES‑256‑GCM secret envelopes
+            </li>
+            <li>
+              <ShieldCheck />
+              No public runtime endpoints
+            </li>
+          </ul>
+        </Panel>
+      </div>
+      <Panel title={`Aktivní relace (${data.length})`}>
+        <DataTable rows={data} />
+      </Panel>
+    </>
+  );
+}
+function Owner({ auth }: { auth: AuthState }) {
+  return (
+    <>
+      <PageHeader
+        title="Pevná identita OWNERa"
+        description="Systém má právě jednu deployment-managed lidskou identitu."
+      />
+      <section className="owner-profile">
+        <span>KR</span>
+        <div>
+          <span className="eyebrow">IMMUTABLE USERNAME</span>
+          <h2>KRMAR78</h2>
+          <p>
+            Plná OWNER autorita bez rolí, groups, permission matrix nebo dalšího
+            account lifecycle.
+          </p>
+          <div>
+            <Status value="ACTIVE" />
+            <b>deploymentManaged</b>
+            <b>{auth.mfaVerified ? "MFA verified" : "MFA enrollment"}</b>
+          </div>
+        </div>
+        <NavLink className="button" to="/security">
+          Otevřít bezpečnost
+        </NavLink>
+      </section>
+    </>
+  );
+}
+function Releases() {
+  const { data, error, loading, reload } = useResource<Row[]>("/releases", []);
+  return (
+    <>
+      <PageHeader
+        title="Releases a provoz"
+        description="Signed bundles, exact SHA, migrations, backups, immutable install, atomic current a rollback."
+        actions={
+          <button className="button" onClick={() => void reload()}>
+            <RefreshCw />
+            Obnovit
+          </button>
+        }
+      />
+      <div className="release-flow">
+        {[
+          "Verify SHA",
+          "Backup",
+          "Migrations",
+          "Install",
+          "Switch current",
+          "Systemd",
+          "Readiness",
+          "Samples",
+        ].map((step, index) => (
+          <div key={step}>
+            <span>{index + 1}</span>
+            <strong>{step}</strong>
+          </div>
+        ))}
+      </div>
+      {error && <ErrorNotice message={error} />}
+      <Panel title="Deployment runs">
+        {loading ? <Loading /> : <DataTable rows={data} />}
+      </Panel>
+    </>
+  );
+}
 
-function Summary({icon,label,value}:{icon:ReactNode;label:string;value:ReactNode}){return <section className="summary"><span>{icon}</span><div><small>{label}</small><strong>{value}</strong></div></section>}
-function QuietState({text}:{text:string}){return <div className="quiet"><span>◇</span><p>{text}</p></div>}
-function human(value:string){return value.replaceAll('_',' ').replace(/\b\w/gu,char=>char.toUpperCase());}
-function formatDate(value:unknown){if(!value)return'—';const date=new Date(String(value));return Number.isNaN(date.valueOf())?String(value):new Intl.DateTimeFormat('cs-CZ',{dateStyle:'short',timeStyle:'medium'}).format(date);}
-function formatTime(value:unknown){if(!value)return'—';return new Intl.DateTimeFormat('cs-CZ',{timeStyle:'medium'}).format(new Date(String(value)));}
-function renderCell(value:unknown):ReactNode{if(value===null||value===undefined)return'—';if(typeof value==='object')return <code>{JSON.stringify(value).slice(0,72)}</code>;return String(value).length>72?<span title={String(value)}>{String(value).slice(0,69)}…</span>:String(value);}
-function short(value:unknown){return value?String(value).slice(0,8):'—';}
+function Chat() {
+  const [messages, setMessages] = useState<
+    Array<{ role: "owner" | "assistant"; text: string; meta?: Row }>
+  >([]);
+  const [conversationId] = useState(() => crypto.randomUUID());
+  const [input, setInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const { data: modelCapabilities, error: modelError } = useResource<any>(
+    "/system/models",
+    { models: [], defaultModel: null },
+  );
+  const [selectedModel, setSelectedModel] = useState("");
+  useEffect(() => {
+    if (!selectedModel && modelCapabilities.defaultModel) {
+      setSelectedModel(String(modelCapabilities.defaultModel));
+    }
+  }, [modelCapabilities.defaultModel, selectedModel]);
+  async function send(event: FormEvent) {
+    event.preventDefault();
+    if (!input.trim() || busy || !selectedModel) return;
+    const text = input;
+    setInput("");
+    setMessages((current) => [...current, { role: "owner", text }]);
+    setBusy(true);
+    try {
+      const result = await api<any>("/chat/ask", {
+        method: "POST",
+        body: JSON.stringify({
+          conversationId,
+          messageId: crypto.randomUUID(),
+          message: text,
+          model: selectedModel,
+          context: { screen: location.pathname },
+        }),
+      });
+      setMessages((current) => [
+        ...current,
+        {
+          role: "assistant",
+          text: result.outputText || "Provider nevrátil textový output.",
+          meta: {
+            callId: result.callId,
+            responseId: result.responseId,
+            requestedModel: result.requestedModel,
+            selectedModel: result.selectedModel,
+            actualModel: result.actualModel,
+            authorityLineage: result.authorityLineage,
+          },
+        },
+      ]);
+    } catch (reason) {
+      const error = reason as ApiError;
+      setMessages((current) => [
+        ...current,
+        {
+          role: "assistant",
+          text:
+            error.code === "OPENAI_CONFIGURATION_REQUIRED"
+              ? "OpenAI credential ještě není uložen. Otevřete Secrets a hesla a přidejte OPENAI_API_KEY."
+              : error.message,
+          meta: { code: error.code },
+        },
+      ]);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="chat-page">
+      <PageHeader
+        title="Centrální chat"
+        description="Aktuální OWNER konverzace s operation, authority lineage a browser kontextem."
+      />
+      <section className="chat-surface">
+        <div className="chat-history">
+          {messages.length ? (
+            messages.map((message, index) => (
+              <article
+                className={`message message--${message.role}`}
+                key={index}
+              >
+                <span>{message.role === "owner" ? "KR" : <Bot />}</span>
+                <div>
+                  <small>
+                    {message.role === "owner"
+                      ? "KRMAR78 · OWNER"
+                      : "KájovoCML assistant"}
+                  </small>
+                  <p>{message.text}</p>
+                  {message.meta && (
+                    <details>
+                      <summary>Technická evidence</summary>
+                      <pre>{JSON.stringify(message.meta, null, 2)}</pre>
+                    </details>
+                  )}
+                </div>
+              </article>
+            ))
+          ) : (
+            <div className="chat-welcome">
+              <span>
+                <MessageSquareMore />
+              </span>
+              <h2>Co dnes řídíme?</h2>
+              <p>
+                Mohu spouštět pouze katalogové operace pod exact OWNER authority
+                lineage. OpenAI klíč doplníte kdykoli v Password Manageru.
+              </p>
+              <div>
+                {[
+                  "Prověř připravenost platformy",
+                  "Zobraz otevřené alarmy",
+                  "Založ generation job",
+                ].map((prompt) => (
+                  <button key={prompt} onClick={() => setInput(prompt)}>
+                    {prompt}
+                    <ChevronRight />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        <form className="composer" onSubmit={send}>
+          {modelError && <span className="form-error">{modelError}</span>}
+          <textarea
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            placeholder="Napište pokyn…"
+            rows={2}
+            disabled={!selectedModel}
+          />
+          <div>
+            <label>
+              <span className="sr-only">OpenAI model</span>
+              <select
+                value={selectedModel}
+                onChange={(event) => setSelectedModel(event.target.value)}
+                disabled={!modelCapabilities.models.length || busy}
+              >
+                {!modelCapabilities.models.length && <option value="">Žádný ověřený model</option>}
+                {modelCapabilities.models.map((model: Row) => (
+                  <option key={model.modelId} value={model.modelId}>{model.modelId}</option>
+                ))}
+              </select>
+            </label>
+            <span>OWNER_FULL · {short(conversationId)}</span>
+            <button className="send-button" disabled={busy || !selectedModel} aria-label="Odeslat zprávu">
+              {busy ? <Square /> : <Send />}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
+}
+
+function Tests() {
+  const { data, error, loading, reload } = useResource<Row[]>(
+    "/self-tests/runs",
+    [],
+  );
+  const { data: ops } = useResource<any>("/operations/catalog", {
+    operations: [],
+  });
+  async function start() {
+    await operation("selfTest.run.start", {
+      suiteKey: "production-self-test",
+      runKind: "SELF_TEST",
+    });
+    void reload();
+  }
+  return (
+    <>
+      <PageHeader
+        title="Testy a API"
+        description="Operation explorer, self-test, stateful models, fault injection, chaos, recovery a evidence."
+        actions={
+          <button
+            className="button button--primary"
+            onClick={() => void start()}
+          >
+            <Play />
+            Spustit self-test
+          </button>
+        }
+      />
+      <div className="summary-grid">
+        <Summary
+          icon={<Braces />}
+          label="Katalogové operace"
+          value={ops.operations?.length ?? 0}
+        />
+        <Summary icon={<TestTube2 />} label="Runy" value={data.length} />
+        <Summary icon={<ShieldCheck />} label="Exact SHA" value="ENFORCED" />
+      </div>
+      {error && <ErrorNotice message={error} />}
+      <Panel title="Test runs">
+        {loading ? <Loading /> : <DataTable rows={data} />}
+      </Panel>
+      <Panel title="API operation explorer">
+        <OperationExplorer operations={ops.operations ?? []} />
+      </Panel>
+    </>
+  );
+}
+function OperationExplorer({ operations }: { operations: Row[] }) {
+  const [query, setQuery] = useState("");
+  const filtered = operations
+    .filter((item) =>
+      item.operationName.toLowerCase().includes(query.toLowerCase()),
+    )
+    .slice(0, 100);
+  return (
+    <>
+      <div className="table-tools operation-search">
+        <Search />
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="operation name"
+        />
+      </div>
+      <div className="operation-list">
+        {filtered.map((item) => (
+          <div key={item.operationId}>
+            <code>{item.operationName}</code>
+            <span>{item.operationFamily}</span>
+            <Status value={item.sideEffectClass} />
+            <small>{item.canonicalDigest}</small>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function CommandPalette({ close }: { close: () => void }) {
+  const { data } = useResource<any>("/operations/catalog", { operations: [] });
+  const [query, setQuery] = useState("");
+  const [named, setNamed] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const filtered = useMemo(() => {
+    const pages = nav.map(([path, _Icon, label]) => ({
+      kind: "PAGE",
+      name: label,
+      path,
+    }));
+    const operations = (data.operations ?? []).map((item: Row) => ({
+      kind: "OPERATION",
+      name: item.operationName,
+      path: null,
+    }));
+    return [...pages, ...operations]
+      .filter((item) => item.name.toLowerCase().includes(query.toLowerCase()))
+      .slice(0, 14);
+  }, [data, query]);
+  if (named)
+    return (
+      <OperationDialog
+        name={named}
+        close={() => setNamed(null)}
+        completed={close}
+      />
+    );
+  return (
+    <div
+      className="palette-backdrop"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) close();
+      }}
+    >
+      <section className="palette">
+        <header>
+          <Search />
+          <input
+            autoFocus
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Přejít na obrazovku nebo spustit katalogovou operaci"
+          />
+          <kbd>ESC</kbd>
+        </header>
+        <div>
+          {filtered.map((item) => (
+            <button
+              key={`${item.kind}-${item.name}`}
+              onClick={() => {
+                if (item.kind === "PAGE") {
+                  navigate(item.path!);
+                  close();
+                } else setNamed(item.name);
+              }}
+            >
+              <span>
+                {item.kind === "PAGE" ? <LayoutDashboard /> : <Command />}
+              </span>
+              <div>
+                <strong>{item.name}</strong>
+                <small>
+                  {item.kind === "PAGE" ? "Obrazovka" : "Canonical operation"}
+                </small>
+              </div>
+              <ChevronRight />
+            </button>
+          ))}
+        </div>
+        <footer>
+          <span>↑↓ navigace</span>
+          <span>↵ otevřít</span>
+          <span>Každá mutace vyžaduje idempotency key</span>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+function Summary({
+  icon,
+  label,
+  value,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: ReactNode;
+}) {
+  return (
+    <section className="summary">
+      <span>{icon}</span>
+      <div>
+        <small>{label}</small>
+        <strong>{value}</strong>
+      </div>
+    </section>
+  );
+}
+function QuietState({ text }: { text: string }) {
+  return (
+    <div className="quiet">
+      <span>◇</span>
+      <p>{text}</p>
+    </div>
+  );
+}
+function human(value: string) {
+  return value
+    .replaceAll("_", " ")
+    .replace(/\b\w/gu, (char) => char.toUpperCase());
+}
+function formatDate(value: unknown) {
+  if (!value) return "—";
+  const date = new Date(String(value));
+  return Number.isNaN(date.valueOf())
+    ? String(value)
+    : new Intl.DateTimeFormat("cs-CZ", {
+        dateStyle: "short",
+        timeStyle: "medium",
+      }).format(date);
+}
+function formatTime(value: unknown) {
+  if (!value) return "—";
+  return new Intl.DateTimeFormat("cs-CZ", { timeStyle: "medium" }).format(
+    new Date(String(value)),
+  );
+}
+function renderCell(value: unknown): ReactNode {
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "object")
+    return <code>{JSON.stringify(value).slice(0, 72)}</code>;
+  return String(value).length > 72 ? (
+    <span title={String(value)}>{String(value).slice(0, 69)}…</span>
+  ) : (
+    String(value)
+  );
+}
+function short(value: unknown) {
+  return value ? String(value).slice(0, 8) : "—";
+}
