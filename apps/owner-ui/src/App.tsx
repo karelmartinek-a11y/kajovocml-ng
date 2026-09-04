@@ -693,6 +693,7 @@ function Dashboard() {
     {},
   );
   const serviceGroups = (data.serviceGroups ?? []) as Row[];
+  const services = (data.services ?? []) as Row[];
   const timeline = (data.timeline ?? []) as Row[];
   const summary = (data.summary ?? {}) as Row;
   const metrics = [

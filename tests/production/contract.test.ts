@@ -46,6 +46,12 @@ describe('production acceptance contract', () => {
     expect(acceptance).toContain("jq -e '(.releaseId | length > 0) and (.sourceSha | length == 40)'");
   });
 
+  it('binds dashboard heartbeats from the versioned readiness read model', async () => {
+    const ownerUi = await readFile('apps/owner-ui/src/App.tsx', 'utf8');
+    expect(ownerUi).toContain('const serviceGroups = (data.serviceGroups ?? []) as Row[];');
+    expect(ownerUi).toContain('const services = (data.services ?? []) as Row[];');
+  });
+
   it('uses password-authenticated PostgreSQL Unix sockets inside AF_UNIX-only services', async () => {
     const bootstrap = await readFile('deploy/scripts/bootstrap-production-server.sh', 'utf8');
     const provisioning = await readFile('deploy/scripts/provision-service-credentials.sh', 'utf8');
