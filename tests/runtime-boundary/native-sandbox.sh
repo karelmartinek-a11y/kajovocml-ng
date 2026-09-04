@@ -50,6 +50,8 @@ if ! cc -O2 -Wall -Wextra -Werror -fPIC -shared -I/usr/include/node deploy/runti
   echo 'NOT_EXECUTED_ENVIRONMENTAL: Node.js 24 addon toolchain is unavailable'
   exit 0
 fi
+/usr/bin/node -e 'const net=require("node:net");const addon=require(process.argv[1]);const fds=addon.createSocketPair();if(!Array.isArray(fds)||fds.length!==2||fds[0]===fds[1])throw new Error("SOCKETPAIR_IDENTITY_INVALID");const host=new net.Socket({fd:fds[0],readable:true,writable:true});const child=new net.Socket({fd:fds[1],readable:true,writable:true});child.once("data",value=>{if(value.toString()!=="KCML_SOCKETPAIR_PROBE")process.exitCode=1;host.destroy();child.destroy();});host.write("KCML_SOCKETPAIR_PROBE");' "$release/deploy/runtime/kcml-fd-cloexec.node"
+echo 'ANONYMOUS_SOCKETPAIR_PASS'
 cp tests/runtime-boundary/fixtures/node-handler.mjs "$release/runtime-handler.mjs"
 chmod 0755 "$release"
 chmod 0555 "$release/probe"

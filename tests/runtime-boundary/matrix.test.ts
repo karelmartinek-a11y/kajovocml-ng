@@ -33,8 +33,8 @@ describe('Runtime Boundary Matrix', () => {
   });
 
   it('RUNTIME_GATEWAY_IDENTITY_EVIDENCE: uses native framed anonymous IPC with monotonic sequence', () => {
-    const encoded = encodeRuntimeFrame({ frameType: 'REQUEST', flags: 0, sequence: 0, payload: { requestId: 'test' } });
-    expect(decodeRuntimeFrameHeader(encoded.subarray(0, 16))).toMatchObject({ frameType: 'REQUEST', payloadLength: encoded.length - 16, sequence: 0 });
+    const encoded = encodeRuntimeFrame({ frameType: 'REQUEST', flags: 0, sequence: 1n, payload: { requestId: 'test' } });
+    expect(decodeRuntimeFrameHeader(encoded.subarray(0, 20))).toMatchObject({ frameType: 'REQUEST', payloadLength: encoded.length - 20, sequence: 1n });
     expect(encoded.subarray(0, 4).toString('ascii')).toBe('KCR1');
   });
 

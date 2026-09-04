@@ -86,10 +86,16 @@ describe('TD-19 runtime sandbox contract', () => {
 
   it('passes the bootstrap pair through the trusted runtime boundary', async () => {
     const source = await readFile(boundaryPath, 'utf8');
+    const addon = await readFile(new URL('../../deploy/runtime/kcml-fd-cloexec-addon.c', import.meta.url), 'utf8');
     expect(source).toContain('nodeBootstrap?:');
     expect(source).toContain('RUNTIME_BOOTSTRAP_PAIR_REQUIRED');
     expect(source).toContain('RUNTIME_ENVIRONMENT_NOT_ALLOWED');
     expect(source).toContain("'--bootstrap'");
     expect(source).toContain("'--handler-entrypoint'");
+    expect(source).toContain('addon.createSocketPair');
+    expect(source).toContain('capabilityPair.childFd');
+    expect(addon).toContain('socketpair(AF_UNIX');
+    expect(addon).toContain('SOCK_CLOEXEC');
+    expect(addon).toContain('SOCK_NONBLOCK');
   });
 });

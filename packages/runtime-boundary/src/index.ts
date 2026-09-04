@@ -1,7 +1,8 @@
 import { access, chmod, lstat, mkdir, realpath } from 'node:fs/promises';
-import { constants } from 'node:fs';
+import { closeSync, constants } from 'node:fs';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { spawn, type ChildProcess } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { Socket } from 'node:net';
 import type { StructuredLogger } from '@kcml/observability';
 
@@ -19,9 +20,6 @@ export interface RuntimeLaunchSpec {
   socketDirectory: string;
   uid: number;
   gid: number;
-  /** A pre-opened endpoint of an anonymous AF_UNIX socketpair. The trusted
-   * host owns the other endpoint; the launcher only receives this FD as 3. */
-  capabilityFd: number;
   environment: Readonly<Record<string, string>>;
   timeoutMs: number;
 }
@@ -33,12 +31,14 @@ export interface RuntimeHandle {
   terminate: (signal?: NodeJS.Signals) => Promise<void>;
 }
 
-export function createAnonymousCapabilityPair(capabilityFd: number): { childFd: number; hostFd: number } {
-  if (!Number.isInteger(capabilityFd) || capabilityFd < 3) throw new Error('RUNTIME_CAPABILITY_FD_INVALID');
-  // socketpair(2) is created by the trusted native launcher boundary. Keeping
-  // this typed hand-off explicit prevents a filesystem UDS from being used as
-  // a substitute for the handler channel.
-  return { childFd: 3, hostFd: capabilityFd };
+export function createAnonymousCapabilityPair(addonPath: string): { childFd: number; hostSocket: Socket } {
+  const addon = createRequire(import.meta.url)(addonPath) as { createSocketPair?: () => [number, number] };
+  const descriptors = addon.createSocketPair?.();
+  if (!descriptors || descriptors.length !== 2 || descriptors.some((fd) => !Number.isInteger(fd) || fd < 3) || descriptors[0] === descriptors[1]) {
+    throw new Error('RUNTIME_SOCKET_INTEGRITY_FAILED');
+  }
+  const [hostFd, childFd] = descriptors;
+  return { childFd, hostSocket: new Socket({ fd: hostFd, readable: true, writable: true }) };
 }
 
 function assertContained(root: string, candidate: string): void {
@@ -66,7 +66,6 @@ export async function prepareRuntimePaths(spec: RuntimeLaunchSpec): Promise<void
   const executable = await realpath(spec.executable);
   assertContained(release, executable);
   await access(executable, constants.X_OK);
-  createAnonymousCapabilityPair(spec.capabilityFd);
   const stat = await lstat(executable);
   if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('RUNTIME_EXECUTABLE_INVALID');
   if ((spec.nodeBootstrap === undefined) !== (spec.handlerEntrypoint === undefined)) throw new Error('RUNTIME_BOOTSTRAP_PAIR_REQUIRED');
@@ -85,7 +84,7 @@ export async function prepareRuntimePaths(spec: RuntimeLaunchSpec): Promise<void
 
 export async function launchTrustedRuntime(spec: RuntimeLaunchSpec, logger: StructuredLogger): Promise<RuntimeHandle> {
   await prepareRuntimePaths(spec);
-  const capabilityPair = createAnonymousCapabilityPair(spec.capabilityFd);
+  const capabilityPair = createAnonymousCapabilityPair(resolve(spec.releaseRoot, 'deploy/runtime/kcml-fd-cloexec.node'));
   const launcher = process.env.KCML_SANDBOX_LAUNCHER ?? '/usr/libexec/kajovocml-ng/kcml-sandbox-launcher';
   await access(launcher, constants.X_OK);
   const exactEnvironment: Readonly<Record<string, string>> = {
@@ -100,7 +99,7 @@ export async function launchTrustedRuntime(spec: RuntimeLaunchSpec, logger: Stru
     '--release-root', spec.releaseRoot,
     '--workspace-root', spec.workspaceRoot,
     '--socket-directory', spec.socketDirectory,
-    '--capability-fd', String(capabilityPair.childFd),
+    '--capability-fd', '3',
     '--timeout-ms', String(spec.timeoutMs),
     ...(spec.nodeBootstrap && spec.handlerEntrypoint ? ['--bootstrap', spec.nodeBootstrap, '--handler-entrypoint', spec.handlerEntrypoint] : []),
     '--executable-digest', spec.executableDigest,
@@ -109,9 +108,10 @@ export async function launchTrustedRuntime(spec: RuntimeLaunchSpec, logger: Stru
   const child = spawn(launcher, argumentsVector, {
     cwd: spec.workspaceRoot,
     env: { ...exactEnvironment, KCML_EXECUTION_ID: spec.executionId },
-    stdio: ['ignore', 'pipe', 'pipe', spec.capabilityFd],
+    stdio: ['ignore', 'pipe', 'pipe', capabilityPair.childFd],
     detached: false
   });
+  closeSync(capabilityPair.childFd);
   child.stdout?.on('data', (chunk: Buffer) => logger.info('runtime.stdout', { executionId: spec.executionId, line: chunk.toString('utf8').trimEnd() }));
   child.stderr?.on('data', (chunk: Buffer) => logger.warn('runtime.stderr', { executionId: spec.executionId, line: chunk.toString('utf8').trimEnd() }));
   const pid = await new Promise<number>((resolvePid, reject) => {
@@ -122,7 +122,7 @@ export async function launchTrustedRuntime(spec: RuntimeLaunchSpec, logger: Stru
   return {
     process: child,
     pid,
-    capabilitySocket: new Socket({ fd: spec.capabilityFd, readable: true, writable: true }),
+    capabilitySocket: capabilityPair.hostSocket,
     terminate: async (signal = 'SIGTERM') => {
       if (child.exitCode !== null) return;
       child.kill(signal);
@@ -130,6 +130,7 @@ export async function launchTrustedRuntime(spec: RuntimeLaunchSpec, logger: Stru
         const timer = setTimeout(() => { child.kill('SIGKILL'); }, 10_000);
         child.once('exit', () => { clearTimeout(timer); done(); });
       });
+      capabilityPair.hostSocket.destroy();
     }
   };
 }
