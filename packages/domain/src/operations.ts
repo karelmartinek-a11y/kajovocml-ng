@@ -13,6 +13,7 @@ import { exactSelfTestQueryOperations, executeExactSelfTestQuery } from './self-
 import { exactMonitorMutationOperations, exactMonitorQueryOperations, executeExactMonitorMutation, executeExactMonitorQuery } from './monitor-operations.js';
 import { mutationHandlerFor, queryHandlerFor, validateCanonicalOperationCommand } from './canonical-operation-handlers.js';
 import { createGenerationJob } from './generation-lifecycle.js';
+import { planCanonicalRetry } from './retry-planner.js';
 
 function requiredSourceSha(): string {
   const value = process.env.KCML_SOURCE_SHA;
@@ -363,10 +364,32 @@ export class CanonicalCommandWorker {
     await verifyWorkerClaimAndAdmission(client,row,['ADMITTED'],false);
     const locked=await client.query(`SELECT * FROM kcml.queue_item WHERE id=$1 FOR UPDATE`,[row.id]);const current=locked.rows[0];if(!current||current.status!=='CLAIMED'||current.lease_owner!==this.options.workerId)return;
     const failure=canonicalFailure(error);
-    const retry=Number(current.attempt_count)<Number(current.max_attempts)&&failure.retryDirective==='RETRY_SAME_OPERATION';
-    if(retry){
-      await client.query(`UPDATE kcml.queue_item SET status='READY',available_at=clock_timestamp()+make_interval(secs=>least(300,power(2,attempt_count)::int)),lease_owner=NULL,lease_expires_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`,[row.id]);
+    const retryPlan=planCanonicalRetry(failure,Number(current.attempt_count),Number(current.max_attempts));
+    const failureRecord=(await client.query(`WITH inserted AS (
+        INSERT INTO kcml.domain_command_failure(command_id,logical_operation_id,attempt_sequence,effective_code,classification,side_effect_point,retry_directive,http_status,registry_version,error_record_digest,canonical_failure,canonical_failure_digest,cause_digest,correlation_id)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,digest(convert_to($11::jsonb::text,'UTF8'),'sha256'),$12,$13)
+        ON CONFLICT(command_id,attempt_sequence) DO NOTHING RETURNING id)
+      SELECT id FROM inserted UNION ALL SELECT id FROM kcml.domain_command_failure WHERE command_id=$1 AND attempt_sequence=$3 LIMIT 1`,[row.command_id,row.logical_operation_id,current.attempt_count,failure.effectiveCode,failure.classification,failure.sideEffectPoint,failure.retryDirective,failure.httpStatus,failure.registryVersion,failure.recordDigest,jsonSafe(failure),failure.cause?.digest??null,row.correlation_id])).rows[0];
+    if(!failureRecord)throw new DomainError('POSTGRES_CONTRACT_INCOMPLETE','Canonical command failure was not persisted',500);
+    const persistedPlan=(await client.query(`WITH inserted AS (
+        INSERT INTO kcml.domain_retry_plan(failure_id,failed_command_id,action,directive,policy_snapshot,policy_snapshot_digest,platform_incarnation_id,application_deployment_epoch,recovery_epoch)
+        VALUES($1,$2,$3,$4,$5,digest(convert_to($5::jsonb::text,'UTF8'),'sha256'),$6,$7,$8)
+        ON CONFLICT(failure_id) DO NOTHING RETURNING id,state)
+      SELECT id,state FROM inserted UNION ALL SELECT id,state FROM kcml.domain_retry_plan WHERE failure_id=$1 LIMIT 1`,[failureRecord.id,row.command_id,retryPlan.action,retryPlan.directive,jsonSafe(retryPlan.policy),recoveryHead.platform_incarnation_id,recoveryHead.current_epoch,recoveryHead.recovery_epoch])).rows[0];
+    if(!persistedPlan)throw new DomainError('POSTGRES_CONTRACT_INCOMPLETE','Canonical retry plan was not persisted',500);
+    if(retryPlan.action==='RETRY_SAME_COMMAND'){
+      await client.query(`UPDATE kcml.queue_item SET status='READY',available_at=clock_timestamp()+make_interval(secs=>$2),lease_owner=NULL,lease_expires_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`,[row.id,retryPlan.policy.backoffSeconds]);
       await client.query(`UPDATE kcml.domain_command SET status='ACCEPTED',error=$2,state_version=state_version+1 WHERE id=$1`,[row.command_id,failure]);
+      await client.query(`UPDATE kcml.domain_retry_plan SET state='COMPLETED',completed_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND state='READY'`,[persistedPlan.id]);
+    }else if(retryPlan.action==='ENQUEUE_RECONCILIATION'){
+      await client.query(`UPDATE kcml.queue_item SET status='FAILED_FINAL',lease_owner=NULL,lease_expires_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`,[row.id]);
+      await client.query(`UPDATE kcml.domain_command SET status='WAITING',error=$2,state_version=state_version+1 WHERE id=$1`,[row.command_id,failure]);
+    }else if(retryPlan.action==='CREATE_MANUAL_REVIEW'){
+      await client.query(`UPDATE kcml.queue_item SET status='FAILED_FINAL',lease_owner=NULL,lease_expires_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`,[row.id]);
+      await client.query(`UPDATE kcml.domain_command SET status='MANUAL_REVIEW',error=$2,state_version=state_version+1 WHERE id=$1`,[row.command_id,failure]);
+      const review=(await client.query(`INSERT INTO kcml.domain_manual_review(retry_plan_id,command_id,failure_id,evidence_digest) VALUES($1,$2,$3,digest(convert_to($4::jsonb::text,'UTF8'),'sha256')) RETURNING id`,[persistedPlan.id,row.command_id,failureRecord.id,jsonSafe(failure)])).rows[0];
+      if(!review)throw new DomainError('POSTGRES_CONTRACT_INCOMPLETE','OWNER manual-review task was not persisted',500);
+      await client.query(`UPDATE kcml.domain_retry_plan SET state='WAITING_OWNER',manual_review_id=$2,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND state='READY'`,[persistedPlan.id,review.id]);
     }else{
       const failureDigest=canonicalDigest(jsonSafe(failure));const terminalResponse:OperationResult={status:'FAILED_FINAL',metadata:{correlationId:row.correlation_id,logicalOperationId:row.logical_operation_id,commandId:row.command_id,stateVersion:0n,eventSequence:0n,activationEpoch:0n,resultDigest:failureDigest,idempotencyReplay:false,serverTime:new Date().toISOString()},result:null,error:failure};
       const safeTerminal=jsonSafe(terminalResponse);const terminalDigest=digestBytes(canonicalDigest(safeTerminal));
@@ -374,6 +397,7 @@ export class CanonicalCommandWorker {
       await client.query(`UPDATE kcml.domain_command SET status='FAILED_FINAL',error=$2,completed_at=clock_timestamp(),state_version=state_version+1 WHERE id=$1`,[row.command_id,failure]);
       await client.query(`UPDATE kcml.domain_idempotency_record SET lifecycle='FAILED_FINAL',response_status=$2,response_body=$3,response_digest=$4,terminal_outcome_digest=$4,completed_at=clock_timestamp(),updated_at=clock_timestamp(),state_version=state_version+1 WHERE command_id=$1`,[row.command_id,failure.httpStatus,safeTerminal,terminalDigest]);
       await terminalizeCommandGuards(client,row.command_id,row.logical_operation_id,row.concurrency_claim_id??null);
+      if(retryPlan.action==='CLOSE_FAILED_COMMAND')await client.query(`UPDATE kcml.domain_retry_plan SET state='COMPLETED',completed_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND state='READY'`,[persistedPlan.id]);
     }
   });}
 }

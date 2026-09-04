@@ -2631,13 +2631,13 @@
           "requirementId": "KCML-REQ-CORE-ee584d0f3a5ffa618cc738004cdb9892168001fd86efefb6758215be2823f43e",
           "locator": "packages/domain/src/errors.ts:1",
           "symbol": "file-start",
-          "snippetDigest": "sha256:bdb3d79529884de4277c325a80d2eab9b8013e6bf432064465ce00da9119d260"
+          "snippetDigest": "sha256:71fcb9aaf341616ce640e5c641a316144c21d18946715520da315b5ff061b35c"
         },
         {
           "requirementId": "KCML-REQ-OPENAI-c1787fe6ea4e68bf44102706b7c012de7c542dbed2f63c885a061d18917a60ef",
           "locator": "packages/domain/src/errors.ts:1",
           "symbol": "DomainError-ErrorCode",
-          "snippetDigest": "sha256:bdb3d79529884de4277c325a80d2eab9b8013e6bf432064465ce00da9119d260"
+          "snippetDigest": "sha256:71fcb9aaf341616ce640e5c641a316144c21d18946715520da315b5ff061b35c"
         }
       ]
     },
@@ -2737,6 +2737,69 @@
           "locator": "scripts/verify-error-codes.mjs:1",
           "symbol": "TEST-ERROR-CODE-AST-SQL-COVERAGE",
           "snippetDigest": "sha256:4949218de757741f2174599ad06408d4f369e2da90bbe7f4b32313bd792d7393"
+        }
+      ]
+    },
+    {
+      "repositoryPath": "packages/domain/src/retry-planner.ts",
+      "requirementIds": [
+        "KCML-REQ-MONITORING-715041d50cb0e291f866de4cfc0baefb310b43f6e8c9d28efee76ccf478d49e7",
+        "KCML-REQ-CORE-4bf1cf8acf15f1ce64bd66332aa7c37e7ccfb8def2e6bf4c6745013a73413279",
+        "KCML-REQ-CORE-c341e4c01071983e399d1b251e3b5c09ba02fa74955ad5eb4c9cefeac8a6a555",
+        "KCML-REQ-CORE-f09b50cf721e4d3b0a4a68e4ed9c81a87175d13c6b8c9f5db2c7562515d575ef"
+      ],
+      "operationIds": [],
+      "stateMachineIds": [],
+      "registryRecordIds": [],
+      "testIds": [],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-CORE-c341e4c01071983e399d1b251e3b5c09ba02fa74955ad5eb4c9cefeac8a6a555",
+          "locator": "packages/domain/src/retry-planner.ts:36",
+          "symbol": "planCanonicalRetry",
+          "snippetDigest": "sha256:4a7da866acc57ecbbf14cbf338f0e6ef5615fa577bc4271d6d3a1808a05a066c"
+        }
+      ]
+    },
+    {
+      "repositoryPath": "tests/operations/retry-planner.test.ts",
+      "requirementIds": [
+        "KCML-REQ-MONITORING-715041d50cb0e291f866de4cfc0baefb310b43f6e8c9d28efee76ccf478d49e7",
+        "KCML-REQ-CORE-4bf1cf8acf15f1ce64bd66332aa7c37e7ccfb8def2e6bf4c6745013a73413279",
+        "KCML-REQ-CORE-c341e4c01071983e399d1b251e3b5c09ba02fa74955ad5eb4c9cefeac8a6a555",
+        "KCML-REQ-CORE-f09b50cf721e4d3b0a4a68e4ed9c81a87175d13c6b8c9f5db2c7562515d575ef"
+      ],
+      "operationIds": [],
+      "stateMachineIds": [],
+      "registryRecordIds": [],
+      "testIds": ["TEST-CANONICAL-RETRY-PLANNER"],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-MONITORING-715041d50cb0e291f866de4cfc0baefb310b43f6e8c9d28efee76ccf478d49e7",
+          "locator": "tests/operations/retry-planner.test.ts:13",
+          "symbol": "TEST-CANONICAL-RETRY-PLANNER",
+          "snippetDigest": "sha256:ae0be87c7e4c2a8fd51a4bfea5275b6e2aa37cb901e916552dc2abb8d31a6a40"
+        }
+      ]
+    },
+    {
+      "repositoryPath": "database/migrations/20260904000106_canonical_failure_retry_plans.sql",
+      "requirementIds": [
+        "KCML-REQ-MONITORING-715041d50cb0e291f866de4cfc0baefb310b43f6e8c9d28efee76ccf478d49e7",
+        "KCML-REQ-CORE-4bf1cf8acf15f1ce64bd66332aa7c37e7ccfb8def2e6bf4c6745013a73413279",
+        "KCML-REQ-CORE-c341e4c01071983e399d1b251e3b5c09ba02fa74955ad5eb4c9cefeac8a6a555",
+        "KCML-REQ-CORE-f09b50cf721e4d3b0a4a68e4ed9c81a87175d13c6b8c9f5db2c7562515d575ef"
+      ],
+      "operationIds": [],
+      "stateMachineIds": [],
+      "registryRecordIds": [],
+      "testIds": ["TEST-POSTGRES-CANONICAL-FAILURE-RETRY-PLAN"],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-CORE-c341e4c01071983e399d1b251e3b5c09ba02fa74955ad5eb4c9cefeac8a6a555",
+          "locator": "database/migrations/20260904000106_canonical_failure_retry_plans.sql:11",
+          "symbol": "domain_command_failure",
+          "snippetDigest": "sha256:ab42c0b27e35014dedb1f316f4135711ab5b9c2c8e0d03873751769bccad439c"
         }
       ]
     }

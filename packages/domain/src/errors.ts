@@ -1,4 +1,4 @@
-import { canonicalErrorView, type CanonicalErrorView, type ErrorCode, type RetryDirective } from '@kcml/schemas';
+import { canonicalDigest, canonicalErrorView, type CanonicalErrorView, type ErrorCode, type RetryDirective } from '@kcml/schemas';
 
 export class DomainError extends Error {
   public readonly retryDirective: RetryDirective;
@@ -60,7 +60,19 @@ export interface CanonicalFailure {
   readonly registryVersion: string;
   readonly httpStatus: number;
   readonly details: unknown;
-  readonly cause: { readonly kind: string; readonly originalCode: string | null } | null;
+  readonly cause: { readonly kind: string; readonly originalCode: string | null; readonly digest: string } | null;
+}
+
+function redactedCause(error: unknown, effectiveCode: ErrorCode): CanonicalFailure['cause'] {
+  if (error instanceof DomainError && error.code === effectiveCode) return null;
+  const rawCode = typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : null;
+  const originalCode = rawCode && /^[A-Za-z0-9_.:-]{1,80}$/u.test(rawCode) ? rawCode : null;
+  const kind = error instanceof DomainError ? 'UNREGISTERED_DOMAIN_ERROR' : 'NON_DOMAIN_ERROR';
+  return Object.freeze({
+    kind,
+    originalCode,
+    digest: canonicalDigest({ kind, originalCode, effectiveCode })
+  });
 }
 
 export function canonicalFailure(error: unknown): CanonicalFailure {
@@ -77,9 +89,7 @@ export function canonicalFailure(error: unknown): CanonicalFailure {
     registryVersion: view.record.schemaVersion,
     httpStatus: view.record.httpMappings[0] ?? 500,
     details: error instanceof DomainError && originalCode === view.code ? error.details : null,
-    cause: originalCode && originalCode !== view.code
-      ? Object.freeze({ kind: 'UNREGISTERED_DOMAIN_ERROR', originalCode })
-      : error instanceof DomainError ? null : Object.freeze({ kind: 'NON_DOMAIN_ERROR', originalCode: null })
+    cause: redactedCause(error, view.code)
   });
 }
 
