@@ -2293,10 +2293,19 @@ function Chat() {
   const [conversationId] = useState(() => crypto.randomUUID());
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const { data: modelCapabilities, error: modelError } = useResource<any>(
-    "/system/models",
-    { models: [], defaultModel: null },
+  const { data: modelCapabilityRows, error: modelError } = useResource<Row[]>(
+    "/ai/model-capabilities",
+    [],
   );
+  const modelCapabilities = {
+    models: modelCapabilityRows.map((row) => ({
+      ...row,
+      modelId: String(row.model_id ?? row.modelId ?? ""),
+    })).filter((row) => row.modelId),
+    defaultModel: modelCapabilityRows.length
+      ? String(modelCapabilityRows[0]?.model_id ?? modelCapabilityRows[0]?.modelId ?? "")
+      : null,
+  };
   const [selectedModel, setSelectedModel] = useState("");
   useEffect(() => {
     if (!selectedModel && modelCapabilities.defaultModel) {

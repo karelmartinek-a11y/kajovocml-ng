@@ -190,7 +190,7 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
   await app.register(helmet, { contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'"], styleSrc: ["'self'", "'unsafe-inline'"], imgSrc: ["'self'", 'data:', 'blob:'], connectSrc: ["'self'", 'wss:'], frameAncestors: ["'none'"] } }, hsts: { maxAge: 63_072_000, includeSubDomains: true, preload: true } });
   await app.register(rateLimit, { max: 240, timeWindow: '1 minute', keyGenerator: (request) => request.ip });
   app.addHook('onRequest', async (request) => { request.requestCorrelationId = correlationId(typeof request.headers['x-correlation-id'] === 'string' ? request.headers['x-correlation-id'] : undefined); });
-  app.addHook('onRequest', async (request) => { if (request.url.startsWith('/api/v1/') && ['POST','PUT','PATCH','DELETE'].includes(request.method) && !idempotencyKey(request)) throw new DomainError('IDEMPOTENCY_CONFLICT', 'Idempotency-Key is mandatory for every mutating API request', 428, 'DO_NOT_RETRY'); });
+  app.addHook('onRequest', async (request) => { if (request.url.startsWith('/api/v1/') && ['POST','PUT','PATCH','DELETE'].includes(request.method) && !idempotencyKey(request)) throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID', 'Idempotency-Key is mandatory for every mutating API request', 422, 'DO_NOT_RETRY', { key: 'Idempotency-Key' }); });
   app.addHook('onResponse', async (request, reply) => { reply.header('x-correlation-id', request.requestCorrelationId); metrics.increment('kcml_http_requests_total', { method: request.method, status: String(reply.statusCode) }); });
   app.setErrorHandler((error, request, reply) => {
     const domain = error instanceof DomainError ? error : new DomainError('KCIP_INTERNAL_FAILURE', 'Internal service error', 500);
@@ -255,7 +255,7 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
     'POST /auth/login','POST /auth/login/mfa','POST /auth/logout','POST /auth/api-key-session','GET /session','POST /session/reauthenticate',
     'GET /owner/security','POST /owner/mfa/enroll','POST /owner/mfa/verify','POST /owner/recovery-codes/rotate','GET /owner/sessions','DELETE /owner/sessions/:id','POST /owner/sessions/revoke-others','POST /owner/sessions/revoke-all',
     'GET /owner/api-key','GET /owner/api-key/value','POST /owner/api-key/rotate','GET /owner/api-key/usage',
-    'GET /system/health','GET /system/readiness','GET /system/version','GET /system/capabilities','GET /system/models','GET /system/closure',
+    'GET /system/health','GET /system/readiness','GET /system/version','GET /system/capabilities','GET /system/closure',
     'GET /secrets','POST /secrets','GET /secrets/:id','PATCH /secrets/:id','DELETE /secrets/:id','GET /secrets/:id/value','POST /secrets/:id/versions','GET /secrets/:id/versions','POST /secrets/generate-password','POST /secrets/import','POST /secrets/export',
     'GET /audit/integrity','POST /audit/integrity/verify',
     'POST /chat/ask','POST /browser-sessions/:sessionId/preview-tickets'
@@ -344,7 +344,6 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
       ssotSurfaceFingerprint: SSOT_SURFACE_FINGERPRINT
     };
   });
-  app.get('/api/v1/system/models', async (request) => { await authenticate(request); return currentOpenAIModels(pool); });
   app.get('/api/v1/system/version', async (request) => { await authenticate(request); return { product: 'KájovoCML NG', version: '2026.8.30-8', releaseId: process.env.KCML_RELEASE_ID ?? 'development', sourceSha: process.env.KCML_SOURCE_SHA ?? null, deploymentEpoch: await deploymentEpoch(pool), ssotSurfaceFingerprint: SSOT_SURFACE_FINGERPRINT }; });
   app.get('/api/v1/system/capabilities', async (request) => { await authenticate(request); const configured = await pool.query(`SELECT stable_name,kind,active_version_id IS NOT NULL AS configured FROM kcml.secret_record WHERE deleted_at IS NULL ORDER BY stable_name`); return { apiRoutes: SSOT_ROUTES.length, databaseEntities: SSOT_ENTITY_NAMES.length, operationCatalog: catalog.operations.length, credentials: apiSafe(configured.rows) }; });
   app.get('/api/v1/system/closure', async (request) => {

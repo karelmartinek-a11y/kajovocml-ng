@@ -176,7 +176,7 @@ const testText = (await Promise.all(testFiles.map((path) => readFile(path, 'utf8
 const testCalls = (testText.match(/\b(?:it|test)\s*\(/gu) ?? []).length;
 const behavioralEvidence = testText.includes("BEHAVIORAL_OPERATION_EVIDENCE")
   && testText.includes('CanonicalOperationService')
-  && testText.includes('IDEMPOTENCY_KEY_REQUIRED')
+  && testText.includes('TOOL_ARGUMENT_SCHEMA_INVALID')
   && testText.includes('FaultCoverageTracker')
   && testText.includes('LinearizabilityHistory');
 const operationCoverageCases = behavioralEvidence
