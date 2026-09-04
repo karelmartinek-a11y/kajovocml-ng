@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 [[ ${EUID} -eq 0 ]] || { echo 'Deployment musí běžet přes sudo.' >&2; exit 77; }
+if [[ ${1:-} == --preflight-only && $# -eq 1 ]]; then
+  current_release=$(readlink -f /opt/kajovocml-ng/current)
+  [[ ${current_release} == /opt/kajovocml-ng/releases/* && -x ${current_release}/deploy/scripts/verify-production-prerequisites.sh ]] || { echo 'Aktivní immutable release nelze ověřit.' >&2; exit 69; }
+  exec "${current_release}/deploy/scripts/verify-production-prerequisites.sh"
+fi
 bundle=''; signature=''; expected_sha=''; release_id='';
 while (($#)); do case "$1" in --bundle) bundle=$2;shift 2;;--signature) signature=$2;shift 2;;--source-sha) expected_sha=$2;shift 2;;--release-id) release_id=$2;shift 2;;*) echo "Neznámý argument $1" >&2;exit 64;;esac; done
 [[ -f ${bundle} && -f ${signature} && ${expected_sha} =~ ^[0-9a-f]{40}$ && ${release_id} =~ ^[A-Za-z0-9._-]+$ ]] || { echo 'Neplatné deployment parametry.' >&2; exit 64; }

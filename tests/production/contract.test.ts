@@ -74,8 +74,8 @@ describe('production acceptance contract', () => {
     const workflow = await readFile('.github/workflows/infrastructure-acceptance.yml', 'utf8');
     const installer = await readFile('deploy/scripts/install-systemd.sh', 'utf8');
     expect(workflow).toContain(`printf '%s\\n' "$KEY" > ~/.ssh/id_ed25519`);
-    expect(workflow).toContain(`printf '%s\\n' "$PASS" | ssh`);
-    expect(workflow).toContain(`sudo -S -p '' bash -c`);
+    expect(workflow).toContain(`sudo /usr/local/sbin/kcml-deploy-production --preflight-only`);
+    expect(workflow).not.toContain("PASS: '${{ secrets.PASS }}'");
     expect(installer).toContain('systemctl disable --now kcml-canonical-tls-renew.timer');
     expect(installer).toContain('systemctl reset-failed kcml-canonical-tls-renew.service');
   });
@@ -88,5 +88,12 @@ describe('production acceptance contract', () => {
     expect(rollback).toContain('"${release_path}/deploy/scripts/install-systemd.sh" "${release_path}"');
     expect(rollback).toContain("grep -q 'KCML_DATABASE_URL_FILE=%d/database-url'");
     expect(rollback).toContain('install -o root -g root -m 0644 "${release_path}/deploy/nginx/kajovocml-ng.conf"');
+  });
+
+  it('exposes a read-only preflight through the narrow deployment sudo entrypoint', async () => {
+    const deploy = await readFile('deploy/scripts/deploy-production.sh', 'utf8');
+    expect(deploy).toContain('if [[ ${1:-} == --preflight-only && $# -eq 1 ]]');
+    expect(deploy).toContain('exec "${current_release}/deploy/scripts/verify-production-prerequisites.sh"');
+    expect(deploy.indexOf('--preflight-only')).toBeLessThan(deploy.indexOf("IFS= read -r pass_value"));
   });
 });
