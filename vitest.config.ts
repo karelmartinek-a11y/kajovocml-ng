@@ -7,6 +7,7 @@ export default defineConfig({
     exclude: ['tests/**/._*'],
     testTimeout: 30_000,
     hookTimeout: 30_000,
+    fileParallelism: false,
     sequence: { concurrent: true },
     coverage: {
       provider: 'v8',
