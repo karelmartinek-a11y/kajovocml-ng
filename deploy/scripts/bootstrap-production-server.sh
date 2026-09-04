@@ -45,7 +45,8 @@ install -d -o kcml-deploy -g kcml-platform -m 0750 /var/lib/kajovocml-ng/deploy-
 install -d -o kcml-deploy -g kcml-platform -m 0700 /var/lib/kajovocml-ng/deploy-home/.ssh
 install -d -o kcml-deploy -g kcml-platform -m 0750 /var/lib/kajovocml-ng/deployments
 for path in data generation components runtime browser audit backups; do install -d -o root -g kcml-platform -m 0770 "/var/lib/kajovocml-ng/${path}"; done
-install -d -o kcml-browser-host -g kcml-platform -m 0770 /var/lib/kajovocml-ng/browser/hosts /var/lib/kajovocml-ng/browser/sessions /var/lib/kajovocml-ng/browser/artifacts /var/lib/kajovocml-ng/browser/runtime-builds
+install -d -o kcml-browser-host -g kcml-platform -m 0770 /var/lib/kajovocml-ng/browser/hosts /var/lib/kajovocml-ng/browser/sessions /var/lib/kajovocml-ng/browser/runtime-builds
+install -d -o kcml-browser-worker -g kcml-browser-worker -m 0700 /var/lib/kajovocml-ng/browser/artifacts
 install -d -o kcml-runtime-host -g kcml-platform -m 0770 /var/lib/kajovocml-ng/runtime/instances
 install -d -o www-data -g www-data -m 0750 /var/lib/kajovocml-ng/acme
 while IFS='|' read -r unit app service_user families writable dependency enabled; do
@@ -53,7 +54,8 @@ while IFS='|' read -r unit app service_user families writable dependency enabled
   for writable_path in ${writable}; do [[ ! -e ${writable_path} ]] || setfacl -m "u:${service_user}:rwx" "${writable_path}"; done
 done <"${repository_root}/deploy/systemd/services.tsv"
 setfacl -m u:kcml-runtime-host:rwx /var/lib/kajovocml-ng/runtime /var/lib/kajovocml-ng/runtime/instances /run/kajovocml-ng/runtime-hosts 2>/dev/null || true
-setfacl -m u:kcml-browser-host:rwx /var/lib/kajovocml-ng/browser /var/lib/kajovocml-ng/browser/hosts /var/lib/kajovocml-ng/browser/sessions /var/lib/kajovocml-ng/browser/artifacts /var/lib/kajovocml-ng/browser/runtime-builds 2>/dev/null || true
+setfacl -m u:kcml-browser-host:rx /var/lib/kajovocml-ng/browser /var/lib/kajovocml-ng/browser/runtime-builds 2>/dev/null || true
+setfacl -m u:kcml-browser-host:rwx /var/lib/kajovocml-ng/browser/hosts /var/lib/kajovocml-ng/browser/sessions 2>/dev/null || true
 
 if [[ ! -s /etc/kajovocml-ng/master.key ]]; then openssl rand -base64 32 >/etc/kajovocml-ng/master.key; fi
 chown root:root /etc/kajovocml-ng/master.key; chmod 0400 /etc/kajovocml-ng/master.key
@@ -85,6 +87,7 @@ KCML_PUBLIC_ORIGIN=https://kaja.hcasc.cz
 KCML_RELEASE_ID=bootstrap
 KCML_SOURCE_SHA=0000000000000000000000000000000000000000
 KCML_BROWSER_ARTIFACT_ROOT=/var/lib/kajovocml-ng/browser/artifacts
+KCML_BROWSER_ARTIFACT_SOCKET=/run/kajovocml-ng/browser-artifacts/control.sock
 KCML_BROWSER_RUNTIME_BUILD=playwright-1.58.2
 PLAYWRIGHT_BROWSERS_PATH=/var/lib/kajovocml-ng/browser/runtime-builds/1.58.2
 KCML_ALLOWED_PEER_UIDS=$(id -u kcml-runtime-host),$(id -u kcml-runtime-gateway)
@@ -105,7 +108,8 @@ while IFS='|' read -r unit app service_user families writable dependency enabled
   for writable_path in ${writable}; do setfacl -m "u:${service_user}:rwx" "${writable_path}"; done
 done <"${repository_root}/deploy/systemd/services.tsv"
 setfacl -m u:kcml-runtime-host:rwx /var/lib/kajovocml-ng/runtime /var/lib/kajovocml-ng/runtime/instances /run/kajovocml-ng/runtime-hosts
-setfacl -m u:kcml-browser-host:rwx /var/lib/kajovocml-ng/browser /var/lib/kajovocml-ng/browser/hosts /var/lib/kajovocml-ng/browser/sessions /var/lib/kajovocml-ng/browser/artifacts /var/lib/kajovocml-ng/browser/runtime-builds /run/kajovocml-ng/browser-hosts
+setfacl -m u:kcml-browser-host:rx /var/lib/kajovocml-ng/browser /var/lib/kajovocml-ng/browser/runtime-builds
+setfacl -m u:kcml-browser-host:rwx /var/lib/kajovocml-ng/browser/hosts /var/lib/kajovocml-ng/browser/sessions /run/kajovocml-ng/browser-hosts
 install -o root -g root -m 0755 "${repository_root}/deploy/scripts/deploy-production.sh" /usr/local/sbin/kcml-deploy-production
 sudoers_candidate=$(mktemp)
 cat >"${sudoers_candidate}" <<'EOF'

@@ -1,9 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { chmod, mkdir, unlink, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, unlink } from 'node:fs/promises';
 import { createConnection, createServer, type Server, type Socket } from 'node:net';
-import { dirname, join } from 'node:path';
+import { dirname } from 'node:path';
 import { browserActionNames, validateBrowserActionDescriptor, z, type BrowserActionName } from '@kcml/schemas';
 import { chromium, type Browser, type BrowserContext, type Locator, type Page } from 'playwright';
+import { BrowserArtifactOwnerClient } from './artifact-owner.js';
 
 const MAX_FRAME_BYTES = 2 * 1024 * 1024;
 const identitySchema = z.object({
@@ -37,7 +38,7 @@ export class BrowserHostProtocolClient {
 }
 
 interface ManagedContext { context:BrowserContext;page:Page;identity:z.infer<typeof identitySchema>;lease:z.infer<typeof leaseSchema>;lastActionFence:bigint; }
-export interface BrowserHostProtocolOptions { socketPath:string;artifactRoot:string;runtimeBuildId:string;headless?:boolean; }
+export interface BrowserHostProtocolOptions { socketPath:string;artifactOwnerSocketPath:string;runtimeBuildId:string;headless?:boolean; }
 
 function sameIdentity(left:z.infer<typeof identitySchema>,right:z.infer<typeof identitySchema>):boolean {
   return left.sessionId===right.sessionId && left.hostGeneration===right.hostGeneration && left.contextGeneration===right.contextGeneration && left.pageId===right.pageId && left.pageGeneration===right.pageGeneration && left.frameId===right.frameId && left.documentId===right.documentId && left.documentEpoch===right.documentEpoch;
@@ -48,11 +49,11 @@ function exactOriginAllowed(origin:string,allowedOrigins:readonly string[]):bool
 /** External-effect adapter only. It has no database credential and accepts work
  * exclusively through a fenced, typed UDS protocol owned by BrowserSessionService. */
 export class BrowserHostProtocolServer {
-  #browser:Browser|null=null; #server:Server|null=null; readonly #contexts=new Map<string,ManagedContext>();
-  public constructor(private readonly options:BrowserHostProtocolOptions) {}
+  #browser:Browser|null=null; #server:Server|null=null; readonly #contexts=new Map<string,ManagedContext>(); readonly #artifacts:BrowserArtifactOwnerClient;
+  public constructor(private readonly options:BrowserHostProtocolOptions) { this.#artifacts=new BrowserArtifactOwnerClient(options.artifactOwnerSocketPath); }
 
   public async start():Promise<void> {
-    await mkdir(this.options.artifactRoot,{recursive:true,mode:0o700});await mkdir(dirname(this.options.socketPath),{recursive:true,mode:0o750});
+    await mkdir(dirname(this.options.socketPath),{recursive:true,mode:0o750});
     await unlink(this.options.socketPath).catch((error:NodeJS.ErrnoException)=>{if(error.code!=='ENOENT')throw error;});
     this.#browser=await chromium.launch({headless:this.options.headless??true,args:['--disable-dev-shm-usage','--no-first-run','--disable-background-networking']});
     this.#server=createServer(socket=>this.accept(socket));
@@ -94,17 +95,17 @@ export class BrowserHostProtocolServer {
     if(request.kind==='SYNCHRONIZE'){const managed=this.#contexts.get(request.identity.sessionId);if(!managed)throw new Error('BROWSER_HOST_CONTEXT_MISSING');if(managed.lease.fencingToken>request.lease.fencingToken)throw new Error('BROWSER_HOST_LEASE_STALE');managed.identity=request.identity;managed.lease=request.lease;return {synchronized:true};}
     const managed=this.current(request);
     if(request.kind==='CLOSE'){await managed.context.close();this.#contexts.delete(request.identity.sessionId);return {closed:true};}
-    if(request.kind==='OBSERVE')return this.observe(managed);
+    if(request.kind==='OBSERVE')return this.observe(managed,randomUUID(),managed.lastActionFence+1n);
     if(request.actionFence<=managed.lastActionFence)throw new Error('BROWSER_HOST_ACTION_FENCE_STALE');
     const descriptor=validateBrowserActionDescriptor(request.action,request.locatorAst?request.actionId:null,request.payload);
     const origin=request.action==='NAVIGATE'?new URL(String(request.payload.url)).origin:currentOrigin(managed.page);if(!exactOriginAllowed(origin,request.allowedOrigins))throw new Error('BROWSER_HOST_ORIGIN_DENIED');
     managed.lastActionFence=request.actionFence;
     const locator=request.locatorAst?this.resolveLocator(managed.page,request.locatorAst):null;const dispatched=await this.dispatch(managed.page,request.action,locator,request.payload);
-    return {actionId:request.actionId,actionFence:request.actionFence.toString(),descriptor,origin,...dispatched,observation:await this.observe(managed)};
+    return {actionId:request.actionId,actionFence:request.actionFence.toString(),descriptor,origin,...dispatched,observation:await this.observe(managed,request.actionId,request.actionFence)};
   }
   private resolveLocator(page:Page,ast:Record<string,unknown>):Locator {const kind=String(ast.kind??'');if(kind==='role')return page.getByRole(String(ast.role) as never,{exact:ast.exact===true,...(typeof ast.name==='string'?{name:ast.name}:{})});if(kind==='label')return page.getByLabel(String(ast.label),{exact:ast.exact===true});if(kind==='text')return page.getByText(String(ast.text),{exact:ast.exact===true});if(kind==='testId')return page.getByTestId(String(ast.testId));throw new Error('BROWSER_LOCATOR_KIND_DENIED');}
   private async dispatch(page:Page,action:BrowserActionName,target:Locator|null,payload:Record<string,unknown>):Promise<Record<string,unknown>> {
     switch(action){case'NAVIGATE':await page.goto(String(payload.url),{waitUntil:'domcontentloaded',timeout:30_000});return{mutationTriggerObserved:false,navigationObserved:true};case'CLICK':await target!.click({timeout:15_000});return{mutationTriggerObserved:true};case'FILL':await target!.fill(String(payload.value));return{mutationTriggerObserved:true};case'TYPE':await target!.pressSequentially(String(payload.value),{delay:Math.min(Number(payload.delayMs??25),250)});return{mutationTriggerObserved:true};case'KEYBOARD':await page.keyboard.press(String(payload.key));return{mutationTriggerObserved:true};case'POINTER':await page.mouse.click(Number(payload.x),Number(payload.y));return{mutationTriggerObserved:true};case'TOUCH':await page.touchscreen.tap(Number(payload.x),Number(payload.y));return{mutationTriggerObserved:true};case'DOWNLOAD':case'UPLOAD':throw new Error('BROWSER_ARTIFACT_OWNER_PORT_REQUIRED');case'DIALOG':case'PERMISSION':case'CHALLENGE':return{mutationTriggerObserved:false,challengeRequired:true,challengeType:action};case'OBSERVE':return{mutationTriggerObserved:false,readOnly:true};}
   }
-  private async observe(managed:ManagedContext):Promise<Record<string,unknown>> {const screenshot=await managed.page.screenshot({type:'jpeg',quality:72,fullPage:false});const digest=createHash('sha256').update(screenshot).digest('hex');await writeFile(join(this.options.artifactRoot,digest),screenshot,{mode:0o600,flag:'wx'}).catch((error:NodeJS.ErrnoException)=>{if(error.code!=='EEXIST')throw error;});return{url:managed.page.url(),title:await managed.page.title(),identity:managed.identity,semanticSnapshot:{aria:await managed.page.locator('body').ariaSnapshot({timeout:10_000}).catch(()=>''),frames:managed.page.frames().map(frame=>({url:frame.url(),name:frame.name()}))},screenshotCandidate:{storageReference:`artifact:sha256:${digest}`,contentDigest:`sha256:${digest}`,sizeBytes:screenshot.length,mimeType:'image/jpeg'},observedAt:new Date().toISOString()};}
+  private async observe(managed:ManagedContext,actionId:string,actionFence:bigint):Promise<Record<string,unknown>> {const screenshot=await managed.page.screenshot({type:'jpeg',quality:72,fullPage:false});const digest=createHash('sha256').update(screenshot).digest('hex');const stored=await this.#artifacts.put({sessionId:managed.identity.sessionId,actionId,actionFence,contentDigest:`sha256:${digest}`,sizeBytes:screenshot.length,mimeType:'image/jpeg',contentBase64:screenshot.toString('base64')});if(!stored.ok||!stored.artifact)throw new Error(stored.error?.code??'BROWSER_ARTIFACT_PERSIST_FAILED');return{url:managed.page.url(),title:await managed.page.title(),identity:managed.identity,semanticSnapshot:{aria:await managed.page.locator('body').ariaSnapshot({timeout:10_000}).catch(()=>''),frames:managed.page.frames().map(frame=>({url:frame.url(),name:frame.name()}))},screenshotCandidate:stored.artifact,observedAt:new Date().toISOString()};}
 }

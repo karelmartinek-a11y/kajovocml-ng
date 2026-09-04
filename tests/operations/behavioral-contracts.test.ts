@@ -89,7 +89,7 @@ const behavioralEvidenceCatalog: EvidenceObligation[] = catalog.records.map((ope
 }));
 
 const creationOperations = new Set([
-  'component.register', 'generation.job.create', 'browser.session.create', 'browser.upload.create',
+  'component.register', 'generation.job.create', 'browser.session.create', 'browser.action.start', 'browser.runtimeBuild.register', 'browser.upload.create',
   'browser.download.started', 'browser.artifact.created', 'browser.challenge.required', 'agent.run.start',
   'chat.conversation.create', 'mcp.stateHandle.create', 'mcp.task.create', 'monitor.alert.open',
   'provenance.content.register', 'provenance.segment.compile', 'provenance.valueDerivation.create', 'selfTest.run.start'

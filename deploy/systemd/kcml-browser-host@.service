@@ -7,7 +7,7 @@ PartOf=kcml.target
 Type=exec
 User=kcml-browser-host
 Group=kcml-browser-host
-SupplementaryGroups=kcml-release-readers
+SupplementaryGroups=kcml-release-readers kcml-browser-worker
 WorkingDirectory=/opt/kajovocml-ng/current
 EnvironmentFile=/etc/kajovocml-ng/runtime.env
 Environment=NODE_ENV=production
@@ -35,7 +35,7 @@ LockPersonality=yes
 RestrictRealtime=yes
 CapabilityBoundingSet=
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
-ReadWritePaths=/var/lib/kajovocml-ng/browser /run/kajovocml-ng/browser-hosts
+ReadWritePaths=/run/kajovocml-ng/browser-hosts
 TasksMax=1024
 MemoryHigh=2G
 MemoryMax=3G

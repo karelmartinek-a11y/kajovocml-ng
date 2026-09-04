@@ -48,4 +48,15 @@ describe('Runtime Boundary Matrix', () => {
     expect(unit).toContain('KillMode=control-group');
     expect(unit).toContain('MemorySwapMax=0');
   });
+
+  it('BROWSER_ARTIFACT_BOUNDARY_EVIDENCE: only the worker owns durable screenshot storage', async () => {
+    const worker = matrix.runtimeTypes.find((record) => record.runtimeType === 'BROWSER_WORKER');
+    const host = matrix.runtimeTypes.find((record) => record.runtimeType === 'BROWSER_HOST');
+    expect(worker?.socketOrCapabilityChannels).toEqual(expect.arrayContaining(['KCML-BROWSER-ARTIFACT/1']));
+    expect(worker?.allowedFilesystemWrite).toEqual(expect.arrayContaining(['/var/lib/kajovocml-ng/browser/artifacts']));
+    expect(host?.socketOrCapabilityChannels).toEqual(expect.arrayContaining(['KCML-BROWSER-ARTIFACT/1:PUT_ONLY']));
+    expect(host?.allowedFilesystemWrite).not.toEqual(expect.arrayContaining(['/var/lib/kajovocml-ng/browser']));
+    const unit = await readFile('deploy/systemd/kcml-browser-host@.service', 'utf8');
+    expect(unit).not.toContain('ReadWritePaths=/var/lib/kajovocml-ng/browser');
+  });
 });

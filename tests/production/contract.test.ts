@@ -55,7 +55,7 @@ describe('production acceptance contract', () => {
 
   it('keeps the runtime gateway in the release traversal group', async () => {
     const unit = await readFile('deploy/systemd/kcml-runtime-gateway.service', 'utf8');
-    expect(unit).toContain('Group=kcml-runtime-callers');
-    expect(unit).toContain('SupplementaryGroups=kcml-platform');
+    expect(unit).toContain('Group=kcml-runtime-gateway');
+    expect(unit).toContain('SupplementaryGroups=kcml-runtime-callers kcml-release-readers');
   });
 });
