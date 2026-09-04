@@ -286,6 +286,12 @@ importers:
         specifier: workspace:*
         version: link:../../packages/domain
 
+  apps/retry-scheduler:
+    dependencies:
+      '@kcml/worker-runtime':
+        specifier: workspace:*
+        version: link:../../packages/worker-runtime
+
   apps/runtime-gateway:
     dependencies:
       '@kcml/worker-runtime':

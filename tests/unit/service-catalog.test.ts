@@ -4,7 +4,7 @@ import { listSpecializedServiceDescriptors, serviceReadinessDescriptor } from '.
 describe('specialized service composition roots', () => {
   it('publishes a versioned capability descriptor for every deployed specialist', () => {
     const descriptors = listSpecializedServiceDescriptors();
-    expect(descriptors).toHaveLength(24);
+    expect(descriptors).toHaveLength(25);
     expect(new Set(descriptors.map((descriptor) => descriptor.serviceName)).size).toBe(descriptors.length);
     for (const descriptor of descriptors) {
       expect(descriptor).toMatchObject({ schemaVersion: '1.0' });
@@ -17,6 +17,12 @@ describe('specialized service composition roots', () => {
         ].length).toBeGreaterThan(0);
       }
     }
+  });
+
+  it('assigns retry and reconciliation to a dedicated coordinator', () => {
+    const descriptor = serviceReadinessDescriptor('kcml-retry-scheduler');
+    expect(descriptor).toMatchObject({ runtimeKind: 'COMMAND_COORDINATOR', capabilities: ['CANONICAL_RETRY_SCHEDULER'] });
+    expect(descriptor.queues).toEqual([]);
   });
 
   it('assigns each generation specialist an exclusive queue', () => {

@@ -1163,1411 +1163,1411 @@
       "traceAnchors": [
         {
           "requirementId": "KCML-REQ-AGENT-5974586aeba2597d96199c89bc34ba08ec62af318dbf348883ddf48ee58f5bfd",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2517",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2519",
           "symbol": "handleAgentApprovalApprove",
           "snippetDigest": "sha256:17dcdbefb6f8849118159dbc15b74d86721cfc684feb4c7ce59ad25a69ea6ad2"
         },
         {
           "requirementId": "KCML-REQ-AGENT-9e7a1dc29697014d88b280b88123f94b9ae77c07b89e5d602452e41675ae84ce",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2518",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2520",
           "symbol": "handleAgentApprovalReject",
           "snippetDigest": "sha256:9bd8820cfc9734bab9fc0313a182355667d10a6c71387f52000629c44147f101"
         },
         {
           "requirementId": "KCML-REQ-AGENT-6884689f56fa17d83754e895991520adc8cc40979449aed971ee72e4464fc64a",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2519",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2521",
           "symbol": "handleAgentApprovalRequest",
           "snippetDigest": "sha256:ffd0950fe8dfeb6f61ee85f58d84b26e29d861c6f644009b698367c81f518b92"
         },
         {
           "requirementId": "KCML-REQ-AGENT-03ed79e41ea9f49040fc5decc7d0ccc6a76e088eaee7df94980c1c5f4b04a2aa",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2520",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2522",
           "symbol": "handleAgentCheckpointCreated",
           "snippetDigest": "sha256:e9e37dba8122642ae84441c13c0437fcdad18d4384cc0d868238fc4fa9aa43f1"
         },
         {
           "requirementId": "KCML-REQ-AGENT-ded1cca7abb7aecb9c6772c504ac0a42288baedf424c9edc67944eee669e7797",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2521",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2523",
           "symbol": "handleAgentDelegateRequest",
           "snippetDigest": "sha256:a9146e270819b81953152c0740f324846c59d82c7458307989ac137335a5c0d5"
         },
         {
           "requirementId": "KCML-REQ-AGENT-921d895cefbc523afaa1cee728976a33c600c702b5f760618ca7aa2af2002159",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2522",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2524",
           "symbol": "handleAgentDelegateResult",
           "snippetDigest": "sha256:dc8d3759ef394254b4e5b66dd3d0e91b051e99a177281c4849b82238a8d9f444"
         },
         {
           "requirementId": "KCML-REQ-AGENT-aedbd1bad10743a4725069405599a3b96e4172431874d1e5b582ab9fded687d7",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2523",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2525",
           "symbol": "handleAgentEvalResult",
           "snippetDigest": "sha256:2372f23595dc22fc84cc00c0ac9e7516bdda9368f7fee43b67ecf41b1edc689b"
         },
         {
           "requirementId": "KCML-REQ-AGENT-d1fc401314f605e6b9fe5e5b196febcd6367a95621e7a2ae3f0b642f2ffcc003",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2524",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2526",
           "symbol": "handleAgentEvalStart",
           "snippetDigest": "sha256:e811617f5cce0c893be4a0f638a78e75bcc0a33b7401b626cb4893429604aa37"
         },
         {
           "requirementId": "KCML-REQ-AGENT-bb14d42a3631f2597252101c5a5345e3ef2e0a947d20bb2adbf819d33e87a540",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2525",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2527",
           "symbol": "handleAgentMemoryWrite",
           "snippetDigest": "sha256:235d153de0d5ca7c2e73658f99de2409ef42e62b5873de99a915168d74bb8a7a"
         },
         {
           "requirementId": "KCML-REQ-AGENT-c002a603965da70aaa9824f1e4997b4aafc9c75d637cb54d9f6d621bc9163130",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2526",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2528",
           "symbol": "handleAgentMessageAppend",
           "snippetDigest": "sha256:b35a1f2b7029d803485a7c3ead64c47a3b7403049296f38e783837d815fc7fb6"
         },
         {
           "requirementId": "KCML-REQ-AGENT-d62331e69d20c5961c813bf2333e5c1f83aa615956e052a4d737be1489e7ffb5",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2527",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2529",
           "symbol": "handleAgentModelCompleted",
           "snippetDigest": "sha256:c472e2120576fce062552acce233bc4046b256ca899406414a45dbc9fb3d914b"
         },
         {
           "requirementId": "KCML-REQ-AGENT-81a0c37b5a9c0c416e1ff119e030ccc8b3c96c4dcf76488e0863854c231c5181",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2528",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2530",
           "symbol": "handleAgentModelStarted",
           "snippetDigest": "sha256:564278ece1b55d2e20ab87712053f5020fd8896ada03bbfb1568393d31c2cf9c"
         },
         {
           "requirementId": "KCML-REQ-AGENT-2aca90c4161a8cd035d98e7dd8212cc825dcad33282f97575bdcaf204d03d28c",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2529",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2531",
           "symbol": "handleAgentRunCancel",
           "snippetDigest": "sha256:fa4ed6923ef6cc2ba4e9435acf6803b5443047ce589a45dbda9136db2c6caaab"
         },
         {
           "requirementId": "KCML-REQ-AGENT-ea2888de3b76858a3057c806c308156fd082035105aa5ce4bbebf071b9e74d9a",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2530",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2532",
           "symbol": "handleAgentRunComplete",
           "snippetDigest": "sha256:646c076abe1e212d1eba597e57b2defd96df48ca2b01b8bc0156c90b720367c4"
         },
         {
           "requirementId": "KCML-REQ-AGENT-42c246161b494601a62870dc82dda519cf7b8e881f1a8f1b6bde3bfec10aee1d",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2531",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2533",
           "symbol": "handleAgentRunFail",
           "snippetDigest": "sha256:7b788be552b327d59f3e0698322368b84342436e39e5a329f0903bedde001669"
         },
         {
           "requirementId": "KCML-REQ-AGENT-c8ec2ad86a59457a4f4abd4acc96430083ef93bb27ba11f3ddd3bf7e6cc8dde5",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2532",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2534",
           "symbol": "handleAgentRunManualReview",
           "snippetDigest": "sha256:099ed2fcc4feeec9e5de14c6de636ffcc6b812e964374db35ad11d0874fee9a2"
         },
         {
           "requirementId": "KCML-REQ-AGENT-946541b41f9e23185b6ab3d8a80a4eaeff524a92a8c83e6f228d7653d67d1fec",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2533",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2535",
           "symbol": "handleAgentRunPause",
           "snippetDigest": "sha256:0f3db85fb17f26f494b5e223eae2d0ad2896f8b3720c3ae54947be882a25cfd6"
         },
         {
           "requirementId": "KCML-REQ-AGENT-d105ec160b2ffe4046d1a3333c185a30dee9ab4f047a2a5c2df54fab3548d43c",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2534",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2536",
           "symbol": "handleAgentRunResume",
           "snippetDigest": "sha256:b0b1399a4db9547188be01a157202196d13f2696cbeefa464015502356509d98"
         },
         {
           "requirementId": "KCML-REQ-AGENT-03a9aa21104711c7074413a3c1842635831b8c8f6a0684ad0bddc1c3d1d7f551",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2535",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2537",
           "symbol": "handleAgentRunStart",
           "snippetDigest": "sha256:9059fe4d1a23549c3a7cdd3bb5e035f1a4af90db03f08f66a70dd2cc75fb6d88"
         },
         {
           "requirementId": "KCML-REQ-AGENT-6e25de00fab2173ed74da8ced17138facdeffecb78b053c3f7c12f96160ac384",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2536",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2538",
           "symbol": "handleAgentSessionCompact",
           "snippetDigest": "sha256:a77e998d9b091ff070be3a99381b4463fac56b74d6adeeda4011cffada5bf40f"
         },
         {
           "requirementId": "KCML-REQ-AGENT-462c030dcd771ca4e97b14845ed2b51079b7dc2b3687cdd29a5f0f801ca87053",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2537",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2539",
           "symbol": "handleAgentToolFailed",
           "snippetDigest": "sha256:f832e07abcf55514d0e02d1116001b497894a9c30cbe143f5d381df04578f905"
         },
         {
           "requirementId": "KCML-REQ-AGENT-b9fc6f70f6b67b2b9a9a6d9415a971aa8f6470823486c0f76d55790f8e1f07ed",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2538",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2540",
           "symbol": "handleAgentToolRequest",
           "snippetDigest": "sha256:563b10a0ba21ec4906575f3194239eb397afe83d7ec226302acb03d8c5daa4d4"
         },
         {
           "requirementId": "KCML-REQ-AGENT-e5ecd91041b343529275275faf407dea4df6dac40abe9f5b5a674791d1516af1",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2539",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2541",
           "symbol": "handleAgentToolResult",
           "snippetDigest": "sha256:5629c5c9adbc16bab8258e448bfe7ea22580b2459615b6066ff24b46de8fd704"
         },
         {
           "requirementId": "KCML-REQ-SECURITY-62f2eda100afd8b8ddcecc856968a8383bcb591bc4e338f84d9434dbf57993a1",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2540",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2542",
           "symbol": "handleAgenticSecurityEventRecord",
           "snippetDigest": "sha256:e65417b4347595ee35fb90f29c228417cc7025a991f2ee48bcff3bcf11b0cbde"
         },
         {
           "requirementId": "KCML-REQ-SECURITY-49b62f2213b1847bc822d2e601466962cd26ba64da76ea7a5f281b12a5594805",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2541",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2543",
           "symbol": "handleAgenticSecurityEvidenceExport",
           "snippetDigest": "sha256:130a3dadef2b7efccd7bbd7ba03f8761674a24a58a2ba03127691ecd8d431487"
         },
         {
           "requirementId": "KCML-REQ-MONITORING-71c6fe0bd22beae46375caec78b707bfd2fa0633af55a599663e3b87cee6a115",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2542",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2544",
           "symbol": "handleAuditArchiveComplete",
           "snippetDigest": "sha256:6b2d56c29026af1a2309567766e7bb8cef96bb4ce0621ef911b6f271ea02470d"
         },
         {
           "requirementId": "KCML-REQ-MONITORING-ede151411f9285fc7e1fb284b561302299275a0915b5ad7d1598ca4d6ef35cfe",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2543",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2545",
           "symbol": "handleAuditArchiveEnqueue",
           "snippetDigest": "sha256:6be9f8e21764335b4022a9d4a99100719ffa3e9a2f8a3391676a239edf316235"
         },
         {
           "requirementId": "KCML-REQ-MONITORING-7995e56457b57d37e8d5ffab74695f805de0b7384918b7eeddae6c6aec8e2aa0",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2544",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2546",
           "symbol": "handleAuditEventAppend",
           "snippetDigest": "sha256:886a54eaeb9aef930acd905dc5b971c83b5146dcd2a3cfe94eca53187a152307"
         },
         {
           "requirementId": "KCML-REQ-MONITORING-4fe3df19c105d2140f95829e87f1494d596b2fa9726fdc5e7d4d9e3df2349ca7",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2545",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2547",
           "symbol": "handleAuditStreamAck",
           "snippetDigest": "sha256:553eccc1f33082ce25463215511bc18cc983c1a3381221b059d0e6166438170d"
         },
         {
           "requirementId": "KCML-REQ-MONITORING-ac91f98627d4bcd3d5dcaf195893469379fe7575d8ff5f5f0658d54f07f7e00d",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2546",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2548",
           "symbol": "handleAuditStreamReplayRequest",
           "snippetDigest": "sha256:f9d10a52c6a6b127b0e7d7528786fd1d6aacaf85b83f28889da3062da78440e8"
         },
         {
           "requirementId": "KCML-REQ-MONITORING-0a3471d94f647590330671a3a475b7f436e79af850e1d570a58a320dc0125f2f",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2547",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2549",
           "symbol": "handleAuditStreamReplayResult",
           "snippetDigest": "sha256:3a0fa467efbe4b4f3e5bb49b239aa3e32e74b5d00c3ea68a7dc084e8c4fec1e2"
         },
         {
           "requirementId": "KCML-REQ-SECURITY-1693cc14846bf708bf6163e8ef7315360e6c2acb4ec93eaf5b63b075d77fa804",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2548",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2550",
           "symbol": "handleAuthorityActionPlanCompile",
           "snippetDigest": "sha256:2ca20c9c8bb221ed51cd8d40a7e3369225c6cfc726a5a439e1271406e6849b77"
         },
         {
           "requirementId": "KCML-REQ-SECURITY-0df99061e7914c5c706a1415f9934a6d3346499a83115d46a186faa50598f20e",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2549",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2551",
           "symbol": "handleAuthorityContextCreate",
           "snippetDigest": "sha256:b3f97c89130303f336dd75bd99b03fadf396ef5fbfeb0685cc86d3b8f270ec49"
         },
         {
           "requirementId": "KCML-REQ-SECURITY-74540a3d260545826b94c9613c9a7df6e45c5a407f1ae1e662324f8c97065f3b",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2550",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2552",
           "symbol": "handleAuthorityIntentCompile",
           "snippetDigest": "sha256:ac0f712fb2a804a7564c4192cc126c146905a0fc6b9c42564f65d2024a05faa2"
         },
         {
           "requirementId": "KCML-REQ-SECURITY-b47e07debf8adc20f4030dae6f19df7568bd7379d3a3edaf454f8c247244a8d6",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2551",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2553",
           "symbol": "handleAuthorityLineageAppend",
           "snippetDigest": "sha256:951213f82cdba7b51acb321be74557a32557d348f0440c4f1576dfcc5248632b"
         },
         {
           "requirementId": "KCML-REQ-SECURITY-3a0bf5df4eeab0301887925f41fd203b50362c9e45bf4659f8f8001ed117d65a",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2552",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2554",
           "symbol": "handleAuthorityLineageResolve",
           "snippetDigest": "sha256:4e7845b508de3f059a948eecd86205e290d92e69c51c47b682ecb5b50da3802e"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-1ebdd31de5b190f53dd88d7c48c8157baf50c561d9c949f43513c8e2c16e8e2b",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2553",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2555",
           "symbol": "handleBrowserAccountAuthEpochIncrement",
           "snippetDigest": "sha256:cebedcd8c393fd5dcf36437c39c00bf40cf76b08de98691806a5f99d036b6bc7"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-e6d58036610a83da2fb7ebc111e28857c45eee919fd3fe133d02ec1b07aef25c",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2554",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2556",
           "symbol": "handleBrowserAccountLogout",
           "snippetDigest": "sha256:ade4d4a8269340387011dc3eca1e3f02141c515c055835e0af2c253e52f1cf75"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-531c2d0ad2917c353fc1b071159817b2d8e72f626c0845875439c6d29d85687a",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2555",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2557",
           "symbol": "handleBrowserAccountSave",
           "snippetDigest": "sha256:6aab1463e6c98ea0c0875b7e04438a12d470dfc018878277ac7f1a20ce250fa0"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-94b74befed41178206e31f834c034411dd38f93e450acea4bc545cc1b0d6f7a6",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2556",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2558",
           "symbol": "handleBrowserActionCancel",
           "snippetDigest": "sha256:36f46f65e67db16d30f077126540366b4149a0ce5d50ff25b30312a5a60fac04"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-0e7f3d22dbec1eb9e7c047d2b79150535ffe4b9e4748bfe49cd8cb39e27ae43b",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2557",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2559",
           "symbol": "handleBrowserActionComplete",
           "snippetDigest": "sha256:f057309e9a2a78662539e8997264aa0dde498f2c01db0556524d1f24b3608423"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-0150e0beadb5d08eeb1aa7e8df70ae8d8c369a4b77385200b089f746d222b937",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2558",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2560",
           "symbol": "handleBrowserActionDispatchPhase",
           "snippetDigest": "sha256:0deef164285a8db02f577237210ee855ba5e429859cdcd027df262ff592288a3"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-5f3557a173053d430032499d2a357d14343ce945afe7454692731272458189c4",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2559",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2561",
           "symbol": "handleBrowserActionFail",
           "snippetDigest": "sha256:78eb0edb296e9c30fe6f502c55663ee4b4fe866146f2f1d343068d58bfbb3dd5"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-2beb23699598b8a63300427610067dd04aab14da256ed62d77c218f8fc369c00",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2560",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2562",
           "symbol": "handleBrowserActionReconcile",
           "snippetDigest": "sha256:1e9dee5d22ccc04ce1e41750025261ad7d897bbacc5f533c464dbdc907b3353e"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-f2f1e570fac29135e0064c9fa9d12617bfa1910d23da08e8d614a78960b7c353",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2561",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2563",
           "symbol": "handleBrowserActionResolveOutcome",
           "snippetDigest": "sha256:af723fba5605299b7cc0c5e95c2f91b2ce738cf94e1fdc1cdfb5bd0adb5922f6"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-9e6945fbf15d506d60c14b91859b02d14569e0c247b458f6de21e0544c346f1a",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2562",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2564",
           "symbol": "handleBrowserActionStart",
           "snippetDigest": "sha256:5d0de5fc3fe98ac0fbd320d6a1e65f5d1c49258a492bb29738e0e6066410dbb8"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-f5365d93c594abe8371de4cc9677ec03775b0fc1c8e6cf4c1904c8fbde83b40b",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2563",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2565",
           "symbol": "handleBrowserArtifactCreated",
           "snippetDigest": "sha256:314b30fc499128d85699eaa260b207c2f8443c7b2d2a21efc0bfa444ebe6972a"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-21483d63279c806586680a1c3588e20fde71911362cb8bdf89874f8bb893ed36",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2564",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2566",
           "symbol": "handleBrowserAutomationCancel",
           "snippetDigest": "sha256:36e1096d48480a0285813744d04c965bd44ad937214bd7b286e08db1946a911a"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-9296631b797662c2919b8fb5d39449a86d50281814d01d43a8854791928b8d1e",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2565",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2567",
           "symbol": "handleBrowserAutomationPreflight",
           "snippetDigest": "sha256:40518bd011d76b4c927b45abea7794ee93d8d370b58659758b0211f8014ce211"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-c388bc9ecb3684b887c31abba1399e40b9967fdecb6eaa1f5ef67ba79dfc7755",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2566",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2568",
           "symbol": "handleBrowserAutomationReauthenticate",
           "snippetDigest": "sha256:dbc74c38856aafe12a86f0e230831d5db3f9243c8788676d03050aa86d3058d7"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-b9c9e31ed8c620b52edda7b594529eacf52172bb9f0c8d14f77d4fdd174809a1",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2567",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2569",
           "symbol": "handleBrowserAutomationReconcile",
           "snippetDigest": "sha256:41ccf3e34162eed44f9444bab3ad48127b61d2ffcd1bde80ed9f558a8775eff1"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-4bb1dc17b016fe4a4781696c194c23a3cc67dee73058f63612e8d08776f20c31",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2568",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2570",
           "symbol": "handleBrowserAutomationRepair",
           "snippetDigest": "sha256:a3305737d778575f056986cc34581c7d9846ccb06e7318c23f9aefbc899dcc90"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-4f3e9fe9704754efb9fafe85ef69f18361a9351d6ec9149e2fc764b17bb55241",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2569",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2571",
           "symbol": "handleBrowserAutomationRun",
           "snippetDigest": "sha256:9d97ebdd3b183930f57c044fc1a7e17adc331eb4c5d9bc73c39867378a8c308b"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-b703d532bda6f8c891ef95260b16532efc6174500de4ff6e6c3b8e43beb53484",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2570",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2572",
           "symbol": "handleBrowserBridgeAssign",
           "snippetDigest": "sha256:99359b070e579827c8ac693830f78c15fc3dd8dc631d71ef6be13711e189eaef"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-a28155e98ad5df6245f54609e7dba99b8f1e4bc5c7c0caf75204532e53982a18",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2571",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2573",
           "symbol": "handleBrowserBridgeConnect",
           "snippetDigest": "sha256:c047410d58ebf2db1c465191ef6e449d6a7b51ad8cabaf3be466ade29f2b3eeb"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-892c5db7da8d1c609b4049c93a1ec96b304da4eeb814b76bfe36f5477ac6f57d",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2572",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2574",
           "symbol": "handleBrowserBridgeEnroll",
           "snippetDigest": "sha256:1305c25371a1815227509dedca8895d513cabd6b9838085bb4325826d1befb83"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-5f6d4d9e150c65909337d0d6a06559a48043d6646ea5d014e835226737903a2f",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2573",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2575",
           "symbol": "handleBrowserBridgeRelease",
           "snippetDigest": "sha256:aae3185a7b33fa2a771a410330ac4e6d5be34365cf9f9cb56a546bcd848b2a5f"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-7776acea9b3e9f6d292870ee8dfbfe160cc335fde7aa7d54a24a34f152e24235",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2574",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2576",
           "symbol": "handleBrowserBridgeRevoke",
           "snippetDigest": "sha256:2de9fb95fcd19cd0ba714303f9303e936fa5f28ce523f2e3917b8463db30b796"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-ee9cae3210e39a36e2854d29f51dfafe2a429261ef34b294e17568f399b15b59",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2575",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2577",
           "symbol": "handleBrowserBridgeRotateCertificate",
           "snippetDigest": "sha256:ca7bcf22cb14f355c9bdc1df32933c6ba0848f27ff45e6945eccefb9ff552d5a"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-b0879449057db4dd7b92a2b4ef8a268abfb68a262427cb391e5882ddba0f9b50",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2576",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2578",
           "symbol": "handleBrowserBridgeTest",
           "snippetDigest": "sha256:818c72ff6f09d95d660d00606b512c95b74768484da3914818ae8ca807f6046f"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-0c01754e23c42824e74c7cdf5d592d87ed60f4693b08e1966bc654c47a7dd4fe",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2577",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2579",
           "symbol": "handleBrowserChallengeRequired",
           "snippetDigest": "sha256:972c6e1556ece5211491aeb385e87cf9c59921f7208adc0b0c1f4b1621c417be"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-b53248d4a6de8b03b7f16937e7226f4603ed833be8e061cd35f605f6857a81a7",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2578",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2580",
           "symbol": "handleBrowserChallengeResolve",
           "snippetDigest": "sha256:ed421dbcbf531d6c423f618cdfed43f3e51ce22d2c81875a5accaa2cfca5233f"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-81c3bf31c39d7e64a6a476ed2a19ca118d4fb445de35bf4a515ed5718824bd0e",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2579",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2581",
           "symbol": "handleBrowserCleanupResume",
           "snippetDigest": "sha256:93a761cdce7d67ff9baa3b888e69336480c298c0b0ef6ac27bca3dcab7566667"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-48edc0be4098df4a42a1b8d1231ac26990117375d07bfc8caaa8d09fa4cfb6eb",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2580",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2582",
           "symbol": "handleBrowserControlAcquire",
           "snippetDigest": "sha256:63294ea48e77b43c6dee3739046f34e15e8eb0fff4dbf6fe99d10630302b5a33"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-b16568125517c64cb7992c22aec2b13844cdd18eef4c981e24c962f9d006988d",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2581",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2583",
           "symbol": "handleBrowserControlChanged",
           "snippetDigest": "sha256:1f9227a89b5af2f63afd43c4ff239ee3603f461187b4bc1e910ba4f252972ca4"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-aff04716c77c1b8c5d7f5dbb5d00edad076000f1fc50b198df5d300d7ce220f7",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2582",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2584",
           "symbol": "handleBrowserControlRelease",
           "snippetDigest": "sha256:36bd0d126ab0b0dc289420394bc862ad9e8184d8d7a5825180de2cd5b2f7776b"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-9a5c1d5a44e61a26a243d008fab8e4420fcc986ed9b99080a632b6a7ed68f404",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2583",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2585",
           "symbol": "handleBrowserControlTransfer",
           "snippetDigest": "sha256:5e48db0663d439678332e091d282b411498de15c40d9013e43e4ed67a6dcab7e"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-eb2dda928ca36d75c9f6e7d1a5e50cc08d12b905a3ec345a5f388fe389626fe4",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2584",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2586",
           "symbol": "handleBrowserDialogOpened",
           "snippetDigest": "sha256:4bbdb1907cda88ad90f24ec2a1e1b0a9b1721e8657bd4779b271caa601a257b0"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-8a06a6064aca76b2a1a4b8aaa3c88bd298be09068592c2ac7c221dc18ebfb9a8",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2585",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2587",
           "symbol": "handleBrowserDialogRespond",
           "snippetDigest": "sha256:f2d68daab9d1206dbed66188b3f852e1cd9a26dabff480a36d8bba4c0fccef57"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-f837fe25319109c0e67c1b480f5fc9252f9eecfb3174980821231bf39ff231aa",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2586",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2588",
           "symbol": "handleBrowserDocumentChanged",
           "snippetDigest": "sha256:e879834bb0fa90e8ded8c9e88482188ac37ec06804ca8865907359204a30cd86"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-2dacd62a79156f28cb0b702fa434fed5b2e21fcfe859a53f0bf05989601e11d4",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2587",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2589",
           "symbol": "handleBrowserDownloadPersist",
           "snippetDigest": "sha256:2e53be1dbeda63d7c623f1503a0d1b44915eeaf468c2c67bd0e1b033440e2e0d"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-90de648ebdc0a69f44677b1a8db689b78e0a2a00cff00b23ed99be1405f87965",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2588",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2590",
           "symbol": "handleBrowserDownloadStarted",
           "snippetDigest": "sha256:62b32de9775e43c6a1d347a3b745827cb947caedd7b761bb2f83383ba48fa846"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-77c7d123c81f1d991eb121a0a0d8384c07db644aee7f89524d275ac4cee90873",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2589",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2591",
           "symbol": "handleBrowserFrameObserved",
           "snippetDigest": "sha256:b4f6325cde7bab4cb6cae4e5cbc35d1b33a5a70bfe9461accd1ca779c73a8414"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-d24bdfae036612a46a71661f82c73ec316437b793a701b37f862444cb36efc17",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2590",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2592",
           "symbol": "handleBrowserHostDrain",
           "snippetDigest": "sha256:69c2b8da7314982535726022c5673a1719ced08aedb482b9031d29e2f55fe99d"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-a26f3f4c50dd84238c8cbe7a741d52fddb3bad130d562a15e43dcae588b5089c",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2591",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2593",
           "symbol": "handleBrowserHostReady",
           "snippetDigest": "sha256:9b82787143694cf4208464bb8e8a5fa50889fb69435a4effb261f4527c4b351e"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-61239e7b64b0cb1e4145c470da2be9e782044a79122412453269b0bbd04826bc",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2592",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2594",
           "symbol": "handleBrowserHostRecover",
           "snippetDigest": "sha256:9229705d6461836ff5b6051198dffaaaec4f8c416f3ad7a734690e88d8083a49"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-b39cea1bf2cf5841736210a2484af0a2c62e224f01a4c1b081773ce1c645892b",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2593",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2595",
           "symbol": "handleBrowserNavigationObserved",
           "snippetDigest": "sha256:5fccc68c51e24a59bc37cd786d4bbc2cd6546010bf2b43416128ec111dbd0585"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-b3663bdbd26b3de5482d3d7308e5f921b028bb903b004d9d1bdd248f63afcf76",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2594",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2596",
           "symbol": "handleBrowserPageActivate",
           "snippetDigest": "sha256:a895dacd79dc4ce88a696fd14edd6afa2869b9acfcd2bc4bad82dce237858a2d"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-bac650e2055671d0de4a54af6579cc4937ef8da5f603d2c61479a78f0037b623",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2595",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2597",
           "symbol": "handleBrowserPageClose",
           "snippetDigest": "sha256:07f54a02dbc511bd6d28e32c9a741025d98c807ad90b07f65371f2fba5ec9562"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-a657ec3717cf5891601746513b3154b216224f22351dc138026a86facd923b65",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2596",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2598",
           "symbol": "handleBrowserPageObserved",
           "snippetDigest": "sha256:dbcb5b7e02338c1922236d0f0d5b1820ae04c200901d1d4837a8f8d13eb75653"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-893b3baf3a009f248e4b05a935434d6099951708f5b961695a1ffc51c33f896f",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2597",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2599",
           "symbol": "handleBrowserPageOpen",
           "snippetDigest": "sha256:b0cf917ab9aa394c560a3c1e64d70eacc629c0fd4ea2d720581ee75dd6ca2779"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-641d38aeed01381f4e4014147b80f00e9bed76215b767854cbf356a0842370da",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2598",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2600",
           "symbol": "handleBrowserPermissionRequest",
           "snippetDigest": "sha256:6a93ea778562044dbedd350387ce1cce16bb997a20c0a8223b912acdb1b9c572"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-1678a6ca7298fb10025728d90986b63cb90733a4abe583611960ad887d6e61bc",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2599",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2601",
           "symbol": "handleBrowserPermissionRespond",
           "snippetDigest": "sha256:f394fa24bf18d7e3d95f13e5db1d91f9e4e9076b2cc7f435a05507bb4b1bf28e"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-707e7ba8eb2bd2b8c22e5000500c866a4e17e300303d5664ab5a3324df63e791",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2600",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2602",
           "symbol": "handleBrowserPreviewResync",
           "snippetDigest": "sha256:3819a02c093c5401ba1c90b8f98da6c236be7605ebf396dc8a41dd46d9f6c0fa"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-063f2fc0c2a709c13a063c81536295177019fbfe32434d529c3f8c1cfdff8016",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2601",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2603",
           "symbol": "handleBrowserPreviewTicketCreate",
           "snippetDigest": "sha256:b915c87def9ba3a3de5dbb5cc7539ab42dfe0b3007da477bd22bdf2a06540fce"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-07620c1fee7b11e89cf8572c4e5e27d86375dc784e49078034accd0150d290cf",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2602",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2604",
           "symbol": "handleBrowserPreviewViewerConnected",
           "snippetDigest": "sha256:b50b3f5d0fa3f45ee9fb421096e1b06742a65849b9326d086b5ef67782606df2"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-7b3821a2b4edda9bd31976ecf2b34c76b689cb8e1f77c7a211592c2a8cfdd734",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2603",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2605",
           "symbol": "handleBrowserPreviewViewerDisconnected",
           "snippetDigest": "sha256:a787b08f18638caa064715fef4be43baab1fb5b0d015c6a938e0109da2115bad"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-eb9014716e230fc7722231b5ad75eeab6d8cca1217be224b3bb4f02a89eddb7a",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2604",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2606",
           "symbol": "handleBrowserProfileAcquire",
           "snippetDigest": "sha256:ab43e9428812328080cc7f61104d6eda557808fc8278d407043ef778e0b97019"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-2b997c019699828f7eefdcb09ef27e047682735dfbebd6ae0f5ca2c7daa28125",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2605",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2607",
           "symbol": "handleBrowserProfileRelease",
           "snippetDigest": "sha256:47ec00359694c1b9407e3848eac16295ccb7447b83535c095d7fde305dabf95b"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-0fc70827edd514e692b251124993d34867ab49da80675c1691853b2787cedf9d",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2606",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2608",
           "symbol": "handleBrowserRunManualReview",
           "snippetDigest": "sha256:e492020df921bcaa4bec2c27c9ccfe3b40e8ef4cd09eba0748dc32273b15f655"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-b95700469787b291bc988b24f1e417783b1c2a49de3ec6cc4e6949edb48412ea",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2607",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2609",
           "symbol": "handleBrowserRuntimeBuildRegister",
           "snippetDigest": "sha256:620b2403adc56be2f9114269155eac94c613ca401bc53569603d1a721a1f7ef2"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-471ec72ac851dc40fddb072b2660919de237a211d04e171766d6d99463047aad",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2608",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2610",
           "symbol": "handleBrowserScheduleEvaluate",
           "snippetDigest": "sha256:8aca5bbca302050c404064ba0eaf33a7e07f208c0da66c53a8649ea862b405e2"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-35e8f84704f71098c9adc655c5d1fa43820723ee55d5e3d13dff7991a7cc6704",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2609",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2611",
           "symbol": "handleBrowserSessionAttach",
           "snippetDigest": "sha256:e327995329841aa3e210185eb2872c0b97c1eb0996293eee112ef5b0f37a60da"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-4f57a9ac3d1e6f1edcc97938ccb77b92e5041c18bc0623487100626fd5e5c5c5",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2610",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2612",
           "symbol": "handleBrowserSessionClose",
           "snippetDigest": "sha256:ecbb0f2f6378c394411ddf4a8efef16bf9cfe4550dd767d74efdf7b1788984a8"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-38005fcffdbdb8336fd9bd81aedc6303efa3270310040866bea10989a0251512",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2611",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2613",
           "symbol": "handleBrowserSessionPause",
           "snippetDigest": "sha256:131874535268ded1c4d94bcdf4defb4443858c66a1eaaa22fd8fe56c45e64157"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-56ba2a2e2c792950b021061581d17c9536d3b9966629ab7df7f7a4db052b25e0",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2612",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2614",
           "symbol": "handleBrowserSessionRecover",
           "snippetDigest": "sha256:aca3f0d327764c6ea77a770f61134369cff89408321a294d330e454a39f3cc85"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-6c203cd949c1b27783f5138d7f3fcc0b956b8e3344d37ec606d194fe9906eccf",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2613",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2615",
           "symbol": "handleBrowserSessionResume",
           "snippetDigest": "sha256:71b97a1f6104246e004c88ce6e425a3a3aa7e7df8964fffd4a5f368527dd8539"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-e3b10463ad5138d9a6afa521ad734c033235396fcdc45a18556d125bcd828d27",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2614",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2616",
           "symbol": "handleBrowserSessionState",
           "snippetDigest": "sha256:d4d4e8b6bd254a6d1d7f3d1fd3ecd5d556e3853ac1927dfaca984abe57305a31"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-831851c645ab66d6065ac7b90a30b37bda2bc0e524c2913a6fc5460855df5636",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2615",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2617",
           "symbol": "handleBrowserStateActivate",
           "snippetDigest": "sha256:0d01cd2e54b13ce6db19381f85d99cdf1fb92b6f82d9a2ede8cb3386f1630965"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-128266dc4ac2cc9d77bf8c2c5ad00f75e93af0865a97dd5ef3efe931319596f1",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2616",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2618",
           "symbol": "handleBrowserStateCapture",
           "snippetDigest": "sha256:2f810b7d12fe5e70cdbb2c76b59a57be4f51587c63bf231534ec3689484b517d"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-9693ab3d8543657824cab29676b0d8a0e4a6d2bda869a843fc2239aa82db44ec",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2617",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2619",
           "symbol": "handleBrowserStateInvalidate",
           "snippetDigest": "sha256:d5fa0bd5f7fc514a85c491a21e93b791c177d4514f8622138d506ef6e2347972"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-294c26682a17036d4e2f7788c0a3aa50c671ef912e97c8d078528a755ef7555d",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2618",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2620",
           "symbol": "handleBrowserTargetPick",
           "snippetDigest": "sha256:753f90b596d59cd527db52778b9f9a5ed43585f7ca752bf3b2b50b894b756f3c"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-d4f2b116395545ca755e81b4e3bd19a6a3dcf30d82871795dfc1f0b4a4b6e4d4",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2619",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2621",
           "symbol": "handleBrowserTargetRevalidate",
           "snippetDigest": "sha256:944717fc040ec6dac3314e5f01a84f3ca3d9a16861a47c35138edce1218d7930"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-4354b48ff345d494aab84886223aad1d665d17640ce355c5671bc7d261b5bc43",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2620",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2622",
           "symbol": "handleBrowserTeachingCompile",
           "snippetDigest": "sha256:d485f0e21e5c99f32cc4bf938f8d49a29837b76448d8ac79f4f3635724d0cd94"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-57938ab1d09b6e8014e077c7fc6ec23a9a1d55ed322fa33a2b8bde68bef4a502",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2621",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2623",
           "symbol": "handleBrowserTeachingStart",
           "snippetDigest": "sha256:b7fb81b8df7d7dec49ace957f2767c8f01016173a9704012fe30296f076aecce"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-e300ae3809232a86771cdab00607c6b6b58afb613bc85f140da99905bcade992",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2622",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2624",
           "symbol": "handleBrowserUploadConsume",
           "snippetDigest": "sha256:bc72eb7d4099e53df3c8cf24bd4bda939f76de600425e8bdae9fdef57d67cc48"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-36ba3879f58a5c995977cd61446f90f1adcb5640a9c4c95c47320984d0ec8a0f",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2623",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2625",
           "symbol": "handleBrowserUploadCreate",
           "snippetDigest": "sha256:06f1d342e61635c9a3fa41531b2df4a2ee2d46d4e95658031226398f099e1b5c"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-481957a9424bd20a430f1779b1a31321abb8698887003d9266572b72ccd2e77e",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2624",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2626",
           "symbol": "handleChatBrowserControlAcquire",
           "snippetDigest": "sha256:276fb95d439d397e839abc92ee7439d6c4057c6fbf9de31ccb3fb1ab0c7b1394"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-40037194a24debd85c0d77afa0485158cba9c19b0b68104f9db71842821c3e8b",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2625",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2627",
           "symbol": "handleChatBrowserControlReturnToAi",
           "snippetDigest": "sha256:b30e5cdac48b92ab24ff30604cf703d5c619433c960b661afc7523b661beb1c2"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-2332cd753c586caad2aa5b25a35d89a9f53d539da06ccbad2f252ce40ebf8985",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2626",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2628",
           "symbol": "handleChatBrowserSessionAttach",
           "snippetDigest": "sha256:5c962bb5c551de84cb63bae6f575d57f47cdb38b533133496b40d77fc8ab9911"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-3b7c3f7a9f7afa86e634a38fefdca0bca7994722a4d6526f124c5213615ee5e2",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2627",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2629",
           "symbol": "handleChatBrowserSessionCreate",
           "snippetDigest": "sha256:ceb99b9dc9b967783431d5cf5d597631f72f4cf7a9d0be9df10270eace121e77"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-12dde45de0f7a7d0bc6a0a940e33dbd494c968557590651e276607d042611035",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2628",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2630",
           "symbol": "handleChatBrowserTargetAttach",
           "snippetDigest": "sha256:e6cfe0a431f1a5770994cb1d6c305a7ce9488e97b2fbff9296cb009cd953ef8e"
         },
         {
           "requirementId": "KCML-REQ-CORE-16505c3a351fafd633ee3c9a2a0babd5ada8c71546add2c612ee7e2d6877d82e",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2629",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2631",
           "symbol": "handleChatCommandExecute",
           "snippetDigest": "sha256:e9cc572e4bced1aa6f0700dc85b0db3a6e509818be03f2ab0361a1e36b94b973"
         },
         {
           "requirementId": "KCML-REQ-CORE-77b72479b921e2c85ef4fa4252444bc33d7124b73c62bef76753866d12a952cf",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2630",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2632",
           "symbol": "handleChatConversationCreate",
           "snippetDigest": "sha256:50deea01ae947e5e2f0897d9e9e17eb284d976d4e19c3bee6cd0e3d086c58501"
         },
         {
           "requirementId": "KCML-REQ-CORE-491aac14fc7f70a013c82ffc9eba66cebfd306d13f3eaba4611d9121214eab36",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2631",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2633",
           "symbol": "handleChatMessageAppend",
           "snippetDigest": "sha256:11d808db700f741b9f4543864ee8d8d283f0fa26368be9498c0b3bab1dd350fa"
         },
         {
           "requirementId": "KCML-REQ-CORE-99ce62b4c23f9e19323f0ac459ec475376e80e7670a75853c70bda0575fa9dd5",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2632",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2634",
           "symbol": "handleChatResponseStream",
           "snippetDigest": "sha256:22d843c4009974d9bd6f950b06af14a9e9e4a64f54100793c130ba25ebb39d1f"
         },
         {
           "requirementId": "KCML-REQ-CORE-99096411a3c2482b32fb80a790e7608f3c2b0ab2dd34243256db17e1229d61c0",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2633",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2635",
           "symbol": "handleComponentActivate",
           "snippetDigest": "sha256:fcce2353f48cbe0219da056250c6514901146a679374e8f05b23a1c1d6bb4aa1"
         },
         {
           "requirementId": "KCML-REQ-CORE-c59784c9bd31b3838b544d56b3a5e51b230fb26d1066a82a1867b5cb8c127181",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2634",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2636",
           "symbol": "handleComponentControlAck",
           "snippetDigest": "sha256:f765f1bfdd9d251a8c914cdf76456a3f39e1de9fdc1d96bda3910325103b44e5"
         },
         {
           "requirementId": "KCML-REQ-CORE-a605f93295026f0513fadcaee285f9b497973b788b835ab02d1eb7b32d72f1fd",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2635",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2637",
           "symbol": "handleComponentControlDisable",
           "snippetDigest": "sha256:7ec8c9e936ea2a53425846710b935ff20c6d291ab10756265f395888baab5278"
         },
         {
           "requirementId": "KCML-REQ-CORE-f95b931774a64f251d61013ae58d0eaf529ca935a5f8d5e83e6c9182202056ec",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2636",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2638",
           "symbol": "handleComponentControlEnable",
           "snippetDigest": "sha256:edef15dbb6d9ecaa29b63a0351a7d0e8c4ecca04136850e8bb000328e5f92901"
         },
         {
           "requirementId": "KCML-REQ-CORE-00b82a962ffaf74e205a4cb2124c05e82d90754ecb76c78317b99c0757bd7e06",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2637",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2639",
           "symbol": "handleComponentDisable",
           "snippetDigest": "sha256:07cb3ed93904c035c8c255c0d68039c8dd277091b27714728fd5c23db4cae808"
         },
         {
           "requirementId": "KCML-REQ-CORE-c7b04e26e3a4a13e70e702c599577d30ee0fc96262035956b79b4d3499340f77",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2638",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2640",
           "symbol": "handleComponentEnable",
           "snippetDigest": "sha256:75cdbb24603019365f3b4f1a18bab0c153914e00bcbe2494def41b8e2c11ae20"
         },
         {
           "requirementId": "KCML-REQ-DEPLOYMENT-c0940ee1e09516baa2b4745866468d6313a35d746f3a5183464f225b879c0526",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2639",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2641",
           "symbol": "handleComponentRollback",
           "snippetDigest": "sha256:4907c327260d4a79be1fa8396e99ecfe733fe274db4cdbc3bd5f30442b6e77a2"
         },
         {
           "requirementId": "KCML-REQ-GENERATION-23462ac0f7d03f03c8f0666e3b2da54b36a1dccb4c8e09c9bbaac2020a3d56fe",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2640",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2642",
           "symbol": "handleGenerationActivationPrepare",
           "snippetDigest": "sha256:4f5ce587709bc4397bb5400ec7ae8760f7f8382a990236ad0e7235e683bd0258"
         },
         {
           "requirementId": "KCML-REQ-GENERATION-3211bcac432bfd5d49338a834acbf2528d7510968851e1cfc71ae8c779a17314",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2641",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2643",
           "symbol": "handleGenerationActivationRollback",
           "snippetDigest": "sha256:d71a7b7b593a4dff6767d5a71d241c68a20916a5cce2034a2f97847898f859bd"
         },
         {
           "requirementId": "KCML-REQ-GENERATION-3899918b07da642423e5c656a489c907ef5d6695f4ce7a703603e188c0cac690",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2642",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2644",
           "symbol": "handleGenerationActivationSwitch",
           "snippetDigest": "sha256:8b003eb0e5f968f15b17c7381402d2574c82ac15ec3cae849237953f8bc61951"
         },
         {
           "requirementId": "KCML-REQ-GENERATION-18209628741be264d044a9efbe35236f99de2152c5b58e141d7be9ce2f8577e0",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2643",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2645",
           "symbol": "handleGenerationBlockerOpen",
           "snippetDigest": "sha256:d403ffc3fa2472b6ee9343e1fa2a6b04cd719b5c74f0b334e24b27f7403b2acd"
         },
         {
           "requirementId": "KCML-REQ-GENERATION-99c132c42142873cfbef9849c1879e41d5682cf8a7308333a3d0052e6f5b746a",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2644",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2646",
           "symbol": "handleGenerationBlockerResolve",
           "snippetDigest": "sha256:2877566d53c36aa3bb487a3587cce57d5f8b089b6e82fec2f2157707fd494d66"
         },
         {
           "requirementId": "KCML-REQ-GENERATION-9271f329a4b3f2715143622590be2a56fccc6df6dd1551901f325a06cbd1efe6",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2645",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2647",
           "symbol": "handleGenerationCandidatePublish",
           "snippetDigest": "sha256:e30eeb4b7c4e07bdfa4e6aebfb1a1cdf50a9ad69749050da696ebc4e002367bf"
         },
         {
           "requirementId": "KCML-REQ-GENERATION-79a6f3d2055ab965f0284a0429241861964b701b3c7075cfc9b97b0d658c4613",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2646",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2648",
           "symbol": "handleGenerationCapabilityResolve",
           "snippetDigest": "sha256:5523592d7006c87d7feb2ea1a5cd71fd3e162c59ec04d6ed2938b5067c63e574"
         },
         {
           "requirementId": "KCML-REQ-GENERATION-5277a22e78997ca9597f5eb96c30e738dd317501a49d9981f70b59dfb0a205aa",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2647",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2649",
           "symbol": "handleGenerationIntegrationStep",
           "snippetDigest": "sha256:b0ccf472a3d50ec1ad0a8b51bbda854ef3f0e4cb4fb3b2f9bdde2c2eebf3fb77"
         },
         {
           "requirementId": "KCML-REQ-GENERATION-4569f28a766bc96eacb97a6d8386e97da11746592fb9ab65f0eab257db3478c4",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2648",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2650",
           "symbol": "handleGenerationJobCancel",
           "snippetDigest": "sha256:d9c943df6bc913ad2b8327f6512124a0cf24921063fc87c17eef04170373b5bd"
         },
         {
           "requirementId": "KCML-REQ-GENERATION-2eac53cc4037938b7696c9577caae7f33148340736e08e6b257bfc6dfa03dbb8",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2649",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2651",
           "symbol": "handleGenerationJobComplete",
           "snippetDigest": "sha256:b3ab8545607dd0748de8e06d42bb0d2f9ba83034bb9316b304f533fefd128640"
         },
         {
           "requirementId": "KCML-REQ-GENERATION-56ca1228482f424044b0365e524c6714603eecfcc6d5dd048b146938c6ae35da",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2650",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2652",
           "symbol": "handleGenerationJobResume",
           "snippetDigest": "sha256:a13f5f0ba5dc78a84f1a12351b72a037b3c42a3bbe4ab9ecc2487d32d34b954c"
         },
         {
           "requirementId": "KCML-REQ-GENERATION-c728be9a267f958979a8eec79ed15ffe912cfb99b8272bec4a12687df6550d62",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2651",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2653",
           "symbol": "handleGenerationJobRetry",
           "snippetDigest": "sha256:3e7ebbb80e4237fb6ea5d10367de05600635fdb780511a46d19b10cd9fcfaa9a"
         },
         {
           "requirementId": "KCML-REQ-GENERATION-f095709e7068c8562f9bcd45ca6e54a6dcd82a722b6577ed5acde69f8eeebe3c",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2652",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2654",
           "symbol": "handleGenerationMessageAppend",
           "snippetDigest": "sha256:a15f0c0f26aebd91db6b205fc94dbeb7dd10a1de5c3bdb625466bca9dbf56cae"
         },
         {
           "requirementId": "KCML-REQ-GENERATION-4234b060c16e143092e143e90b330154572f4bf3db4beac1218235bf5fa42900",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2653",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2655",
           "symbol": "handleGenerationModelExecute",
           "snippetDigest": "sha256:8472839d7267a7e84af765f7dc6ab06d0637f94f2abc13423cf5b549ad734bca"
         },
         {
           "requirementId": "KCML-REQ-GENERATION-4288e90f0a14497be216fb8df640d1a9b8279917f0dfbfa5e3ba6e3e435a038f",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2654",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2656",
           "symbol": "handleGenerationPhaseStart",
           "snippetDigest": "sha256:41c1e3b1eb7e5c7f5d0cf89fd45cdc5f9a67c308931d1946c9865571808394dc"
         },
         {
           "requirementId": "KCML-REQ-GENERATION-b9353e1c98f107b27b10bf9af41cb676d95ddb3c436292ec0906470b406d2faf",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2655",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2657",
           "symbol": "handleGenerationPlanCreate",
           "snippetDigest": "sha256:7f41e74a45ff7d07ac0ec4f1d857ce311f206cec4c873cb28e962747367bd36f"
         },
         {
           "requirementId": "KCML-REQ-GENERATION-993c60bdffd45f1a55e8fa242c3afdc5ab2d8ebb144203198bb5af8b3a7a5a67",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2656",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2658",
           "symbol": "handleGenerationSourceAdd",
           "snippetDigest": "sha256:bfbf811e765eca44d6bb9457aee351b990707ef952307d4e849ed37ed35658f7"
         },
         {
           "requirementId": "KCML-REQ-GENERATION-981dcf5857a1868cc1470e43d84cbf543e69b04f33d12e1aece7c758ee0ccbad",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2657",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2659",
           "symbol": "handleGenerationSpecApprove",
           "snippetDigest": "sha256:d1ee84ff0950aa78a6c6436dc1942d326175b1875058b18d6f12a904b2b9dcca"
         },
         {
           "requirementId": "KCML-REQ-GENERATION-b0e569eadeaa148c44c4a6d498357de55a6bb3142e21284460c7d139cd2a82a9",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2658",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2660",
           "symbol": "handleGenerationSpecPrecheck",
           "snippetDigest": "sha256:9277227a3ca3ecb8cc2274d891a1b732910f286e2865ff3141c571bfe983df43"
         },
         {
           "requirementId": "KCML-REQ-GENERATION-b6ecb9da48c7233094f50d144a11f5f53fc11d794356eed9c19409309194bf97",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2659",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2661",
           "symbol": "handleGenerationSpecPropose",
           "snippetDigest": "sha256:07807298b456b5313e3c4f95ecdcad51525af608b9516963605696bd7ecaafe5"
         },
         {
           "requirementId": "KCML-REQ-GENERATION-a8a6568548cd3a0957dbcb7ef282c5cd8bee1ac1e6900bdb4f805a1e6f106cce",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2660",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2662",
           "symbol": "handleGenerationTurnInterrupt",
           "snippetDigest": "sha256:f04e109fe53707491cf3a008e399d5c15b021898585eee4f8ab7cef554bf7547"
         },
         {
           "requirementId": "KCML-REQ-GENERATION-8080da848ee0be6f7c8c96f75e29bd17a4f758141aa0d9f81f7dab62b3486a24",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2661",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2663",
           "symbol": "handleGenerationValidationRun",
           "snippetDigest": "sha256:edd01ef1ae18b22bd1e574c09f4474569c599b1c4bdb145ca10ae0df37bc8ecf"
         },
         {
           "requirementId": "KCML-REQ-GENERATION-a50db3a4f8d38d9a4c3551ad9e7a09ad59e248fcb6c4780fbbcbf7f732dd583d",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2662",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2664",
           "symbol": "handleGenerationWorkspacePatch",
           "snippetDigest": "sha256:1e8f163c76012d3fb0813392407907fe38388d61b8ebc8b7b87749632db8fb95"
         },
         {
           "requirementId": "KCML-REQ-MCP-3c57a056c470b8581992e7ecd30c725efdb7905435d49c196f983868143af3ef",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2663",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2665",
           "symbol": "handleMcpCacheInvalidate",
           "snippetDigest": "sha256:bf88be138abda4dfcdf6ad7ad6c96e1136fabdfe9acb53712234021acc8d9179"
         },
         {
           "requirementId": "KCML-REQ-MCP-0ef484b2bf28707bb31a11baf6ad180fd0834ff56971a091a483f23ceb8ea106",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2664",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2666",
           "symbol": "handleMcpContractCompatibility",
           "snippetDigest": "sha256:6a1f129beef725cf7bbf2a2c1bb40e7a013f1d25ee8e15d5a98f03a70cedeada"
         },
         {
           "requirementId": "KCML-REQ-MCP-2cc26654556006dff638c1d9e79a65531aa53c5ff00009a01314be3132555a64",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2665",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2667",
           "symbol": "handleMcpDiscoveryInvalidate",
           "snippetDigest": "sha256:581e7f4755ee6612ac6047ce495144275b7afa163ed4a1053cde4a484fb0b4c5"
         },
         {
           "requirementId": "KCML-REQ-MCP-f0c1f40744ca36b3914b1c69c7c8d169d98f47aa74658bec97c03cc47c3fb149",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2666",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2668",
           "symbol": "handleMcpDiscoverySnapshot",
           "snippetDigest": "sha256:bdeb2cc99a3b973383b48c7d79a1a9c416728709aa6c58ef15982fcef1ed76bf"
         },
         {
           "requirementId": "KCML-REQ-MCP-9259d069d0fc8abf13dd9f1ce01d7309b9a937903a319c9f332279e0e8fdd2b0",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2667",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2669",
           "symbol": "handleMcpEraInvalidate",
           "snippetDigest": "sha256:1f1552d54dc821828f028952ee408270540c2c3821617a561af94b37a9d2d3f4"
         },
         {
           "requirementId": "KCML-REQ-MCP-861363083908a3ebbfd2b737d43063ed0323b7b511343b50c1606f893d886662",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2668",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2670",
           "symbol": "handleMcpInputRequired",
           "snippetDigest": "sha256:55c280ec2a6aa44afc41209c917ece79b259a23ef195591d1a2997c234371fe8"
         },
         {
           "requirementId": "KCML-REQ-MCP-2c4314ea3a8ca3acaec2b3987bb0b75b2d940b2330465978dcb7fb226902c831",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2669",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2671",
           "symbol": "handleMcpInputRespond",
           "snippetDigest": "sha256:b32660d5e5084f9f16430c040daf47fe68a9759c0d6bdfaead8dc28d7b72f7e9"
         },
         {
           "requirementId": "KCML-REQ-MCP-daebf457e37095bda6ff8084b69d304187a7be5aa2f183e2fc0facf9a0fe450a",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2670",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2672",
           "symbol": "handleMcpLegacyAdapt",
           "snippetDigest": "sha256:8cb780d06763c66bc535e7892b309ea307f7f9cd8a1c47bbc2fe9738400d668e"
         },
         {
           "requirementId": "KCML-REQ-MCP-1265c12c47c778a404cd9c5205e2e8a3e7cc51a97f0eb29f871f92bbd5f7fa66",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2671",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2673",
           "symbol": "handleMcpRequestFinalize",
           "snippetDigest": "sha256:76f2f698201f685598d2fa22d300497c002549e1727e5ba18472268607826eae"
         },
         {
           "requirementId": "KCML-REQ-MCP-2f405be4994192d50ca9d627f7e2dc8f2b00032c47bd0cdc144b7e752f6bfb6a",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2672",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2674",
           "symbol": "handleMcpRequestReserveId",
           "snippetDigest": "sha256:3e692d0c2504405d839d76416ca4da103b369ebb8181f275c122d5c34cf7187e"
         },
         {
           "requirementId": "KCML-REQ-MCP-43824fa068b33e8a6282f14ea5a3a4f1fb7026151f5375b643d8c66ecb044bc7",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2673",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2675",
           "symbol": "handleMcpRequestValidateJsonRpc",
           "snippetDigest": "sha256:e1e111040680b9d22ec4f076b64f42a4a17e8cece0bee6c22d41c4494fa89504"
         },
         {
           "requirementId": "KCML-REQ-MCP-49c2d33d083c21a67b1067cdad4d2a840ea05f3ae8f7425df5ddb9270d50ffcd",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2674",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2676",
           "symbol": "handleMcpRequestValidateTransport",
           "snippetDigest": "sha256:01ab40843c71c04598dde2a256f3a99165c1aa445a2d76aedef2c0778ba85453"
         },
         {
           "requirementId": "KCML-REQ-MCP-73c7a376016732eae791ef259201b4b9534b0484062460d505f136ad9d28e463",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2675",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2677",
           "symbol": "handleMcpStateHandleClose",
           "snippetDigest": "sha256:90a4a553afb5bff72b31768a36da75a7b8c0fc49b69bd8d563698b7148f79145"
         },
         {
           "requirementId": "KCML-REQ-MCP-4bdfc12492321bdcceadd9f5736a609137e61dc3fcb1f2d6e69ca973004457c6",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2676",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2678",
           "symbol": "handleMcpStateHandleCreate",
           "snippetDigest": "sha256:1b9f73c31b4607708cc6bf0eef1db568e1bbc62720d6fc78b1d66032e7b91a26"
         },
         {
           "requirementId": "KCML-REQ-MCP-eebf60c2e5fb1e858a6384fdcbfc6f08d249f1d59908f362892147a3137bc5db",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2677",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2679",
           "symbol": "handleMcpStateHandleResolve",
           "snippetDigest": "sha256:709c3bcb716acae20c14c368c94df5681019a4226712dbca3d23cde88a7ea226"
         },
         {
           "requirementId": "KCML-REQ-MCP-f62871d430b5a9a0e38c5b1d6c2c9c9bcd6a37b3853b04b11556ddf7f1500e94",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2678",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2680",
           "symbol": "handleMcpSubscriptionAcknowledge",
           "snippetDigest": "sha256:cd6af75bfebbd33a1f4816e28d68a19e2f02732c83b5a84b23a04caa7b0bebdc"
         },
         {
           "requirementId": "KCML-REQ-MCP-1171730dda7e81e8a8a04c80691bfc527edb0ecd055872005d206fd7c9972289",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2679",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2681",
           "symbol": "handleMcpSubscriptionCancel",
           "snippetDigest": "sha256:7b84a61440bd967509fa9b55e8f0c4fad9e57a99ef3372a360c812521dead605"
         },
         {
           "requirementId": "KCML-REQ-MCP-8b576416b9411bb38280e3d18262798f0cfe133f3d2e9b07b5e306b408694675",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2680",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2682",
           "symbol": "handleMcpSubscriptionComplete",
           "snippetDigest": "sha256:0210a8a4c2aaeb35b2057ade88f9bdebaf3248fa4572321ac46c556000fe4ef8"
         },
         {
           "requirementId": "KCML-REQ-MCP-5a2d165eb869e8a439daa92c907d0856ba4600c24fa76f64469510c845f6aa87",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2681",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2683",
           "symbol": "handleMcpSubscriptionListen",
           "snippetDigest": "sha256:f2f732a40338e386cf49720ceefd2ee7169f2268627d6eaf40f859a879f637fc"
         },
         {
           "requirementId": "KCML-REQ-MCP-bb4310b7b8a96810f2b6998da8cf06f7628ef3f08686705be9efaf78df5cd6c0",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2682",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2684",
           "symbol": "handleMcpSubscriptionNotify",
           "snippetDigest": "sha256:5cebcdc071b2a0bb28abe9a24f2c1591386e858a2f4224825e3a0bd770906601"
         },
         {
           "requirementId": "KCML-REQ-MCP-08b08c361f512200f05d5b2f1402a2c451106fa2cab817f3adca75dfe19ebeb9",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2683",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2685",
           "symbol": "handleMcpTaskCancel",
           "snippetDigest": "sha256:07462e0e87784b183ac4bb63066242e9d11bc55d9e63452e84e3a16456da1e68"
         },
         {
           "requirementId": "KCML-REQ-MCP-df7a7c896c59bba3d6da8188533ff56b06c2ce9c18e42796f669979a1f195df2",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2684",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2686",
           "symbol": "handleMcpTaskCreate",
           "snippetDigest": "sha256:d55307aed3e4887db1abc8498b4777de6b5112f5355ffbb05745239c4b828584"
         },
         {
           "requirementId": "KCML-REQ-MCP-6788fc64da33758fdd9004f63a3b1f6cdd77befda227c84965e474cc08cef4df",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2685",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2687",
           "symbol": "handleMcpTaskExpire",
           "snippetDigest": "sha256:56ec88fcc3fdff422b95b0fd6f3aa8671579d31a3e92731597517941c4fe1321"
         },
         {
           "requirementId": "KCML-REQ-MCP-54a3bf66ec03de0f37158f6bdc8c468058e1fef6b01e00b301f905e8e2a9d3d4",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2686",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2688",
           "symbol": "handleMcpTaskNotify",
           "snippetDigest": "sha256:b37c4341c6a2c2e62124bd64c010ffc87dd8ada55c511a22bee6df77bb3a6b98"
         },
         {
           "requirementId": "KCML-REQ-MCP-a6cae3f5b0edae83f13b941a6bf4470f4d69a5ece15920ea55fce4631a926306",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2687",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2689",
           "symbol": "handleMcpTaskUpdate",
           "snippetDigest": "sha256:cd0ea048f2716e1dca429ea1598606331ae2878cf2d8e09c1d1e319229abfb37"
         },
         {
           "requirementId": "KCML-REQ-MCP-5ba440646ca06e171bb5ad5608aff2b28b64fd52886877ed4f97b0dd7e553e91",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2688",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2690",
           "symbol": "handleMcpToolsCall",
           "snippetDigest": "sha256:58ad95512f5662b5432896d319345ac79aeca537469460463c5fb25e7b27f573"
         },
         {
           "requirementId": "KCML-REQ-MCP-f356603581ef8882b3d0e9833ef3707e7c87ad210cbc59e7a68d8408b0216913",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2689",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2691",
           "symbol": "handleMcpToolsCancel",
           "snippetDigest": "sha256:baac6c3a736931f3335b0d2238c29862997abe499dc97de51b969aa78db9a762"
         },
         {
           "requirementId": "KCML-REQ-MCP-fc134104d7d8bebc360a5d72e12f0d92237738051968d733c5634744a8769c51",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2690",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2692",
           "symbol": "handleMcpToolsProgress",
           "snippetDigest": "sha256:83bcf8be48d17e55afc9508410d363424d894988bcea01d58f8356391df68a70"
         },
         {
           "requirementId": "KCML-REQ-MCP-0d90a84d2a6e003db99943cb6993ee88ddb1d700863ffc95a27dcddd5e61cc09",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2691",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2693",
           "symbol": "handleMcpToolsReconcile",
           "snippetDigest": "sha256:2c909fbd9085cb38bc3e7541761b9b997e8034d7902aea39fd11607bb18bf580"
         },
         {
           "requirementId": "KCML-REQ-MONITORING-568d8842e06487118115af731aed73b0de518a8917928c53b7b158ca60b3d7d0",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2692",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2694",
           "symbol": "handleMonitorProbeRequest",
           "snippetDigest": "sha256:e6b690baf1111710b7767fd2a0161e32a489b6fef0695fa5c19ca3cc24da7bcd"
         },
         {
           "requirementId": "KCML-REQ-MONITORING-4b8d2b6a1f1c92a694f6bc81d304ae6a6be38924de01d298fb75e3857d5affe3",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2693",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2695",
           "symbol": "handleMonitorProbeResult",
           "snippetDigest": "sha256:3bc85305e8ec2695ca2fcd85a38a9eec3ce28b59b0545e003ec67d1adb293906"
         },
         {
           "requirementId": "KCML-REQ-MONITORING-fc6a1010343318ab7681b42a3c161d93edac87e9595d7bae59567961448093dd",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2694",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2696",
           "symbol": "handleMonitorRepairEnqueue",
           "snippetDigest": "sha256:6fdbae3bc740a6046f5080913918f2022e2256a88eb90e5d9113a9dad71204ab"
         },
         {
           "requirementId": "KCML-REQ-MONITORING-2d79756de27b0dcdb3be4b6715f00d2f955a32ce82a03428b26d3a67c5211392",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2695",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2697",
           "symbol": "handleMonitorStateTransition",
           "snippetDigest": "sha256:7f3ad02aae8e040984110a5af0aa4ffb725f6af82ee766b682651e195a74feda"
         },
         {
           "requirementId": "KCML-REQ-CORE-92163e448c9c35275a8038d638cc312e92c4c0562f39bcfb2b957059eed16160",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2696",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2698",
           "symbol": "handleOwnerApiKeyReveal",
           "snippetDigest": "sha256:9315379115d8a103baa688ec84dc02eaa5f4a3a7a448413e1be3a2e686619123"
         },
         {
           "requirementId": "KCML-REQ-CORE-021715c82822b32c0be451ab36592db2909d91eb2c01ff33e7342a82bcbab61a",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2697",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2699",
           "symbol": "handleOwnerApiKeyRotate",
           "snippetDigest": "sha256:32cfee3585b1426e5bf66e265519357c1557cca6cbb293171d23f236914bb6c6"
         },
         {
           "requirementId": "KCML-REQ-CORE-63037faa0e7167a45b1ac4ea0a7e6d89ae62ea1456840469cd65ed768a8fbeca",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2698",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2700",
           "symbol": "handleOwnerApiKeySessionExchange",
           "snippetDigest": "sha256:52ae8c1cc634e43fe201a4e8c071013a87f009365590cd68e9fcbce81c0b9ad0"
         },
         {
           "requirementId": "KCML-REQ-SECURITY-39d8fb580a17053590214aa9e29e48aad63acf237366bc32017151cacb304369",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2699",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2701",
           "symbol": "handleProvenanceContentRegister",
           "snippetDigest": "sha256:ed390e9dde04688d6c6945983025c328195aa7eadd17cc7ff00eb0d227de7928"
         },
         {
           "requirementId": "KCML-REQ-SECURITY-f696deb3f5836e6201ccc26f7700953a720a1c601f01a3926bd410c98380a175",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2700",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2702",
           "symbol": "handleProvenanceSegmentCompile",
           "snippetDigest": "sha256:876cf8196a4cd682f70afd84df87d264ad129d2ec96789fe5bf19ac8b18eee62"
         },
         {
           "requirementId": "KCML-REQ-SECURITY-8a42d4bc207f6ebcdbd9a6d0c0ee5f930842cf01fb2842fa7d8137acf388aee3",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2701",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2703",
           "symbol": "handleProvenanceValueDerivationCreate",
           "snippetDigest": "sha256:16cf519ab7c4b2686780f34206b69594027d5c4c41d87a0542febc739a75b82a"
         },
         {
           "requirementId": "KCML-REQ-RUNTIME-df1cba36e43fb4fc248e929d9b1fee7a2f8bfc0293cbbf12b63e85829b2f4fff",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2702",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2704",
           "symbol": "handleRuntimeCancel",
           "snippetDigest": "sha256:b43ec07eca0c60e0945807aad7a6867e0b39959a0a3c15b357781bff0f0dedd3"
         },
         {
           "requirementId": "KCML-REQ-RUNTIME-0dc044b5364736d31891a1e4cb0003e4572a270e21189f6a8f2a5c3c8723cd45",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2703",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2705",
           "symbol": "handleRuntimeCleanupResume",
           "snippetDigest": "sha256:a744f4b774275d712a8dae1fab2504de73d45e2c6f97808a2dd033e6095dcf82"
         },
         {
           "requirementId": "KCML-REQ-RUNTIME-24c2e2fbab59a02ad78aa6b86ed90d13236dd14f8814b955167251f1d487fc94",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2704",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2706",
           "symbol": "handleRuntimeDrain",
           "snippetDigest": "sha256:39210d6c4c140aba3341d83daa1b89f6226475594c90e39302b9e9214c5c80c0"
         },
         {
           "requirementId": "KCML-REQ-RUNTIME-45ddba0d451afdbd8eaa93fa948079f8978c6c728a8ad92e8e7c727a080a79cd",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2705",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2707",
           "symbol": "handleRuntimeHeartbeat",
           "snippetDigest": "sha256:08956d22efe9c5b84fab8b41cc2c50ebdc3be660a3d99fc6df3027efa74a71a3"
         },
         {
           "requirementId": "KCML-REQ-RUNTIME-6caa7899cc220845c430088899aa9627c661cff39f7a13b7aaf3391a0baec7c7",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2706",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2708",
           "symbol": "handleRuntimeInstanceReconcile",
           "snippetDigest": "sha256:4cdcdcf253edb51b5356b030ab982afc5476eb5e83cf5d4c04b28807ab40867b"
         },
         {
           "requirementId": "KCML-REQ-RUNTIME-871edc4598524f8a84f7c3c804d906181a09ac39e4c8412579abaa4601ebd558",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2707",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2709",
           "symbol": "handleRuntimeInstanceRestart",
           "snippetDigest": "sha256:bde34e08f4006e82d43100469d7f62d73c2a691e5ae4a5782925c82fbd4cf2b4"
         },
         {
           "requirementId": "KCML-REQ-RUNTIME-92d928b799680d7f2399b65df746e1d6981a9ce04335cda4c229813abd6d574e",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2708",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2710",
           "symbol": "handleRuntimeInstanceStart",
           "snippetDigest": "sha256:870f90339b0bc10d40626d51a8d93ae1fa0b0e8a980a36e366438e3e80613ef0"
         },
         {
           "requirementId": "KCML-REQ-RUNTIME-c6660d297b736594e79f91ed571253744027aa981f48cdc565bd8cb82f3b9274",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2709",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2711",
           "symbol": "handleRuntimeInvoke",
           "snippetDigest": "sha256:8ba4c7d6fc4d67e994358770884ad634d05da1c368b4b31f670c0f452996d71a"
         },
         {
           "requirementId": "KCML-REQ-RUNTIME-9728b85b26123786dbcfacb96c08ae081cc41f4810270b55f873350ac7626cc5",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2710",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2712",
           "symbol": "handleRuntimePrepare",
           "snippetDigest": "sha256:27488641443d51d60b26083299130e34b46ca4c87d90a6b6305cd4b64bdb9138"
         },
         {
           "requirementId": "KCML-REQ-RUNTIME-2157ae53ac1efdb55f6059e26fda2c2f059ac94b5ca6fb2a2f7c371e86e220eb",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2711",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2713",
           "symbol": "handleRuntimeStop",
           "snippetDigest": "sha256:339531ebdc05969f4a0a84f1597e7d85ccefa5847b2a331ff8bd1f87ffe056d7"
         },
         {
           "requirementId": "KCML-REQ-SECURITY-02866ddfaa80264105135e673d0dece5ed12dfbca43432f5dc161b145fe592e2",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2712",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2714",
           "symbol": "handleSecretBind",
           "snippetDigest": "sha256:9029e9e98e0e976352c47c44a26ef16c99c69bbfde31c92a10a1a4b8ff120612"
         },
         {
           "requirementId": "KCML-REQ-SECURITY-c4413358484b5b4230c6b177d1a0b126721d4d9165080346e1897cc5a0ec7be7",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2713",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2715",
           "symbol": "handleSecretResolve",
           "snippetDigest": "sha256:6b9a60602f960722c23e6d5604ba7bb8820fc5de844b4cc76c906392f5f474e0"
         },
         {
           "requirementId": "KCML-REQ-SECURITY-c08f7750ce9bd4c6b06c610256f99be7947109dcefceec7d733e237893bba72e",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2714",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2716",
           "symbol": "handleSecretRotate",
           "snippetDigest": "sha256:a5f4d5f4b17a8701022cc0fb5d382d518af00f7eaf60349ce95ed7ec5a3f6683"
         },
         {
           "requirementId": "KCML-REQ-SECURITY-b806afd8468be2cafd46bfb3a99a5e63fdf467ed0dc8d5e2a91653a737b3857e",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2715",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2717",
           "symbol": "handleSecretUnbind",
           "snippetDigest": "sha256:ec1d07ff38065d02583940e78946f7a981298fe2b1868a29e64bc044bdeaec1a"
         },
         {
           "requirementId": "KCML-REQ-SECURITY-1601ccfd10b2be17a217220deb66982842fc72e4332e6f8988ba06e2bcff9ca8",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2716",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2718",
           "symbol": "handleSecretUseContextCreate",
           "snippetDigest": "sha256:d29c7e480ebb6504ce02375ead3ff292db98631c6e6e561b500f70c7f4d86abc"
         },
         {
           "requirementId": "KCML-REQ-SECURITY-950746499d5317b94e8377ea4c9392a20e6d2c5e4e626c242e75dce2192730c9",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2717",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2719",
           "symbol": "handleSecretVersionActivate",
           "snippetDigest": "sha256:82b3505c82a3ba221ed775928a4e59df9b995c53b75c0a1fbda9305b0a54e44a"
         },
         {
           "requirementId": "KCML-REQ-SECURITY-f9318336c3111657cf1b97ae50f60a1b885d4ba769ddd17d361b62682bf7e94e",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2718",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2720",
           "symbol": "handleSecretVersionCreate",
           "snippetDigest": "sha256:5d4e99d48faf2031401a0f8381b845f8550c3b4925a296ba0d079bc27ea97d6d"
         },
         {
           "requirementId": "KCML-REQ-TESTING-d5b3e54c10ea456f8e6005bd03d16803a0ac14c55ccd71e6a37a974f5f8bfcd3",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2719",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2721",
           "symbol": "handleSelfTestRegisteredElementRun",
           "snippetDigest": "sha256:b62d1bafb02e0f1e573e5ca6f64a4b8158afdc6f92ed3557286613704cdfe3ba"
         },
         {
           "requirementId": "KCML-REQ-TESTING-aaaa05f7fd496c169a84b7dcddf0c03bcb50e46dcdcd758da1f2721dd831ebf2",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2720",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2722",
           "symbol": "handleSelfTestRunCancel",
           "snippetDigest": "sha256:309937a8810343b4b8d17e69db2c874c858854a15b062272f0dcf0353180b96e"
         },
         {
           "requirementId": "KCML-REQ-TESTING-862ef20ea4cd3b45d136c88d9a01426eff2a60a735a5bc0fe315fe51d71c839d",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2721",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2723",
           "symbol": "handleSelfTestRunCleanup",
           "snippetDigest": "sha256:5044f3ead12ea8a8e46e4bcfe1069f15ffb88daacd83c337c5806a26284ba7db"
         },
         {
           "requirementId": "KCML-REQ-AGENT-5dc5fb2e0bce5448f964f3df5e606d4870e2b4a377a14587d2c008bbb29dd04c",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2729",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2731",
           "symbol": "handleAgentMemoryRead",
           "snippetDigest": "sha256:33abd4e35b1eaf6e98c0176697b1cf57f06eec9a15d51aced666d77aab8b5e3a"
         },
         {
           "requirementId": "KCML-REQ-AGENT-a146041a54d14f8bfe8d64dc3476999fd302f8beb4df3281262dfbc37f408b41",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2730",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2732",
           "symbol": "handleAgentRunStatus",
           "snippetDigest": "sha256:d581fec864c50548a7ba6648bf89ed9b9ad263cd0f563ad041711df9b1982005"
         },
         {
           "requirementId": "KCML-REQ-AGENT-7f7701d9a0608af0ceb5d4d4d282566b6e37406bbf022af24d9d1b1d2f1a4463",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2731",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2733",
           "symbol": "handleAgentStateReport",
           "snippetDigest": "sha256:0b146f9ea78b8f145c278c964fd53a1d4c4aa71d1cb4928050743f3db6ecc586"
         },
         {
           "requirementId": "KCML-REQ-SECURITY-1cc3916a1c3aaa34bc48085878112627d79bbadcd51b4235dc570075d1681fa3",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2732",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2734",
           "symbol": "handleAuthorityActionPlanValidate",
           "snippetDigest": "sha256:309081219438829c611532885dfc7576b9b5a24774984a430bef3e9ca770ec0a"
         },
         {
           "requirementId": "KCML-REQ-SECURITY-add8a311136c05aaeb728467908fee8f03f7c523fb4f33c64a30d2095d8bc956",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2733",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2735",
           "symbol": "handleAuthorityContextValidate",
           "snippetDigest": "sha256:e3f9c7794ea2d17fd63ed67343e2436e1c962260051e1820dbb2641a216c8fe1"
         },
         {
           "requirementId": "KCML-REQ-SECURITY-8de9097a3685a8e44c42bbd0e7c55bda0d98acb0e72010f4290b916bc455da8f",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2734",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2736",
           "symbol": "handleAuthorityIntentValidate",
           "snippetDigest": "sha256:99c38ceff7e6e638adb0c6285d32ae8b46ee412fdf16b908631d61e5939b023e"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-e6b18fc7e12d5036ee2a84ca87c5f98fcc3f433e3df1d1bd3450c843559d0309",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2735",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2737",
           "symbol": "handleBrowserAccountVerify",
           "snippetDigest": "sha256:7eee92f0992576b85022c990c90194e18aab89e80137130b24788c4f932907aa"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-35ec7db369a26620dd8d3d488b329f8f1c5b4af73c8dd799e863fce8bec370af",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2736",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2738",
           "symbol": "handleBrowserActionStatus",
           "snippetDigest": "sha256:33a314f5d4daf7f13a2715bff6178c9aa43c3076a43ec0e57dfa0993936b784f"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-271a624bccfd627e61ff10a7446d54832cabd817f4569d05247021e48b53fb48",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2737",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2739",
           "symbol": "handleBrowserAuthVerify",
           "snippetDigest": "sha256:f5faccbd035bb0857d94fb3d9b14698d9ab0a987ea5d452a2df4a460d0bf9733"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-38f72c373a03d6df61532f7ca5bfd8fd28e34c465569b77d4d7b72ea9490aa91",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2738",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2740",
           "symbol": "handleBrowserAutomationVerify",
           "snippetDigest": "sha256:37b4efe28320a4b4931cda09aa14c8d3c18f6be4c2e5785e72edf9494764996c"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-d8f69d7790d764b7d0dd47384a5fcfe8ba72ddd16a04c1c16ecb40eb6c8b5c27",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2739",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2741",
           "symbol": "handleBrowserDownloadVerify",
           "snippetDigest": "sha256:43df6fd34e5ef176f97f473d70ff88d4136e3e86c3442164473e225425edbc84"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-8193c5f9680dbe1034f169a1c1056c447bba91a2fc661730fcc206ee7ab05e9b",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2740",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2742",
           "symbol": "handleBrowserRuntimeBuildVerify",
           "snippetDigest": "sha256:b1227d754a75a2d5284798ee3c00d6bbb22ce7f492200cdeb640df54b7cd0a45"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-71d650e3609549826d33178e76df07a260ddbdb05b4f02e23ecb358ce74cb0e7",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2741",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2743",
           "symbol": "handleBrowserSessionObserve",
           "snippetDigest": "sha256:81a6e65f42c5b916ce72fcccdad7a20a3b0a6561399cc45625a2d4c156294a62"
         },
         {
           "requirementId": "KCML-REQ-BROWSER-2f86ee7e2abb9ac585851e33164da6bed6cbb7638fe0f65512a2c2fac9c9e2fe",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2742",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2744",
           "symbol": "handleBrowserStateVerify",
           "snippetDigest": "sha256:c0e860516bdb47584e2be2f5b8deae9f4b72c3bfa90ac36c48b8806001cf9875"
         },
         {
           "requirementId": "KCML-REQ-GENERATION-1a12a65be3f6ab98b1a8778a69ab8f8da8d4afd5f386068a50ae72b70212ebb7",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2743",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2745",
           "symbol": "handleGenerationPlanValidate",
           "snippetDigest": "sha256:6bc494c4b320ac2dc034f6ab32c688a2589c2a974f1119e0c94ee897d080e866"
         },
         {
           "requirementId": "KCML-REQ-GENERATION-66722fb3094f352f8eb5a431b9402831766e3f7fdb1e3f1a1d171dad0b8baf2f",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2744",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2746",
           "symbol": "handleGenerationWorkspaceValidate",
           "snippetDigest": "sha256:11518be1bde600bf9e9af3a36a743cf81f4d5651edbc3a4b18ffa151a9dbe383"
         },
         {
           "requirementId": "KCML-REQ-MCP-b4fe8ca19fe61eb979ed0f8c65b68a144e135503baa9326a62ed0b41a0bf8de6",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2745",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2747",
           "symbol": "handleMcpContractValidate",
           "snippetDigest": "sha256:e6743060ba9c3b66a1cfe72c7907122eb49c74d36a23e96448b02103f707ec00"
         },
         {
           "requirementId": "KCML-REQ-MCP-4d4f1d044875d8b358eb17fb27d90626fb3565a771659e2d2b682c287ddc1c11",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2746",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2748",
           "symbol": "handleMcpEraProbe",
           "snippetDigest": "sha256:8aaa9f2ee53db4fac7f94149c57e1aa3e89ed34e7f2e65e93d08d67b7b7bef5d"
         },
         {
           "requirementId": "KCML-REQ-MCP-7b8889be8742ffca6e4f45c42f2087b140ddf93e8654054ee984ea106642d4fa",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2747",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2749",
           "symbol": "handleMcpLegacyProbe",
           "snippetDigest": "sha256:55739218c269d10e3fffe272f52e6bebe3ec01fc15e1cedb4566efcf39db35d1"
         },
         {
           "requirementId": "KCML-REQ-MCP-5ccf2cc656d4426f3b982ae55698cfb8dd884aa893c5ba171a4c80c3fe66103e",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2748",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2750",
           "symbol": "handleMcpPromptsGet",
           "snippetDigest": "sha256:15f596cf61951148169361d66d6a71b2aa2c510456a8eb94a6616a05d0a0043b"
         },
         {
           "requirementId": "KCML-REQ-MCP-760c4511d465e475d1e6a8dd2bc1d42af6c5a80ba587f6d53c69b9bf3b204db4",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2749",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2751",
           "symbol": "handleMcpPromptsList",
           "snippetDigest": "sha256:96813c20f95c0134140c2465cb8206f2e88ce2e168e84fe577a83a4422402cb1"
         },
         {
           "requirementId": "KCML-REQ-MCP-008d00fe8773f3d537f477a93aee0b2f41365d2a06ca505951ddec833766b8f4",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2750",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2752",
           "symbol": "handleMcpResourcesList",
           "snippetDigest": "sha256:f8a06fe83608334919bb28a2cded65624f0c81cbc84bd64448a4af5a9eaddc2d"
         },
         {
           "requirementId": "KCML-REQ-MCP-6a06c53f33883166108d9b217fd9a873776bf2f044ae30690cf79941c67707ec",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2751",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2753",
           "symbol": "handleMcpResourcesRead",
           "snippetDigest": "sha256:2f70b1d121d110184fa2037c14ec01aee9f5b5d8e56c05bde852f7b604982629"
         },
         {
           "requirementId": "KCML-REQ-MCP-d0de41e1d295d858d3fbc256e445ed1be0aba28ae90878ce3ccf78d8a0c73e41",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2752",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2754",
           "symbol": "handleMcpResourcesTemplatesList",
           "snippetDigest": "sha256:acf1dcf8907413fe921d08df7e2e856cecc905dc6948eafc8f9bd6eebd8b2882"
         },
         {
           "requirementId": "KCML-REQ-MCP-e90a8fdab5a0949ee48a3767f100fc472a9fa3f6e7e2525cc4f73180b684feac",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2753",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2755",
           "symbol": "handleMcpServerDiscover",
           "snippetDigest": "sha256:5e9f6a5d9dd4c805cb0a6c233fb57e451190d48df2747f33d1802dbf583f9643"
         },
         {
           "requirementId": "KCML-REQ-MCP-d979730542a9416a4389362d5a9668b46fcaeb637af1b117ae1b71e1baf2f272",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2754",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2756",
           "symbol": "handleMcpTaskGet",
           "snippetDigest": "sha256:b57445785bbaffae21e66949ec16ba2124dc5964261b441bb1e8716f4302d613"
         },
         {
           "requirementId": "KCML-REQ-MCP-f8a007138557ee1f4f07a7b6cfc9b34124bd9ca901cae749725b67918e185157",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2755",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2757",
           "symbol": "handleMcpToolsList",
           "snippetDigest": "sha256:918209372aadc85d761b2d907c6d723a28bd8afe465ee8377387a5f01567f315"
         },
         {
           "requirementId": "KCML-REQ-MCP-143d61ae575f8e1161e7e8b2a30bd16bce1550cd3bd2990f0eb1f534f327ce7c",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2756",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2758",
           "symbol": "handleMcpWireVerify",
           "snippetDigest": "sha256:88eda3541ea959d33068bcbfaa044d56cbbd3130894095b2c744f5d2ac574894"
         },
         {
           "requirementId": "KCML-REQ-RUNTIME-9028c002a95580609e634c001a200437da225d3d75b81b746a955befba59afc6",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2757",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2759",
           "symbol": "handleRuntimeReadyReport",
           "snippetDigest": "sha256:5c2359bd70471d899b48acaca13f6ec373efd9891519c4a425d8202ab1a461a7"
         },
         {
           "requirementId": "KCML-REQ-RUNTIME-7f45e8ff58ef4eaca8e886ec566bdacd6f08c0a1423c18eabd2955089147f787",
-          "locator": "packages/domain/src/exact-operation-handlers.ts:2758",
+          "locator": "packages/domain/src/exact-operation-handlers.ts:2760",
           "symbol": "handleRuntimeStateReport",
           "snippetDigest": "sha256:63ac9d8fcad4530c0d51923bcc74d1a140d81c730f45a916c09bc76abcb21f2e"
         }
@@ -2854,6 +2854,96 @@
           "locator": "database/migrations/20260904000106_canonical_failure_retry_plans.sql:11",
           "symbol": "domain_command_failure",
           "snippetDigest": "sha256:ab42c0b27e35014dedb1f316f4135711ab5b9c2c8e0d03873751769bccad439c"
+        }
+      ]
+    },
+    {
+      "repositoryPath": "database/migrations/20260904000107_retry_scheduler_reconciliation.sql",
+      "requirementIds": [
+        "KCML-REQ-MONITORING-715041d50cb0e291f866de4cfc0baefb310b43f6e8c9d28efee76ccf478d49e7",
+        "KCML-REQ-CORE-4bf1cf8acf15f1ce64bd66332aa7c37e7ccfb8def2e6bf4c6745013a73413279",
+        "KCML-REQ-CORE-c341e4c01071983e399d1b251e3b5c09ba02fa74955ad5eb4c9cefeac8a6a555"
+      ],
+      "operationIds": [],
+      "stateMachineIds": [],
+      "registryRecordIds": [
+        "ORACLE-SIDE-EFFECT"
+      ],
+      "testIds": [
+        "TEST-CANONICAL-RETRY-SCHEDULER"
+      ],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-CORE-4bf1cf8acf15f1ce64bd66332aa7c37e7ccfb8def2e6bf4c6745013a73413279",
+          "locator": "database/migrations/20260904000107_retry_scheduler_reconciliation.sql:13",
+          "symbol": "domain_retry_refresh_snapshot",
+          "snippetDigest": "sha256:ea4a83dcd98e6eb7846c65d6b83bf4c522ba19f7b18ca7c25e4f2c2a5c02b062"
+        },
+        {
+          "requirementId": "KCML-REQ-CORE-c341e4c01071983e399d1b251e3b5c09ba02fa74955ad5eb4c9cefeac8a6a555",
+          "locator": "database/migrations/20260904000107_retry_scheduler_reconciliation.sql:31",
+          "symbol": "domain_reconciliation_command",
+          "snippetDigest": "sha256:9d5ace2693bd67ebb7ea89821485ad3b683f0eafd1691f46fe53cbd796095d73"
+        }
+      ]
+    },
+    {
+      "repositoryPath": "apps/retry-scheduler/package.json",
+      "requirementIds": [
+        "KCML-REQ-CORE-4bf1cf8acf15f1ce64bd66332aa7c37e7ccfb8def2e6bf4c6745013a73413279"
+      ],
+      "operationIds": [],
+      "stateMachineIds": [],
+      "registryRecordIds": [],
+      "testIds": [
+        "TEST-CANONICAL-RETRY-SCHEDULER"
+      ],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-CORE-4bf1cf8acf15f1ce64bd66332aa7c37e7ccfb8def2e6bf4c6745013a73413279",
+          "locator": "apps/retry-scheduler/package.json:1",
+          "symbol": "retry-scheduler-package",
+          "snippetDigest": "sha256:acfba369ee518d05aa9d902695d3d1f82efe4001e892cecd945804697256494f"
+        }
+      ]
+    },
+    {
+      "repositoryPath": "apps/retry-scheduler/tsconfig.json",
+      "requirementIds": [
+        "KCML-REQ-CORE-4bf1cf8acf15f1ce64bd66332aa7c37e7ccfb8def2e6bf4c6745013a73413279"
+      ],
+      "operationIds": [],
+      "stateMachineIds": [],
+      "registryRecordIds": [],
+      "testIds": [
+        "TEST-CANONICAL-RETRY-SCHEDULER"
+      ],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-CORE-4bf1cf8acf15f1ce64bd66332aa7c37e7ccfb8def2e6bf4c6745013a73413279",
+          "locator": "apps/retry-scheduler/tsconfig.json:1",
+          "symbol": "retry-scheduler-typescript-boundary",
+          "snippetDigest": "sha256:583fe738848de5077d9e8d1e29a2ba6983ecd2323f974ac56e7f39fb06bb47bf"
+        }
+      ]
+    },
+    {
+      "repositoryPath": "apps/retry-scheduler/src/index.ts",
+      "requirementIds": [
+        "KCML-REQ-CORE-4bf1cf8acf15f1ce64bd66332aa7c37e7ccfb8def2e6bf4c6745013a73413279"
+      ],
+      "operationIds": [],
+      "stateMachineIds": [],
+      "registryRecordIds": [],
+      "testIds": [
+        "TEST-CANONICAL-RETRY-SCHEDULER"
+      ],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-CORE-4bf1cf8acf15f1ce64bd66332aa7c37e7ccfb8def2e6bf4c6745013a73413279",
+          "locator": "apps/retry-scheduler/src/index.ts:1",
+          "symbol": "retry-scheduler-composition-root",
+          "snippetDigest": "sha256:4c6b821f6e176e500b86362ade0490a0ca2ee73e95aa5e310919b347343f4623"
         }
       ]
     }

@@ -958,11 +958,13 @@ async function handleBrowserDownloadStarted(client: DatabaseClient, context: Can
 
 async function handleBrowserDownloadPersist(client: DatabaseClient, context: CanonicalHandlerContext): Promise<unknown> {
   const id = target(context);
-  const current = row((await client.query(`SELECT * FROM kcml.browser_download WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'BROWSER_DOWNLOAD_NOT_FOUND', 'Browser download does not exist');
+  const current = (await client.query(`SELECT * FROM kcml.browser_download WHERE id=$1 FOR UPDATE`, [id])).rows[0] as Row | undefined;
+  if (!current) throw new DomainError('BROWSER_DOWNLOAD_INCOMPLETE', 'Browser download does not exist', 404, 'RECONCILE_THEN_RETRY');
   assertVersion(context, current);
   const size = numberArg(context, 'sizeBytes', Number(current.size_bytes ?? 0));
   const contentDigest = digestArgument(context, 'contentDigest', context.arguments.content ?? null);
-  const updated = row((await client.query(`UPDATE kcml.browser_download SET state='COMPLETED',artifact_id=$2,size_bytes=$3,content_digest=$4,content_verification=$5,cleanup_state='RETAINED',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND state IN ('STARTED','STREAMING') AND state_version=$6 RETURNING *`, [id, context.arguments.artifactId ?? null, size, contentDigest, objectArg(context, 'verification', { verified: true }), current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Browser download changed while persisting');
+  const updated = (await client.query(`UPDATE kcml.browser_download SET state='COMPLETED',artifact_id=$2,size_bytes=$3,content_digest=$4,content_verification=$5,cleanup_state='RETAINED',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND state IN ('STARTED','STREAMING') AND state_version=$6 RETURNING *`, [id, context.arguments.artifactId ?? null, size, contentDigest, objectArg(context, 'verification', { verified: true }), current.state_version])).rows[0] as Row | undefined;
+  if (!updated) throw new DomainError('BROWSER_DOWNLOAD_INCOMPLETE', `Browser download cannot be persisted from ${String(current.state)}`, 409, 'RECONCILE_THEN_RETRY', { state: current.state });
   await recordAudit(client, context, 'BROWSER_DOWNLOAD', id, { downloadId: id, state: 'COMPLETED', sizeBytes: size, contentDigest: `sha256:${contentDigest.toString('hex')}` });
   return result(context, 'browser_download', updated, updated.state_version, { state: 'COMPLETED' });
 }

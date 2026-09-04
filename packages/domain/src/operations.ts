@@ -401,3 +401,217 @@ export class CanonicalCommandWorker {
     }
   });}
 }
+
+export interface RetrySchedulerOptions {
+  workerId: string;
+  leaseSeconds?: number;
+  faultInjector?: (point: 'AFTER_SUCCESSOR_ADMISSION_BEFORE_LINKAGE', context: { retryPlanId: string; successorCommandId: string }) => Promise<void> | void;
+}
+
+/** Executes only persisted registry-derived retry plans. A crash after successor
+ * admission is safe because the plan-derived idempotency key deterministically
+ * resolves to the same successor command on replay. */
+export class CanonicalRetryScheduler {
+  public constructor(
+    private readonly pool: DatabasePool,
+    private readonly operations: CanonicalOperationService,
+    private readonly options: RetrySchedulerOptions
+  ) {}
+
+  public async runOnce(): Promise<boolean> {
+    const reconciliation = await this.claimReconciliation();
+    if (reconciliation) {
+      try { await this.processReconciliation(reconciliation); }
+      catch (error) { await this.releaseReconciliation(reconciliation, error); }
+      return true;
+    }
+    const plan = await this.claimPlan();
+    if (!plan) return false;
+    try {
+      if (plan.action === 'REFRESH_AND_CREATE_SUCCESSOR') await this.createSuccessor(plan, 'CLAIMED');
+      else if (plan.action === 'ENQUEUE_RECONCILIATION') await this.enqueueReconciliation(plan);
+      else throw new DomainError('ERROR_RECOVERY_CONTRACT_INCOMPLETE', 'Retry scheduler claimed an unsupported action', 500, 'DO_NOT_RETRY');
+    } catch (error) {
+      await this.releasePlan(plan, error);
+    }
+    return true;
+  }
+
+  private async claimPlan(): Promise<any | null> {
+    return inTransactionProfile(this.pool, 'WORKER_COMMIT', async (client) => {
+      const head = await lockAndVerifyPlatformRecovery(client);
+      const plan = (await client.query(`SELECT p.*,c.operation_name,c.target_id,c.request,c.caller_fingerprint,c.correlation_id AS failed_correlation_id
+        FROM kcml.domain_retry_plan p JOIN kcml.domain_command c ON c.id=p.failed_command_id
+        WHERE p.action IN ('REFRESH_AND_CREATE_SUCCESSOR','ENQUEUE_RECONCILIATION') AND p.available_at<=clock_timestamp()
+          AND (p.state='READY' OR (p.state='CLAIMED' AND p.lease_expires_at<=clock_timestamp()))
+          AND p.platform_incarnation_id=$1 AND p.application_deployment_epoch=$2 AND p.recovery_epoch=$3
+        ORDER BY p.available_at,p.id FOR UPDATE OF p SKIP LOCKED LIMIT 1`, [head.platform_incarnation_id, head.current_epoch, head.recovery_epoch])).rows[0];
+      if (!plan) return null;
+      const fence = BigInt(plan.lease_fencing_token) + 1n;
+      const updated = await client.query(`UPDATE kcml.domain_retry_plan SET state='CLAIMED',lease_owner=$2,lease_fencing_token=$3,
+        lease_expires_at=clock_timestamp()+make_interval(secs=>$4),scheduler_attempt_count=scheduler_attempt_count+1,state_version=state_version+1,updated_at=clock_timestamp()
+        WHERE id=$1 AND state_version=$5`, [plan.id, this.options.workerId, fence.toString(), this.options.leaseSeconds ?? 60, plan.state_version]);
+      return updated.rowCount === 1 ? { ...plan, state: 'CLAIMED', lease_owner: this.options.workerId, lease_fencing_token: fence, scheduler_attempt_count: Number(plan.scheduler_attempt_count) + 1 } : null;
+    });
+  }
+
+  private async claimReconciliation(): Promise<any | null> {
+    return inTransactionProfile(this.pool, 'WORKER_COMMIT', async (client) => {
+      const head = await lockAndVerifyPlatformRecovery(client);
+      const command = (await client.query(`SELECT r.*,p.state AS retry_plan_state,p.failed_command_id,p.failure_id,c.operation_name,c.target_id,c.request,c.caller_fingerprint,c.correlation_id AS failed_correlation_id
+        FROM kcml.domain_reconciliation_command r JOIN kcml.domain_retry_plan p ON p.id=r.retry_plan_id JOIN kcml.domain_command c ON c.id=r.failed_command_id
+        WHERE r.available_at<=clock_timestamp() AND (r.state IN ('READY','RETRY_ALLOWED') OR (r.state='CLAIMED' AND r.lease_expires_at<=clock_timestamp()))
+          AND r.platform_incarnation_id=$1 AND r.application_deployment_epoch=$2 AND r.recovery_epoch=$3
+        ORDER BY r.available_at,r.id FOR UPDATE OF r SKIP LOCKED LIMIT 1`, [head.platform_incarnation_id, head.current_epoch, head.recovery_epoch])).rows[0];
+      if (!command) return null;
+      const previousState = String(command.state);
+      const fence = BigInt(command.lease_fencing_token) + 1n;
+      const updated = await client.query(`UPDATE kcml.domain_reconciliation_command SET state='CLAIMED',lease_owner=$2,lease_fencing_token=$3,
+        lease_expires_at=clock_timestamp()+make_interval(secs=>$4),attempt_count=attempt_count+1,state_version=state_version+1,updated_at=clock_timestamp()
+        WHERE id=$1 AND state_version=$5`, [command.id, this.options.workerId, fence.toString(), this.options.leaseSeconds ?? 60, command.state_version]);
+      return updated.rowCount === 1 ? { ...command, previous_state: previousState, state: 'CLAIMED', lease_owner: this.options.workerId, lease_fencing_token: fence, attempt_count: Number(command.attempt_count) + 1 } : null;
+    });
+  }
+
+  private async enqueueReconciliation(plan: any): Promise<void> {
+    await inTransactionProfile(this.pool, 'WORKER_COMMIT', async (client) => {
+      const head = await lockAndVerifyPlatformRecovery(client);
+      const current = (await client.query(`SELECT * FROM kcml.domain_retry_plan WHERE id=$1 FOR UPDATE`, [plan.id])).rows[0];
+      if (!current || current.state !== 'CLAIMED' || current.lease_owner !== this.options.workerId || BigInt(current.lease_fencing_token) !== BigInt(plan.lease_fencing_token)) throw new DomainError('FENCING_TOKEN_STALE', 'Retry plan lease is stale', 409, 'RECONCILE_THEN_RETRY');
+      const reconciliation = (await client.query(`INSERT INTO kcml.domain_reconciliation_command(retry_plan_id,failed_command_id,platform_incarnation_id,application_deployment_epoch,recovery_epoch)
+        VALUES($1,$2,$3,$4,$5) ON CONFLICT(retry_plan_id) DO UPDATE SET updated_at=kcml.domain_reconciliation_command.updated_at RETURNING id`, [plan.id, plan.failed_command_id, head.platform_incarnation_id, head.current_epoch, head.recovery_epoch])).rows[0];
+      await client.query(`UPDATE kcml.domain_retry_plan SET state='WAITING_RECONCILIATION',reconciliation_command_id=$2,lease_owner=NULL,lease_expires_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`, [plan.id, reconciliation.id]);
+    });
+  }
+
+  private async processReconciliation(command: any): Promise<void> {
+    if (command.previous_state === 'RETRY_ALLOWED') {
+      await this.createSuccessor({ ...command, id: command.retry_plan_id, action: 'ENQUEUE_RECONCILIATION' }, 'WAITING_RECONCILIATION', command);
+      return;
+    }
+    await inTransactionProfile(this.pool, 'WORKER_COMMIT', async (client) => {
+      await lockAndVerifyPlatformRecovery(client);
+      const current = (await client.query(`SELECT * FROM kcml.domain_reconciliation_command WHERE id=$1 FOR UPDATE`, [command.id])).rows[0];
+      if (!current || current.state !== 'CLAIMED' || current.lease_owner !== this.options.workerId || BigInt(current.lease_fencing_token) !== BigInt(command.lease_fencing_token)) throw new DomainError('FENCING_TOKEN_STALE', 'Reconciliation lease is stale', 409, 'RECONCILE_THEN_RETRY');
+      const effects = (await client.query(`SELECT effect.id,effect.status,
+          (SELECT count(*)::int FROM kcml.side_effect_attempt attempt WHERE attempt.operation_id=effect.id) AS attempt_count,
+          (SELECT count(*)::int FROM kcml.transactional_outbox outbox WHERE outbox.side_effect_operation_id=effect.id AND outbox.is_dispatch_authority) AS dispatch_authority_count
+        FROM kcml.side_effect_operation effect WHERE effect.command_id=$1 ORDER BY effect.id`, [command.failed_command_id])).rows;
+      const retryAllowed = effects.every((effect) => ['CONFIRMED_NOT_APPLIED', 'FAILED_FINAL'].includes(String(effect.status))
+        || (effect.status === 'INTENT_RECORDED' && Number(effect.attempt_count) === 0 && Number(effect.dispatch_authority_count) === 0));
+      const applied = effects.some((effect) => effect.status === 'CONFIRMED_APPLIED');
+      const evidence = jsonSafe({ oracle: 'SIDE_EFFECT_LEDGER_INDEPENDENT_READBACK', failedCommandId: command.failed_command_id, effects, retryAllowed, applied, observedAt: new Date().toISOString() });
+      if (retryAllowed) {
+        await client.query(`UPDATE kcml.domain_reconciliation_command SET state='RETRY_ALLOWED',oracle_evidence=$2,oracle_evidence_digest=digest(convert_to($2::jsonb::text,'UTF8'),'sha256'),lease_owner=NULL,lease_expires_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`, [command.id, evidence]);
+      } else if (applied || Number(current.attempt_count) >= Number(current.maximum_attempts)) {
+        await this.createManualReview(client, command.retry_plan_id, command.failed_command_id, command.failure_id, evidence);
+        await client.query(`UPDATE kcml.domain_reconciliation_command SET state='MANUAL_REVIEW',oracle_evidence=$2,oracle_evidence_digest=digest(convert_to($2::jsonb::text,'UTF8'),'sha256'),lease_owner=NULL,lease_expires_at=NULL,completed_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`, [command.id, evidence]);
+      } else {
+        const delay = Math.min(300, 2 ** Math.min(8, Number(current.attempt_count)));
+        await client.query(`UPDATE kcml.domain_reconciliation_command SET state='READY',oracle_evidence=$2,oracle_evidence_digest=digest(convert_to($2::jsonb::text,'UTF8'),'sha256'),available_at=clock_timestamp()+make_interval(secs=>$3),lease_owner=NULL,lease_expires_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`, [command.id, evidence, delay]);
+      }
+    });
+  }
+
+  private async createSuccessor(plan: any, requiredPlanState: string, reconciliation?: any): Promise<void> {
+    const snapshot = await inTransactionProfile(this.pool, 'WORKER_COMMIT', async (client) => {
+      const head = await lockAndVerifyPlatformRecovery(client);
+      const currentPlan = (await client.query(`SELECT * FROM kcml.domain_retry_plan WHERE id=$1 FOR UPDATE`, [plan.id])).rows[0];
+      if (!currentPlan || currentPlan.state !== requiredPlanState) throw new DomainError('FENCING_TOKEN_STALE', 'Retry plan state is stale', 409, 'RECONCILE_THEN_RETRY');
+      if (requiredPlanState === 'CLAIMED' && (currentPlan.lease_owner !== this.options.workerId || BigInt(currentPlan.lease_fencing_token) !== BigInt(plan.lease_fencing_token))) throw new DomainError('FENCING_TOKEN_STALE', 'Retry plan lease is stale', 409, 'RECONCILE_THEN_RETRY');
+      if (reconciliation) {
+        const currentReconciliation = (await client.query(`SELECT * FROM kcml.domain_reconciliation_command WHERE id=$1 FOR UPDATE`, [reconciliation.id])).rows[0];
+        if (!currentReconciliation || currentReconciliation.state !== 'CLAIMED' || currentReconciliation.lease_owner !== this.options.workerId || BigInt(currentReconciliation.lease_fencing_token) !== BigInt(reconciliation.lease_fencing_token)) throw new DomainError('FENCING_TOKEN_STALE', 'Reconciliation lease is stale', 409, 'RECONCILE_THEN_RETRY');
+      }
+      const command = (await client.query(`SELECT * FROM kcml.domain_command WHERE id=$1 FOR UPDATE`, [plan.failed_command_id])).rows[0];
+      if (!command) throw new DomainError('KCIP_TARGET_NOT_FOUND', 'Failed command no longer exists', 404, 'DO_NOT_RETRY');
+      if (command.status === 'WAITING') await this.terminalizeReplacedCommand(client, command);
+      const persisted = (await client.query(`SELECT target_state_version,activation_epoch,snapshot FROM kcml.domain_retry_refresh_snapshot WHERE retry_plan_id=$1`, [plan.id])).rows[0];
+      if (persisted) return { command, targetStateVersion: persisted.target_state_version === null ? null : BigInt(persisted.target_state_version), activation: BigInt(persisted.activation_epoch) };
+      let targetStateVersion: bigint | null = null;
+      if (command.target_id) {
+        const entity = workerAggregateEntity(String(command.operation_name));
+        const target = await entityRowForUpdate(client, entity, String(command.target_id));
+        if (!target) throw new DomainError('KCIP_TARGET_NOT_FOUND', 'Retry target no longer exists', 404, 'DO_NOT_RETRY');
+        targetStateVersion = target.state_version === undefined ? null : BigInt(String(target.state_version));
+      }
+      const activation = BigInt((await client.query(`SELECT current_epoch FROM kcml.activation_head WHERE singleton_key=1 FOR SHARE`)).rows[0].current_epoch);
+      const value = jsonSafe({ failedCommandId: command.id, operationName: command.operation_name, targetId: command.target_id, targetStateVersion, activationEpoch: activation, recoveryEpoch: head.recovery_epoch });
+      await client.query(`INSERT INTO kcml.domain_retry_refresh_snapshot(retry_plan_id,failed_command_id,target_id,target_state_version,activation_epoch,snapshot,snapshot_digest,platform_incarnation_id,application_deployment_epoch,recovery_epoch)
+        VALUES($1,$2,$3,$4,$5,$6,digest(convert_to($6::jsonb::text,'UTF8'),'sha256'),$7,$8,$9) ON CONFLICT(retry_plan_id) DO NOTHING`, [plan.id, command.id, command.target_id, targetStateVersion?.toString() ?? null, activation.toString(), value, head.platform_incarnation_id, head.current_epoch, head.recovery_epoch]);
+      return { command, targetStateVersion, activation };
+    });
+    const request = snapshot.command.request as Record<string, unknown>;
+    const result = await this.operations.execute(String(snapshot.command.operation_name), {
+      targetId: snapshot.command.target_id,
+      arguments: request.arguments ?? {},
+      expectedStateVersion: snapshot.targetStateVersion,
+      expectedActivationEpoch: snapshot.activation,
+      deadlineAt: null
+    }, {
+      callerFingerprint: String(snapshot.command.caller_fingerprint), actorId: 'KRMAR78', correlationId: randomUUID(),
+      causationId: String(snapshot.command.correlation_id), idempotencyKey: `retry-plan:${plan.id}:successor`
+    });
+    await this.options.faultInjector?.('AFTER_SUCCESSOR_ADMISSION_BEFORE_LINKAGE', { retryPlanId: String(plan.id), successorCommandId: result.metadata.commandId });
+    await inTransactionProfile(this.pool, 'WORKER_COMMIT', async (client) => {
+      await lockAndVerifyPlatformRecovery(client);
+      const current = (await client.query(`SELECT * FROM kcml.domain_retry_plan WHERE id=$1 FOR UPDATE`, [plan.id])).rows[0];
+      if (!current || current.state !== requiredPlanState) throw new DomainError('FENCING_TOKEN_STALE', 'Retry plan state changed before successor linkage', 409, 'RECONCILE_THEN_RETRY');
+      if (requiredPlanState === 'CLAIMED' && (current.lease_owner !== this.options.workerId || BigInt(current.lease_fencing_token) !== BigInt(plan.lease_fencing_token))) throw new DomainError('FENCING_TOKEN_STALE', 'Retry plan lease changed before successor linkage', 409, 'RECONCILE_THEN_RETRY');
+      await client.query(`UPDATE kcml.domain_retry_plan SET state='COMPLETED',successor_command_id=$2,lease_owner=NULL,lease_expires_at=NULL,completed_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`, [plan.id, result.metadata.commandId]);
+      if (reconciliation) {
+        const linked = await client.query(`UPDATE kcml.domain_reconciliation_command SET state='COMPLETED',lease_owner=NULL,lease_expires_at=NULL,completed_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND state='CLAIMED' AND lease_owner=$2 AND lease_fencing_token=$3`, [reconciliation.id, this.options.workerId, reconciliation.lease_fencing_token]);
+        if (linked.rowCount !== 1) throw new DomainError('FENCING_TOKEN_STALE', 'Reconciliation lease changed before successor linkage', 409, 'RECONCILE_THEN_RETRY');
+      }
+    });
+  }
+
+  private async terminalizeReplacedCommand(client: DatabaseClient, command: any): Promise<void> {
+    const failure = command.error ? jsonSafe(command.error) : jsonSafe(canonicalFailure(new DomainError('ERROR_RECOVERY_CONTRACT_INCOMPLETE', 'Replaced command has no canonical failure', 500, 'MANUAL_REVIEW')));
+    const failureDigest = canonicalDigest(failure);
+    const terminalResponse: OperationResult = {
+      status: 'FAILED_FINAL',
+      metadata: {
+        correlationId: String(command.correlation_id), logicalOperationId: String(command.logical_operation_id), commandId: String(command.id),
+        stateVersion: BigInt(command.state_version), eventSequence: 0n, activationEpoch: BigInt(command.activation_epoch), resultDigest: failureDigest,
+        idempotencyReplay: false, serverTime: new Date().toISOString()
+      },
+      result: null,
+      error: failure as OperationResult['error']
+    };
+    const safeTerminal = jsonSafe(terminalResponse);
+    const terminalDigest = digestBytes(canonicalDigest(safeTerminal));
+    await client.query(`UPDATE kcml.domain_command SET status='FAILED_FINAL',completed_at=clock_timestamp(),state_version=state_version+1 WHERE id=$1 AND status='WAITING'`, [command.id]);
+    await client.query(`UPDATE kcml.domain_idempotency_record SET lifecycle='FAILED_FINAL',response_status=$2,response_body=$3,response_digest=$4,terminal_outcome_digest=$4,completed_at=clock_timestamp(),updated_at=clock_timestamp(),state_version=state_version+1 WHERE command_id=$1 AND lifecycle='EXECUTING'`, [command.id, Number((command.error as any)?.httpStatus ?? 500), safeTerminal, terminalDigest]);
+    await terminalizeCommandGuards(client, String(command.id), String(command.logical_operation_id), command.concurrency_claim_id ? String(command.concurrency_claim_id) : null);
+  }
+
+  private async createManualReview(client: DatabaseClient, planId: string, commandId: string, failureId: string, evidence: CanonicalJsonValue): Promise<void> {
+    const review = (await client.query(`INSERT INTO kcml.domain_manual_review(retry_plan_id,command_id,failure_id,evidence_digest)
+      VALUES($1,$2,$3,digest(convert_to($4::jsonb::text,'UTF8'),'sha256')) ON CONFLICT(retry_plan_id) DO UPDATE SET retry_plan_id=excluded.retry_plan_id RETURNING id`, [planId, commandId, failureId, evidence])).rows[0];
+    await client.query(`UPDATE kcml.domain_retry_plan SET state='WAITING_OWNER',manual_review_id=$2,lease_owner=NULL,lease_expires_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`, [planId, review.id]);
+    await client.query(`UPDATE kcml.domain_command SET status='MANUAL_REVIEW',state_version=state_version+1 WHERE id=$1 AND status='WAITING'`, [commandId]);
+  }
+
+  private async releasePlan(plan: any, error: unknown): Promise<void> {
+    await inTransactionProfile(this.pool, 'WORKER_COMMIT', async (client) => {
+      const evidence = jsonSafe(canonicalFailure(error));
+      const current = (await client.query(`SELECT * FROM kcml.domain_retry_plan WHERE id=$1 FOR UPDATE`, [plan.id])).rows[0];
+      if (!current || current.state !== 'CLAIMED' || current.lease_owner !== this.options.workerId || BigInt(current.lease_fencing_token) !== BigInt(plan.lease_fencing_token)) return;
+      if (Number(current.scheduler_attempt_count) >= Number(current.scheduler_maximum_attempts)) await this.createManualReview(client, current.id, current.failed_command_id, current.failure_id, evidence);
+      else await client.query(`UPDATE kcml.domain_retry_plan SET state='READY',available_at=clock_timestamp()+interval '5 seconds',lease_owner=NULL,lease_expires_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`, [plan.id]);
+    });
+  }
+
+  private async releaseReconciliation(command: any, error: unknown): Promise<void> {
+    await inTransactionProfile(this.pool, 'WORKER_COMMIT', async (client) => {
+      const evidence = jsonSafe(canonicalFailure(error));
+      const current = (await client.query(`SELECT * FROM kcml.domain_reconciliation_command WHERE id=$1 FOR UPDATE`, [command.id])).rows[0];
+      if (!current || current.state !== 'CLAIMED' || current.lease_owner !== this.options.workerId || BigInt(current.lease_fencing_token) !== BigInt(command.lease_fencing_token)) return;
+      if (Number(current.attempt_count) >= Number(current.maximum_attempts)) {
+        await this.createManualReview(client, command.retry_plan_id, command.failed_command_id, command.failure_id, evidence);
+        await client.query(`UPDATE kcml.domain_reconciliation_command SET state='MANUAL_REVIEW',oracle_evidence=$2,oracle_evidence_digest=digest(convert_to($2::jsonb::text,'UTF8'),'sha256'),lease_owner=NULL,lease_expires_at=NULL,completed_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`, [command.id, evidence]);
+      } else await client.query(`UPDATE kcml.domain_reconciliation_command SET state='READY',available_at=clock_timestamp()+interval '5 seconds',lease_owner=NULL,lease_expires_at=NULL,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`, [command.id]);
+    });
+  }
+}

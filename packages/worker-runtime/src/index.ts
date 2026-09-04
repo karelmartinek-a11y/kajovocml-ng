@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { canonicalJson, toCanonicalJsonValue, type CanonicalJsonValue } from '@kcml/schemas';
 import { createDatabasePool, inTransaction, type DatabaseClient } from '@kcml/database';
-import { CanonicalCommandWorker, EnvelopeCipher, OperationCatalogService, SecretManager } from '@kcml/domain';
+import { CanonicalCommandWorker, CanonicalOperationService, CanonicalRetryScheduler, EnvelopeCipher, OperationCatalogService, SecretManager } from '@kcml/domain';
 import { StructuredLogger } from '@kcml/observability';
 import { createCapabilityServer, type CapabilityRequest, type CapabilityResponse } from '@kcml/runtime-capability-ipc';
 
@@ -21,6 +21,7 @@ export interface ServiceOptions {
   broker?: 'secret' | 'state' | 'egress';
   socketPath?: string;
   intervalMs?: number;
+  retryScheduler?: boolean;
 }
 
 type JsonObject = Record<string, unknown>;
@@ -53,7 +54,8 @@ const specializedServices = {
   'kcml-self-test-worker': { queueNames: ['kcml-selftest'], allowedOperationPrefixes: ['selfTest.'], runtimeKind: 'EVIDENCE_WORKER' },
   'kcml-acceptance-runner': { queueNames: ['kcml-selftest'], allowedOperationPrefixes: ['selfTest.'], runtimeKind: 'EVIDENCE_WORKER', intervalMs: 250 },
   'kcml-runtime-host': { queueNames: ['kcml-runtime'], allowedOperationPrefixes: ['runtime.'], runtimeKind: 'SPECIALIST_HANDLER' },
-  'kcml-owner-device-bridge': { runtimeKind: 'PROTOCOL_GATEWAY' }
+  'kcml-owner-device-bridge': { runtimeKind: 'PROTOCOL_GATEWAY' },
+  'kcml-retry-scheduler': { retryScheduler: true, runtimeKind: 'COMMAND_COORDINATOR', intervalMs: 250 }
 } as const satisfies Record<string, Omit<ServiceOptions, 'serviceName'>>;
 
 export type SpecializedServiceName = keyof typeof specializedServices;
@@ -65,7 +67,7 @@ export function serviceReadinessDescriptor(serviceName: SpecializedServiceName):
     queues: 'queueNames' in service ? service.queueNames : [],
     operationPrefixes: 'allowedOperationPrefixes' in service ? service.allowedOperationPrefixes : [],
     operations: 'allowedOperations' in service ? service.allowedOperations : [],
-    capabilities: 'broker' in service ? [service.broker] : []
+    capabilities: 'broker' in service ? [service.broker] : 'retryScheduler' in service ? ['CANONICAL_RETRY_SCHEDULER'] : []
   });
 }
 
@@ -289,13 +291,14 @@ export async function runService(options: ServiceOptions): Promise<void> {
     closeBroker = () => new Promise<void>((resolveClose, reject) => server.close((error) => error ? reject(error) : resolveClose()));
   }
 
-  const catalog = options.queueNames ? await OperationCatalogService.load() : null;
+  const catalog = options.queueNames || options.retryScheduler ? await OperationCatalogService.load() : null;
   const allowedOperations = catalog ? catalog.operations.filter((operation) =>
     options.allowedOperations?.includes(operation.operationName)
     || options.allowedOperationPrefixes?.some((prefix) => operation.operationName.startsWith(prefix))
   ).map((operation) => operation.operationName) : [];
   if (options.queueNames && allowedOperations.length === 0) throw new Error('SERVICE_OPERATION_ALLOWLIST_EMPTY');
   const worker = options.queueNames && catalog ? new CanonicalCommandWorker(pool, catalog, { queueNames: options.queueNames, allowedOperations, workerId: instanceId }) : null;
+  const retryScheduler = options.retryScheduler && catalog ? new CanonicalRetryScheduler(pool, new CanonicalOperationService(pool, catalog), { workerId: instanceId }) : null;
   const stop = () => { stopping = true; };
   process.once('SIGTERM', stop);
   process.once('SIGINT', stop);
@@ -306,6 +309,11 @@ export async function runService(options: ServiceOptions): Promise<void> {
     let worked = false;
     if (worker) worked = await worker.runOnce().catch(async (error) => {
       logger.error('worker.iteration.failed', { error: error instanceof Error ? error.message : String(error) });
+      await heartbeat('FAILED', { error: error instanceof Error ? error.message : String(error) });
+      return false;
+    });
+    if (!worked && retryScheduler) worked = await retryScheduler.runOnce().catch(async (error) => {
+      logger.error('retry-scheduler.iteration.failed', { error: error instanceof Error ? error.message : String(error) });
       await heartbeat('FAILED', { error: error instanceof Error ? error.message : String(error) });
       return false;
     });

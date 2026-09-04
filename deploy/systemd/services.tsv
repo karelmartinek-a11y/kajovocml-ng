@@ -14,6 +14,7 @@ kcml-browser-bridge-gateway|browser-bridge-gateway|kcml-browser-bridge|AF_UNIX A
 kcml-component-control-worker|component-control-worker|kcml-comp-ctl|AF_UNIX|/var/lib/kajovocml-ng/components| |yes
 kcml-component-e2e-worker|component-e2e-worker|kcml-comp-e2e|AF_UNIX AF_INET AF_INET6|/var/lib/kajovocml-ng/components| |yes
 kcml-monitor-worker|monitor-worker|kcml-monitor|AF_UNIX AF_INET AF_INET6|/var/lib/kajovocml-ng/data| |yes
+kcml-retry-scheduler|retry-scheduler|kcml-retry|AF_UNIX|/var/lib/kajovocml-ng/data| |yes
 kcml-alert-primary-worker|alert-worker|kcml-alert-p|AF_UNIX AF_INET AF_INET6|/var/lib/kajovocml-ng/data|Environment=KCML_ALERT_ASSIGNMENT=primary|yes
 kcml-alert-backup-worker|alert-worker|kcml-alert-b|AF_UNIX AF_INET AF_INET6|/var/lib/kajovocml-ng/data|Environment=KCML_ALERT_ASSIGNMENT=backup|yes
 kcml-secret-broker|secret-broker|kcml-secret-broker|AF_UNIX|/run/kajovocml-ng/brokers /var/lib/kajovocml-ng/data|Requires=kcml-secret-broker.socket After=kcml-secret-broker.socket|yes
