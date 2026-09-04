@@ -3048,6 +3048,40 @@
           "snippetDigest": "sha256:436b944f49928621ca03bc72492e45a50c5e35ec45e03c29059fb01c75729224"
         }
       ]
+    },
+    {
+      "repositoryPath": "deploy/security/service-capabilities.tsv",
+      "requirementIds": [
+        "KCML-REQ-POSTGRES-81ec11fcf3f61a231bd033b84de3d832733dfa5dcd8f874b2e74e1c9fb55f5ba"
+      ],
+      "operationIds": [],
+      "registryRecordIds": [],
+      "testIds": [],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-POSTGRES-81ec11fcf3f61a231bd033b84de3d832733dfa5dcd8f874b2e74e1c9fb55f5ba",
+          "locator": "deploy/security/service-capabilities.tsv:2",
+          "symbol": "service-security-catalog",
+          "snippetDigest": "sha256:9d3b2ff8f6549e92bafbe61e4cb34da595658c02cf1633d868806079f1c9398c"
+        }
+      ]
+    },
+    {
+      "repositoryPath": "deploy/scripts/provision-service-credentials.sh",
+      "requirementIds": [
+        "KCML-REQ-POSTGRES-dceaacd8f0ad44e6e76a65ce6b1d472776ceeabd9afa58a4f578eea199dc1e0b"
+      ],
+      "operationIds": [],
+      "registryRecordIds": [],
+      "testIds": [],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-POSTGRES-dceaacd8f0ad44e6e76a65ce6b1d472776ceeabd9afa58a4f578eea199dc1e0b",
+          "locator": "deploy/scripts/provision-service-credentials.sh:17",
+          "symbol": "service-database-role-provisioning",
+          "snippetDigest": "sha256:a13bff01c038e050c6eee4190ac9335733d550d01eaf290d03c1739d41b68844"
+        }
+      ]
     }
   ]
 }

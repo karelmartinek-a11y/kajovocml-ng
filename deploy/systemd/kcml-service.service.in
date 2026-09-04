@@ -8,10 +8,12 @@ Wants=network-online.target
 [Service]
 Type=exec
 User={{USER}}
-Group=kcml-platform
-SupplementaryGroups=kcml-platform
+Group={{GROUP}}
+{{SUPPLEMENTARY_GROUPS}}
 WorkingDirectory=/opt/kajovocml-ng/current
 EnvironmentFile=/etc/kajovocml-ng/runtime.env
+{{LOAD_CREDENTIALS}}
+{{CREDENTIAL_ENVIRONMENT}}
 Environment=NODE_ENV=production
 Environment=KCML_SERVICE_NAME={{UNIT}}
 {{EXTRA_ENVIRONMENT}}
@@ -43,7 +45,7 @@ CapabilityBoundingSet=
 AmbientCapabilities=
 SystemCallArchitectures=native
 RestrictAddressFamilies={{ADDRESS_FAMILIES}}
-ReadOnlyPaths=/opt/kajovocml-ng/current /etc/kajovocml-ng
+ReadOnlyPaths={{READ_ONLY_PATHS}}
 ReadWritePaths={{READ_WRITE_PATHS}}
 LimitNOFILE=32768
 TasksMax=256

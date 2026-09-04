@@ -7,10 +7,12 @@ PartOf=kcml.target
 [Service]
 Type=exec
 User=kcml-runtime-gateway
-Group=kcml-runtime-callers
-SupplementaryGroups=kcml-platform
+Group=kcml-runtime-gateway
+SupplementaryGroups=kcml-runtime-callers kcml-release-readers
 WorkingDirectory=/opt/kajovocml-ng/current
 EnvironmentFile=/etc/kajovocml-ng/runtime.env
+LoadCredential=database-url:/etc/kajovocml-ng/credentials/kcml-runtime-gateway/database-url
+Environment=KCML_DATABASE_URL_FILE=%d/database-url
 Environment=NODE_ENV=production
 Environment=KCML_SERVICE_NAME=kcml-runtime-gateway
 ExecStart=/usr/bin/node /opt/kajovocml-ng/current/apps/runtime-gateway/dist/index.js
@@ -41,7 +43,7 @@ CapabilityBoundingSet=
 AmbientCapabilities=
 SystemCallArchitectures=native
 RestrictAddressFamilies=AF_UNIX
-ReadOnlyPaths=/opt/kajovocml-ng/current /etc/kajovocml-ng
+ReadOnlyPaths=/opt/kajovocml-ng/current /etc/kajovocml-ng/runtime.env
 ReadWritePaths=/var/lib/kajovocml-ng/runtime /run/kajovocml-ng/gateway
 LimitNOFILE=32768
 TasksMax=256

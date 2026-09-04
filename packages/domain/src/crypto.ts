@@ -10,7 +10,8 @@ export class EnvelopeCipher {
 
   public static async fromEnvironment(): Promise<EnvelopeCipher> {
     const encoded = process.env.KCML_MASTER_KEY;
-    const key = encoded ? Buffer.from(encoded, 'base64') : await readFile(process.env.KCML_MASTER_KEY_FILE ?? '/etc/kajovocml-ng/master.key').then((value) => Buffer.from(value.toString('utf8').trim(), 'base64'));
+    const credentialPath = process.env.KCML_MASTER_KEY_FILE ?? (process.env.CREDENTIALS_DIRECTORY ? `${process.env.CREDENTIALS_DIRECTORY}/master-key` : '/etc/kajovocml-ng/master.key');
+    const key = encoded ? Buffer.from(encoded, 'base64') : await readFile(credentialPath).then((value) => Buffer.from(value.toString('utf8').trim(), 'base64'));
     return new EnvelopeCipher(key, process.env.KCML_MASTER_KEY_ID ?? 'host-master-v1');
   }
 

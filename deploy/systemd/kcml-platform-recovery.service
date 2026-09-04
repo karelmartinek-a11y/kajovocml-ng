@@ -9,9 +9,12 @@ PartOf=postgresql.service
 Type=oneshot
 RemainAfterExit=yes
 User=kcml-recovery
-Group=kcml-platform
+Group=kcml-recovery
+SupplementaryGroups=kcml-release-readers
 WorkingDirectory=/opt/kajovocml-ng/current
 EnvironmentFile=/etc/kajovocml-ng/runtime.env
+LoadCredential=database-url:/etc/kajovocml-ng/credentials/kcml-platform-recovery/database-url
+Environment=KCML_DATABASE_URL_FILE=%d/database-url
 Environment=NODE_ENV=production
 Environment=KCML_SERVICE_NAME=kcml-platform-recovery
 ExecStart=/usr/bin/node /opt/kajovocml-ng/current/apps/platform-recovery/dist/index.js
@@ -37,7 +40,7 @@ CapabilityBoundingSet=
 AmbientCapabilities=
 SystemCallArchitectures=native
 RestrictAddressFamilies=AF_UNIX
-ReadOnlyPaths=/opt/kajovocml-ng/current /etc/kajovocml-ng
+ReadOnlyPaths=/opt/kajovocml-ng/current /etc/kajovocml-ng/runtime.env
 LimitNOFILE=1024
 TasksMax=32
 CPUQuota=100%

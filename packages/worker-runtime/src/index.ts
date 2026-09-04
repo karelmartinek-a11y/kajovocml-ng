@@ -313,13 +313,14 @@ async function egressRequest(pool: ReturnType<typeof createDatabasePool>, secret
   return { status: response.status, headers: responseHeaders, body: response.body.toString('utf8'), targetId: row.target_id, bindingId: row.binding_id, targetStateVersion: row.state_version, executionId: lineage.executionId, evidenceId: event.rows[0].id, outcome: readOnly ? 'READ_ONLY_RESULT' : 'UNKNOWN' };
 }
 
-async function handleBrokerRequest(pool: ReturnType<typeof createDatabasePool>, secrets: SecretManager, broker: NonNullable<ServiceOptions['broker']>, request: CapabilityRequest): Promise<CapabilityResponse> {
+async function handleBrokerRequest(pool: ReturnType<typeof createDatabasePool>, secrets: SecretManager | null, broker: NonNullable<ServiceOptions['broker']>, request: CapabilityRequest): Promise<CapabilityResponse> {
   try {
     const payload = request.payload as JsonObject;
     const lineage = await loadRuntimeExecutionLineage(pool, request.executionId);
     let responsePayload: unknown;
     if (broker === 'secret') {
       if (request.capability !== 'SECRET_USE') throw new Error('CAPABILITY_MISMATCH');
+      if (!secrets) throw new Error('SECRET_BROKER_CREDENTIAL_MISSING');
       const revealed = await secrets.revealForRuntimeBinding(lineage, String(payload.bindingAlias ?? ''), String(payload.purpose ?? ''), request.operation);
       responsePayload = { value: revealed.value, fingerprint: revealed.fingerprint, versionId: revealed.versionId };
     } else if (broker === 'state') {
@@ -327,6 +328,7 @@ async function handleBrokerRequest(pool: ReturnType<typeof createDatabasePool>, 
       responsePayload = request.capability === 'STATE_READ' ? await stateRead(pool, lineage, payload) : await stateWrite(pool, lineage, payload);
     } else {
       if (request.capability !== 'EGRESS_REQUEST') throw new Error('CAPABILITY_MISMATCH');
+      if (!secrets) throw new Error('EGRESS_BROKER_CREDENTIAL_MISSING');
       responsePayload = await egressRequest(pool, secrets, lineage, request.operation, payload);
     }
     return { protocol: 'KCML-CAPABILITY-IPC/1', requestId: request.requestId, ok: true, payload: responsePayload };
@@ -375,8 +377,7 @@ export async function runService(options: ServiceOptions): Promise<void> {
   if (options.broker) {
     const broker = options.broker;
     const socketPath = options.socketPath ?? `/run/kajovocml-ng/${broker}-broker.sock`;
-    const cipher = await EnvelopeCipher.fromEnvironment();
-    const secrets = new SecretManager(pool, cipher);
+    const secrets = options.broker === 'secret' || options.broker === 'egress' ? new SecretManager(pool, await EnvelopeCipher.fromEnvironment()) : null;
     const server = await createCapabilityServer(
       socketPath,
       async (executionId) => readFile(`/run/kajovocml-ng/capability-keys/${executionId}.key`),

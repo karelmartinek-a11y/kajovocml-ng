@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 [[ ${EUID} -eq 0 ]] || exit 77
-source /etc/kajovocml-ng/runtime.env
+source /etc/kajovocml-ng/deploy.env
 backup_id=$(date -u +%Y%m%dT%H%M%SZ)-$(cat /proc/sys/kernel/random/uuid)
 target=/var/lib/kajovocml-ng/backups/scheduled-${backup_id}
 install -d -o root -g root -m 0700 "${target}"

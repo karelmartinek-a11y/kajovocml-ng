@@ -6,6 +6,7 @@ while (($#)); do case "$1" in --bundle) bundle=$2;shift 2;;--signature) signatur
 [[ -f ${bundle} && -f ${signature} && ${expected_sha} =~ ^[0-9a-f]{40}$ && ${release_id} =~ ^[A-Za-z0-9._-]+$ ]] || { echo 'Neplatné deployment parametry.' >&2; exit 64; }
 IFS= read -r pass_value
 [[ -n ${pass_value} ]] || { echo 'PASS nebyl dodán přes standardní vstup.' >&2; exit 65; }
+source /etc/kajovocml-ng/deploy.env
 source /etc/kajovocml-ng/runtime.env
 export DATABASE_URL KCML_MASTER_KEY_FILE KCML_MASTER_KEY_ID
 release_path=/opt/kajovocml-ng/releases/${release_id}; previous_path=$(readlink -f /opt/kajovocml-ng/current 2>/dev/null || true); previous_release=''
@@ -46,8 +47,8 @@ reconcile_nginx(){
 }
 preflight(){ node --version|grep -q '^v24\.';pnpm --version|grep -q '^11\.';psql "${DATABASE_URL}" -Atqc 'SELECT current_setting('"'"'server_version_num'"'"')::int >= 160000';test -s /etc/kajovocml-ng/master.key;nginx -t; }
 reconcile_platform(){
-  test "$(stat -c %a /etc/kajovocml-ng/master.key)" = 440
-  test "$(stat -c %a /etc/kajovocml-ng/runtime.env)" = 640
+  test "$(stat -c %a /etc/kajovocml-ng/master.key)" = 400
+  test "$(stat -c %a /etc/kajovocml-ng/runtime.env)" = 440
   psql "${DATABASE_URL}" -v ON_ERROR_STOP=1 -Atqc "SELECT
     (SELECT count(*) FROM kcml.platform_incarnation)=1 AND
     (SELECT count(*) FROM kcml.application_deployment_head)=1 AND
@@ -83,7 +84,7 @@ verify_heartbeats(){
   [[ ${missing} -eq 0 ]]
 }
 healthy_samples(){ for sample in {1..5};do curl --fail --silent --unix-socket /run/kajovocml-ng/web-api.sock http://localhost/ready|jq -e '.status=="ready"'>/dev/null;sleep 3;done; }
-migrate_candidate(){ (cd "${stage_path}" && env KCML_RELEASE_ID="${release_id}" KCML_SOURCE_SHA="${expected_sha}" node "apps/server/node_modules/@kcml/database/dist/cli.js" migrate); }
+migrate_candidate(){ (cd "${stage_path}" && env KCML_RELEASE_ID="${release_id}" KCML_SOURCE_SHA="${expected_sha}" node "apps/server/node_modules/@kcml/database/dist/cli.js" migrate); "${stage_path}/deploy/scripts/provision-service-credentials.sh" "${stage_path}"; }
 
 run_step verify_source_and_signature verify_bundle
 run_step backup create_backup

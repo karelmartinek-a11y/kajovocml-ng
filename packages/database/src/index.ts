@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import pg from 'pg';
 
@@ -42,7 +43,8 @@ export interface DatabaseOptions {
 }
 
 export function createDatabasePool(options: DatabaseOptions = {}): DatabasePool {
-  const connectionString = options.connectionString ?? process.env.DATABASE_URL;
+  const credentialPath = process.env.KCML_DATABASE_URL_FILE ?? (process.env.CREDENTIALS_DIRECTORY ? resolve(process.env.CREDENTIALS_DIRECTORY, 'database-url') : undefined);
+  const connectionString = options.connectionString ?? process.env.DATABASE_URL ?? (credentialPath ? readFileSync(credentialPath, 'utf8').trim() : undefined);
   if (!connectionString) throw new Error('DATABASE_URL is required');
   return new Pool({
     connectionString,

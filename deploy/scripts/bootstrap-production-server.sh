@@ -11,25 +11,34 @@ backup_if_changed(){ local target=$1 candidate=$2; if [[ -e ${target} ]] && ! cm
 install_packages(){ apt-get update; apt-get install -y --no-install-recommends ca-certificates curl gnupg jq openssl git rsync unzip zip xz-utils build-essential pkg-config libssl-dev postgresql-16 postgresql-contrib-16 nginx ufw certbot minisign acl libcap2-bin sudo; }
 install_node(){ if command -v node >/dev/null && [[ $(node -p 'process.versions.node.split(".")[0]') == 24 ]]; then return; fi; install -d -m 0755 /etc/apt/keyrings; curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor --yes -o /etc/apt/keyrings/nodesource.gpg; printf '%s\n' 'deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_24.x nodistro main' >/etc/apt/sources.list.d/nodesource.list; apt-get update; apt-get install -y nodejs; }
 create_group(){ getent group "$1" >/dev/null || groupadd --system "$1"; }
-create_user(){ local name=$1; getent passwd "${name}" >/dev/null || useradd --system --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin --gid kcml-platform "${name}"; }
+create_user(){ local name=$1 primary_group=$2; getent passwd "${name}" >/dev/null || useradd --system --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin --gid "${primary_group}" "${name}"; usermod --gid "${primary_group}" "${name}"; }
 
 install_packages
 install_node
 corepack enable
 corepack prepare pnpm@11.19.0 --activate
-for group in kcml-platform kcml-runtime-callers kcml-runtime-gateway kcml-browser-worker; do create_group "${group}"; done
-while IFS='|' read -r unit app service_user rest; do [[ -z ${unit} || ${unit:0:1} == '#' ]] && continue; create_user "${service_user}"; done <"${repository_root}/deploy/systemd/services.tsv"
-create_user kcml-runtime-host; create_user kcml-browser-host; create_user kcml-recovery; create_user kcml-deploy
+for group in kcml-platform kcml-release-readers kcml-runtime-callers kcml-runtime-gateway kcml-browser-worker kcml-runtime-host kcml-browser-host kcml-recovery kcml-deploy; do create_group "${group}"; done
+while IFS='|' read -r unit primary_group supplementary_groups database_role credentials read_only_paths; do [[ -z ${unit} || ${unit:0:1} == '#' ]] && continue; create_group "${primary_group}"; done <"${repository_root}/deploy/security/service-capabilities.tsv"
+while IFS='|' read -r unit app service_user rest; do
+  [[ -z ${unit} || ${unit:0:1} == '#' ]] && continue
+  security_row=$(awk -F'|' -v unit="${unit}" '$1==unit {print}' "${repository_root}/deploy/security/service-capabilities.tsv")
+  IFS='|' read -r security_unit primary_group supplementary_groups database_role credentials read_only_paths <<<"${security_row}"
+  create_user "${service_user}" "${primary_group}"
+  [[ -n ${supplementary_groups} ]] && usermod -a -G "${supplementary_groups// /,}" "${service_user}"
+done <"${repository_root}/deploy/systemd/services.tsv"
+create_user kcml-runtime-host kcml-runtime-host; create_user kcml-browser-host kcml-browser-host; create_user kcml-recovery kcml-recovery; create_user kcml-deploy kcml-deploy
 # A shared production host can already have the deployment account running an
 # unrelated GitHub runner. Never mutate a live account's home directory: its
 # active process would be disrupted and SSH key resolution could change during
 # bootstrap. Fresh accounts retain the dedicated KCML deployment home.
 if ! pgrep -u kcml-deploy >/dev/null 2>&1; then usermod --home /var/lib/kajovocml-ng/deploy-home --shell /bin/bash kcml-deploy; fi
-usermod -a -G kcml-runtime-callers,kcml-runtime-gateway kcml-runtime-gateway
+usermod -a -G kcml-runtime-callers,kcml-release-readers kcml-runtime-gateway
 usermod -a -G kcml-runtime-callers kcml-runtime-host
 usermod -a -G kcml-browser-worker kcml-browser-worker
 
-install -d -o root -g kcml-platform -m 0750 /opt/kajovocml-ng /opt/kajovocml-ng/releases /srv/kajovocml-ng /etc/kajovocml-ng /etc/kajovocml-ng/tls
+install -d -o root -g kcml-release-readers -m 0750 /opt/kajovocml-ng /opt/kajovocml-ng/releases
+install -d -o root -g root -m 0750 /etc/kajovocml-ng /etc/kajovocml-ng/tls /etc/kajovocml-ng/credentials
+install -d -o root -g kcml-platform -m 0750 /srv/kajovocml-ng
 install -d -o kcml-deploy -g kcml-platform -m 0750 /srv/kajovocml-ng/repository
 install -d -o kcml-deploy -g kcml-platform -m 0750 /var/lib/kajovocml-ng/deploy-home
 install -d -o kcml-deploy -g kcml-platform -m 0700 /var/lib/kajovocml-ng/deploy-home/.ssh
@@ -38,9 +47,15 @@ for path in data generation components runtime browser audit backups; do install
 install -d -o kcml-browser-host -g kcml-platform -m 0770 /var/lib/kajovocml-ng/browser/hosts /var/lib/kajovocml-ng/browser/sessions /var/lib/kajovocml-ng/browser/artifacts /var/lib/kajovocml-ng/browser/runtime-builds
 install -d -o kcml-runtime-host -g kcml-platform -m 0770 /var/lib/kajovocml-ng/runtime/instances
 install -d -o www-data -g www-data -m 0750 /var/lib/kajovocml-ng/acme
+while IFS='|' read -r unit app service_user families writable dependency enabled; do
+  [[ -z ${unit} || ${unit:0:1} == '#' ]] && continue
+  for writable_path in ${writable}; do [[ ! -e ${writable_path} ]] || setfacl -m "u:${service_user}:rwx" "${writable_path}"; done
+done <"${repository_root}/deploy/systemd/services.tsv"
+setfacl -m u:kcml-runtime-host:rwx /var/lib/kajovocml-ng/runtime /var/lib/kajovocml-ng/runtime/instances /run/kajovocml-ng/runtime-hosts 2>/dev/null || true
+setfacl -m u:kcml-browser-host:rwx /var/lib/kajovocml-ng/browser /var/lib/kajovocml-ng/browser/hosts /var/lib/kajovocml-ng/browser/sessions /var/lib/kajovocml-ng/browser/artifacts /var/lib/kajovocml-ng/browser/runtime-builds 2>/dev/null || true
 
 if [[ ! -s /etc/kajovocml-ng/master.key ]]; then openssl rand -base64 32 >/etc/kajovocml-ng/master.key; fi
-chown root:kcml-platform /etc/kajovocml-ng/master.key; chmod 0440 /etc/kajovocml-ng/master.key
+chown root:root /etc/kajovocml-ng/master.key; chmod 0400 /etc/kajovocml-ng/master.key
 if [[ ! -s /etc/kajovocml-ng/postgres-app-password ]]; then openssl rand -hex 36 >/etc/kajovocml-ng/postgres-app-password; chmod 0400 /etc/kajovocml-ng/postgres-app-password; chown root:root /etc/kajovocml-ng/postgres-app-password; fi
 db_password=$(</etc/kajovocml-ng/postgres-app-password)
 runuser -u postgres -- psql --set=ON_ERROR_STOP=1 --set=app_password="${db_password}" <<'SQL'
@@ -54,17 +69,16 @@ SQL
 hba_file=$(runuser -u postgres -- psql -Atqc 'SHOW hba_file')
 hba_candidate=$(mktemp)
 {
-  printf '%s\n' 'local kajovocml_ng kajovocml_app scram-sha-256'
-  grep -vxF 'local kajovocml_ng kajovocml_app scram-sha-256' "${hba_file}"
+  printf '%s\n' 'local kajovocml_ng kajovocml_app scram-sha-256' 'local kajovocml_ng +kcml_service_login scram-sha-256'
+  grep -vxF -e 'local kajovocml_ng kajovocml_app scram-sha-256' -e 'local kajovocml_ng +kcml_service_login scram-sha-256' "${hba_file}"
 } >"${hba_candidate}"
 backup_if_changed "${hba_file}" "${hba_candidate}"
 install -o postgres -g postgres -m 0640 "${hba_candidate}" "${hba_file}"
 rm -f "${hba_candidate}"
 runuser -u postgres -- psql -c 'SELECT pg_reload_conf()' >/dev/null
+"${repository_root}/deploy/scripts/provision-service-credentials.sh" "${repository_root}"
 runtime_candidate=$(mktemp)
 cat >"${runtime_candidate}" <<EOF
-DATABASE_URL=postgresql://kajovocml_app:${db_password}@localhost/kajovocml_ng?host=%2Fvar%2Frun%2Fpostgresql
-KCML_MASTER_KEY_FILE=/etc/kajovocml-ng/master.key
 KCML_MASTER_KEY_ID=host-master-v1
 KCML_PUBLIC_ORIGIN=https://kaja.hcasc.cz
 KCML_RELEASE_ID=bootstrap
@@ -74,7 +88,10 @@ KCML_BROWSER_RUNTIME_BUILD=playwright-1.58.2
 PLAYWRIGHT_BROWSERS_PATH=/var/lib/kajovocml-ng/browser/runtime-builds/1.58.2
 KCML_ALLOWED_PEER_UIDS=$(id -u kcml-runtime-host),$(id -u kcml-runtime-gateway)
 EOF
-backup_if_changed /etc/kajovocml-ng/runtime.env "${runtime_candidate}"; install -o root -g kcml-platform -m 0640 "${runtime_candidate}" /etc/kajovocml-ng/runtime.env; rm -f "${runtime_candidate}"
+backup_if_changed /etc/kajovocml-ng/runtime.env "${runtime_candidate}"; install -o root -g kcml-release-readers -m 0440 "${runtime_candidate}" /etc/kajovocml-ng/runtime.env; rm -f "${runtime_candidate}"
+deploy_candidate=$(mktemp)
+printf '%s\n' "DATABASE_URL=postgresql://kajovocml_app:${db_password}@localhost/kajovocml_ng?host=%2Fvar%2Frun%2Fpostgresql" 'KCML_MASTER_KEY_FILE=/etc/kajovocml-ng/master.key' >"${deploy_candidate}"
+backup_if_changed /etc/kajovocml-ng/deploy.env "${deploy_candidate}"; install -o root -g root -m 0400 "${deploy_candidate}" /etc/kajovocml-ng/deploy.env; rm -f "${deploy_candidate}"
 
 install -d -m 0755 /usr/libexec/kajovocml-ng
 cc -O2 -Wall -Wextra -Werror "${repository_root}/deploy/runtime/kcml-peercred.c" -o /usr/libexec/kajovocml-ng/kcml-peercred
@@ -82,6 +99,12 @@ cc -O2 -Wall -Wextra -Werror "${repository_root}/deploy/runtime/kcml-sandbox-lau
 chown root:root /usr/libexec/kajovocml-ng/kcml-*; chmod 0755 /usr/libexec/kajovocml-ng/kcml-*
 
 "${repository_root}/deploy/scripts/install-systemd.sh" "${repository_root}"
+while IFS='|' read -r unit app service_user families writable dependency enabled; do
+  [[ -z ${unit} || ${unit:0:1} == '#' ]] && continue
+  for writable_path in ${writable}; do setfacl -m "u:${service_user}:rwx" "${writable_path}"; done
+done <"${repository_root}/deploy/systemd/services.tsv"
+setfacl -m u:kcml-runtime-host:rwx /var/lib/kajovocml-ng/runtime /var/lib/kajovocml-ng/runtime/instances /run/kajovocml-ng/runtime-hosts
+setfacl -m u:kcml-browser-host:rwx /var/lib/kajovocml-ng/browser /var/lib/kajovocml-ng/browser/hosts /var/lib/kajovocml-ng/browser/sessions /var/lib/kajovocml-ng/browser/artifacts /var/lib/kajovocml-ng/browser/runtime-builds /run/kajovocml-ng/browser-hosts
 install -o root -g root -m 0755 "${repository_root}/deploy/scripts/deploy-production.sh" /usr/local/sbin/kcml-deploy-production
 sudoers_candidate=$(mktemp)
 cat >"${sudoers_candidate}" <<'EOF'
@@ -94,6 +117,6 @@ if [[ ! -s /etc/kajovocml-ng/tls/fullchain.pem || ! -s /etc/kajovocml-ng/tls/pri
 nginx -t; systemctl enable --now nginx postgresql
 ufw allow OpenSSH >/dev/null; ufw allow 80/tcp >/dev/null; ufw allow 443/tcp >/dev/null; ufw --force enable >/dev/null
 PLAYWRIGHT_BROWSERS_PATH=/var/lib/kajovocml-ng/browser/runtime-builds/1.58.2 pnpm dlx playwright@1.58.2 install --with-deps chromium firefox webkit
-chown -R kcml-browser-host:kcml-platform /var/lib/kajovocml-ng/browser/runtime-builds
+chown -R kcml-browser-host:kcml-browser-host /var/lib/kajovocml-ng/browser/runtime-builds
 "${repository_root}/deploy/scripts/verify-production-prerequisites.sh"
 echo 'Bootstrap dokončen. Pokračujte souborem START_HERE.md, FÁZE 4.'
