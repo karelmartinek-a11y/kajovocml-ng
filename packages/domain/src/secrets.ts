@@ -11,6 +11,18 @@ export interface SecretSummary {
   secretActivationEpoch: string; fingerprint: string | null; stateVersion: string; updatedAt: string;
 }
 
+export interface RuntimeSecretAuthority {
+  executionId: string;
+  sourceObjectKind: string;
+  sourceObjectId: string;
+  sourceRevisionId: string;
+  bindingSetRevisionId: string;
+  activationSetId: string | null;
+  activationEpoch: string;
+  platformIncarnationId: string;
+  applicationDeploymentEpoch: string;
+}
+
 async function appendSecretOutbox(client: DatabaseClient, recovery: RecoveryAuthorityHead, secretId: string, eventType: string, payload: Record<string, unknown>): Promise<bigint> {
   const streamSequence = await allocateContiguousSequence(client, 'TRANSACTIONAL_OUTBOX', secretId, 'SECRET_EVENT');
   const digest = tokenDigest(canonicalJson(payload as unknown as CanonicalJsonValue));
@@ -90,6 +102,46 @@ export class SecretManager {
         VALUES($1,$2,$1,$3,$4,'OWNER_REVEAL','secret.reveal',true,clock_timestamp(),$4,$5,$6,$7,kcml.canonical_digest($8))`,[secretId,`${secretId}:${row.id}:${correlationId}`,row.id,logicalOperationId,correlationId,recovery.platform_incarnation_id,recovery.current_epoch,Buffer.from(canonicalJson(payload as unknown as CanonicalJsonValue))]);
       await client.query(`SELECT * FROM kcml.append_audit_event('secret.revealed','OWNER',$1,'SECRET',$2,$3,NULL,$4,$5)`,[actorId,secretId,correlationId,payload,Buffer.from(canonicalJson(payload as unknown as CanonicalJsonValue))]);
       return {value:this.cipher.decrypt({ciphertext:row.ciphertext,nonce:row.nonce,authTag:row.auth_tag},`${secretId}:${row.id}:${row.stable_name}`),fingerprint:row.fingerprint,versionId:row.id};
+    });
+  }
+
+  public async revealForRuntimeBinding(authority: RuntimeSecretAuthority, bindingAlias: string, purpose: string, operation: string, correlationId = randomUUID()): Promise<{ value: string; fingerprint: string; versionId: string; bindingId: string }> {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/u.test(bindingAlias)) throw new Error('SECRET_BINDING_ALIAS_INVALID');
+    if (!purpose || purpose.length > 256) throw new Error('SECRET_PURPOSE_INVALID');
+    return inTransaction(this.pool, 'SERIALIZABLE', async (client) => {
+      const recovery = await lockAndVerifyPlatformRecovery(client);
+      if (recovery.platform_incarnation_id !== authority.platformIncarnationId || String(recovery.current_epoch) !== authority.applicationDeploymentEpoch) throw new Error('RUNTIME_EXECUTION_AUTHORITY_STALE');
+      const result = await client.query(`SELECT b.*,r.stable_name,r.secret_activation_epoch,r.active_version_id,
+          v.id AS version_id,v.ciphertext,v.nonce,v.auth_tag,v.fingerprint,v.lifecycle AS version_lifecycle
+        FROM kcml.secret_binding b
+        JOIN kcml.secret_record r ON r.id=b.secret_id AND r.deleted_at IS NULL
+        JOIN kcml.secret_version v ON v.id=r.active_version_id AND v.lifecycle='ACTIVE'
+        JOIN kcml.binding_set_member m ON m.revision_id=$1 AND m.member_kind='SECRET'
+          AND m.operation_name=$2 AND m.purpose=$3
+          AND m.source_identity->>'objectId'=$4::text AND m.source_identity->>'revisionId'=$5::text
+          AND (m.target_identity->>'bindingId'=b.id::text OR m.target_identity->>'secretId'=b.secret_id::text)
+        WHERE b.stable_key=$6 AND b.lifecycle='ACTIVE' AND b.deleted_at IS NULL AND b.retired_at IS NULL
+          AND b.source_object_kind=$7 AND b.source_object_id=$4::uuid AND b.source_revision_id=$5::uuid
+          AND b.usage_purpose=$3 AND (b.expires_at IS NULL OR b.expires_at>clock_timestamp())
+          AND b.activation_epoch=$8 AND b.platform_incarnation_id=$9 AND b.application_deployment_epoch=$10
+          AND b.activation_set_id IS NOT DISTINCT FROM $11
+        LIMIT 2 FOR SHARE OF b,r,v,m`, [authority.bindingSetRevisionId,operation,purpose,authority.sourceObjectId,authority.sourceRevisionId,bindingAlias,authority.sourceObjectKind,authority.activationEpoch,authority.platformIncarnationId,authority.applicationDeploymentEpoch,authority.activationSetId]);
+      if (result.rowCount !== 1) throw new Error('SECRET_BINDING_NOT_AUTHORIZED');
+      const row = result.rows[0];
+      const pinnedVersion = row.version_selector?.versionId ?? row.version_selector?.version_id;
+      if (!['PINNED_VERSION','CURRENT_ACTIVE'].includes(String(row.resolved_version_policy))) throw new Error('SECRET_BINDING_VERSION_POLICY_INVALID');
+      if (row.resolved_version_policy === 'PINNED_VERSION' && !pinnedVersion) throw new Error('SECRET_BINDING_VERSION_POLICY_INVALID');
+      if (pinnedVersion && String(pinnedVersion) !== String(row.version_id)) throw new Error('SECRET_BINDING_VERSION_STALE');
+      const logicalOperationId = randomUUID();
+      const resolutionId = randomUUID();
+      const evidence = { executionId: authority.executionId, bindingId: row.id, bindingRevision: String(row.binding_revision), bindingSetRevisionId: authority.bindingSetRevisionId, purpose, operation, secretId: row.secret_id, versionId: row.version_id, fingerprint: row.fingerprint, activationEpoch: authority.activationEpoch };
+      const evidenceBytes = Buffer.from(canonicalJson(evidence as unknown as CanonicalJsonValue));
+      await client.query(`INSERT INTO kcml.secret_resolution(id,stable_key,execution_context_id,secret_id,binding_id,binding_revision,binding_digest,requested_stable_name,requested_purpose,requested_target,resolved_secret_version_id,secret_activation_epoch,source_revision_id,source_activation_epoch,state,result_fingerprint,expires_at,consumed_at,canonical_digest,logical_operation_id,correlation_id,activation_epoch,platform_incarnation_id,application_deployment_epoch)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'RESOLVED',$15,LEAST(COALESCE($16,clock_timestamp()+interval '5 minutes'),clock_timestamp()+interval '5 minutes'),clock_timestamp(),kcml.canonical_digest($17),$18,$19,$14,$20,$21)`, [resolutionId,`${authority.executionId}:${bindingAlias}:${correlationId}`,authority.executionId,row.secret_id,row.id,row.binding_revision,row.binding_digest,bindingAlias,purpose,row.target_id?{targetId:row.target_id}:null,row.version_id,row.secret_activation_epoch,authority.sourceRevisionId,authority.activationEpoch,row.fingerprint,row.expires_at,evidenceBytes,logicalOperationId,correlationId,authority.platformIncarnationId,authority.applicationDeploymentEpoch]);
+      await client.query(`INSERT INTO kcml.secret_access_event(parent_id,stable_key,secret_id,secret_version_id,execution_context_id,binding_id,purpose,operation,success,occurred_at,runtime_id,job_id,run_id,canonical_digest,logical_operation_id,correlation_id,activation_epoch,platform_incarnation_id,application_deployment_epoch)
+        VALUES($1,$2,$1,$3,$4,$5,$6,$7,true,clock_timestamp(),NULL,NULL,NULL,kcml.canonical_digest($8),$9,$10,$11,$12,$13)`, [row.secret_id,`${resolutionId}:access`,row.version_id,authority.executionId,row.id,purpose,operation,evidenceBytes,logicalOperationId,correlationId,authority.activationEpoch,authority.platformIncarnationId,authority.applicationDeploymentEpoch]);
+      await client.query(`SELECT * FROM kcml.append_audit_event('secret.used','SYSTEM',$1,'SECRET_RESOLUTION',$2,$3,NULL,$4,$5)`, [`runtime:${authority.executionId}`,resolutionId,correlationId,evidence,evidenceBytes]);
+      return { value: this.cipher.decrypt({ ciphertext: row.ciphertext, nonce: row.nonce, authTag: row.auth_tag }, `${row.secret_id}:${row.version_id}:${row.stable_name}`), fingerprint: row.fingerprint, versionId: row.version_id, bindingId: row.id };
     });
   }
 

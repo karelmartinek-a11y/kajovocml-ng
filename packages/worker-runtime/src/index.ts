@@ -6,9 +6,12 @@ import { CanonicalCommandWorker, CanonicalOperationService, CanonicalRetrySchedu
 import { StructuredLogger } from '@kcml/observability';
 import { createCapabilityServer, type CapabilityRequest, type CapabilityResponse } from '@kcml/runtime-capability-ipc';
 import { assertRuntimeLocalStateKey, assertStateDocumentWithinLimits, assertStateValueWithinLimits, loadRuntimeExecutionLineage, runtimeStateNamespace, type RuntimeExecutionLineage } from './broker-authority.js';
+import { authorizeEgressUrl, performPinnedRequest, type EgressPolicy } from './egress-policy.js';
 
 export { assertRuntimeLocalStateKey, assertStateDocumentWithinLimits, assertStateValueWithinLimits, loadRuntimeExecutionLineage, runtimeLineageDigest, runtimeStateNamespace } from './broker-authority.js';
 export type { RuntimeExecutionLineage } from './broker-authority.js';
+export { assertPublicDnsAnswers, authorizeEgressUrl, isForbiddenEgressAddress, performPinnedRequest, resolvePublicAddresses } from './egress-policy.js';
+export type { EgressPolicy, PinnedRequestOptions } from './egress-policy.js';
 
 function requiredSourceSha(): string {
   const value = process.env.KCML_SOURCE_SHA;
@@ -199,35 +202,115 @@ async function stateWrite(pool: ReturnType<typeof createDatabasePool>, lineage: 
   });
 }
 
-async function egressRequest(pool: ReturnType<typeof createDatabasePool>, executionId: string, payload: JsonObject): Promise<unknown> {
-  const bindingId = String(payload.bindingId ?? '');
-  if (!bindingId) throw new Error('EXTERNAL_BINDING_REQUIRED');
-  const binding = await pool.query(`SELECT id,target_key,base_url,allowed_paths,allowed_methods,timeout_ms,retry_policy,rate_limit,circuit_state,auth_binding_id,monitoring,lifecycle,state_version FROM kcml.external_target WHERE id::text=$1 OR stable_key=$1 OR target_key=$1 LIMIT 1`, [bindingId]);
-  const row = binding.rows[0];
-  if (!row || row.lifecycle !== 'ACTIVE') throw new Error('EXTERNAL_BINDING_NOT_READY');
-  const definition = row as JsonObject;
+const egressInflight = new Map<string, number>();
+const egressRateWindows = new Map<string, number[]>();
+
+function boundedInteger(value: unknown, fallback: number, minimum: number, maximum: number): number {
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? Math.max(minimum, Math.min(parsed, maximum)) : fallback;
+}
+
+async function egressRequest(pool: ReturnType<typeof createDatabasePool>, secrets: SecretManager, lineage: RuntimeExecutionLineage, requestOperation: string, payload: JsonObject): Promise<unknown> {
+  const bindingAlias = String(payload.bindingAlias ?? '');
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/u.test(bindingAlias)) throw new Error('EXTERNAL_BINDING_ALIAS_INVALID');
+  const binding = await pool.query(`SELECT b.id AS binding_id,b.binding_revision,b.route,b.method AS binding_method,b.activation_set_id,
+      t.id AS target_id,t.target_key,t.base_url,t.allowed_paths,t.allowed_methods,t.timeout_ms,t.retry_policy,t.rate_limit,t.circuit_state,t.auth_binding_id,t.monitoring,t.lifecycle,t.state_version,
+      sb.stable_key AS auth_binding_alias,sb.usage_purpose AS auth_purpose
+    FROM kcml.external_target_binding b
+    JOIN kcml.external_target t ON t.id=b.target_id
+    JOIN kcml.binding_set_member m ON m.revision_id=$1 AND m.member_kind='EXTERNAL_TARGET'
+      AND m.operation_name=$2 AND m.source_identity->>'objectId'=$3::text AND m.source_identity->>'revisionId'=$4::text
+      AND (m.target_identity->>'bindingId'=b.id::text OR m.target_identity->>'targetId'=t.id::text)
+    LEFT JOIN kcml.secret_binding sb ON sb.id=t.auth_binding_id
+    WHERE b.stable_key=$5 AND b.lifecycle='ACTIVE' AND b.deleted_at IS NULL
+      AND b.source_component_id=$3::uuid AND b.source_revision_id=$4::uuid
+      AND b.activation_epoch=$6 AND b.platform_incarnation_id=$7 AND b.application_deployment_epoch=$8
+      AND b.activation_set_id IS NOT DISTINCT FROM $9
+      AND t.lifecycle='ACTIVE' AND t.deleted_at IS NULL
+      AND t.activation_epoch=$6 AND t.platform_incarnation_id=$7 AND t.application_deployment_epoch=$8
+    LIMIT 2`, [lineage.bindingSetRevisionId,requestOperation,lineage.sourceObjectId,lineage.sourceRevisionId,bindingAlias,lineage.activationEpoch,lineage.platformIncarnationId,lineage.applicationDeploymentEpoch,lineage.activationSetId]);
+  if (binding.rowCount !== 1) throw new Error('EXTERNAL_BINDING_NOT_AUTHORIZED');
+  const row = binding.rows[0] as JsonObject;
+  if (!['CLOSED','HEALTHY'].includes(String(row.circuit_state))) throw new Error('EGRESS_CIRCUIT_OPEN');
   const outgoing = (payload.request ?? {}) as JsonObject;
-  const baseUrl = definition.baseUrl ?? definition.base_url;
-  if (typeof baseUrl !== 'string') throw new Error('EXTERNAL_TARGET_BASE_URL_MISSING');
-  const base = new URL(baseUrl);
-  const relativePath = String(outgoing.path ?? '/');
-  if (/^[a-z][a-z0-9+.-]*:/iu.test(relativePath) || relativePath.startsWith('//')) throw new Error('EGRESS_ABSOLUTE_URL_DENIED');
-  const url = new URL(relativePath, base);
-  if (url.origin !== base.origin) throw new Error('EGRESS_ORIGIN_MISMATCH');
-  const allowedPaths = Array.isArray(definition.allowedPaths) ? definition.allowedPaths.map(String) : Array.isArray(definition.allowed_paths) ? definition.allowed_paths.map(String) : ['/'];
-  if (!allowedPaths.some((prefix) => url.pathname.startsWith(prefix))) throw new Error('EGRESS_PATH_DENIED');
-  const allowed = Array.isArray(definition.methods) ? definition.methods.map((value) => String(value).toUpperCase()) : Array.isArray(definition.allowedMethods) ? definition.allowedMethods.map((value) => String(value).toUpperCase()) : ['GET'];
   const method = String(outgoing.method ?? 'GET').toUpperCase();
-  if (!allowed.includes(method)) throw new Error('EGRESS_METHOD_DENIED');
-  const timeoutMs = Math.max(100, Math.min(Number(definition.timeoutMs ?? definition.timeout_ms ?? 30_000), 120_000));
-  const response = await fetch(url, {
-    method,
-    headers: { 'content-type': 'application/json', 'user-agent': 'KájovoCML-NG/2026.8.30-8' },
-    signal: AbortSignal.timeout(timeoutMs),
-    ...(['GET', 'HEAD'].includes(method) ? {} : { body: JSON.stringify(outgoing.body ?? null) })
-  });
-  const body = await response.text();
-  return { status: response.status, headers: Object.fromEntries(response.headers), body: body.slice(0, 2_000_000), targetId: row.id, targetStateVersion: row.state_version, executionId };
+  if (method !== String(row.binding_method).toUpperCase()) throw new Error('EGRESS_BINDING_METHOD_MISMATCH');
+  const monitoring = (row.monitoring ?? {}) as JsonObject;
+  const policy: EgressPolicy = {
+    baseUrl: String(row.base_url),
+    allowedPaths: Array.isArray(row.allowed_paths) ? row.allowed_paths.map(String) : ['/'],
+    allowedMethods: Array.isArray(row.allowed_methods) ? row.allowed_methods.map(String) : ['GET'],
+    timeoutMs: boundedInteger(row.timeout_ms, 30_000, 100, 120_000),
+    maxRequestBytes: boundedInteger(monitoring.maxRequestBytes, 256 * 1024, 0, 1024 * 1024),
+    maxResponseBytes: boundedInteger(monitoring.maxResponseBytes, 2 * 1024 * 1024, 1, 8 * 1024 * 1024),
+    allowPlainHttp: monitoring.allowPlainHttp === true && process.env.NODE_ENV === 'test'
+  };
+  const relativePath = String(outgoing.path ?? '/');
+  let url = authorizeEgressUrl(policy, relativePath, method);
+  const bindingRoute = String(row.route ?? '/');
+  if (!(url.pathname === bindingRoute || url.pathname.startsWith(bindingRoute.endsWith('/') ? bindingRoute : `${bindingRoute}/`))) throw new Error('EGRESS_BINDING_ROUTE_MISMATCH');
+  const requestHeaders = outgoing.headers && typeof outgoing.headers === 'object' && !Array.isArray(outgoing.headers) ? outgoing.headers as JsonObject : {};
+  const forbiddenCallerHeaders = new Set(['authorization','proxy-authorization','cookie','set-cookie','x-api-key']);
+  for (const name of Object.keys(requestHeaders)) if (forbiddenCallerHeaders.has(name.toLowerCase())) throw new Error('EGRESS_CALLER_CREDENTIAL_DENIED');
+  const headers: Record<string, string> = { accept: 'application/json', 'content-type': 'application/json', 'user-agent': 'KájovoCML-NG/2026.8.30-8' };
+  for (const [name, value] of Object.entries(requestHeaders)) {
+    const normalized = name.toLowerCase();
+    if (!['accept','content-type','idempotency-key','x-request-id'].includes(normalized) || typeof value !== 'string' || /[\r\n]/u.test(value)) throw new Error('EGRESS_HEADER_DENIED');
+    headers[normalized] = value;
+  }
+  const body = ['GET','HEAD'].includes(method) ? undefined : Buffer.from(canonicalJson(jsonSafe(outgoing.body ?? null)));
+  if (body && body.length > policy.maxRequestBytes) throw new Error('EGRESS_REQUEST_TOO_LARGE');
+  if (row.auth_binding_id) {
+    if (!row.auth_binding_alias || !row.auth_purpose) throw new Error('EGRESS_AUTH_BINDING_INVALID');
+    const injection = (monitoring.authInjection ?? {}) as JsonObject;
+    const headerName = String(injection.headerName ?? '').toLowerCase();
+    if (!['authorization','x-api-key'].includes(headerName)) throw new Error('EGRESS_AUTH_INJECTION_POLICY_INVALID');
+    const secret = await secrets.revealForRuntimeBinding(lineage, String(row.auth_binding_alias), String(row.auth_purpose), requestOperation);
+    const scheme = typeof injection.scheme === 'string' ? `${injection.scheme} ` : '';
+    headers[headerName] = `${scheme}${secret.value}`;
+  }
+  const rate = (row.rate_limit ?? {}) as JsonObject;
+  const now = Date.now();
+  const windowMs = boundedInteger(rate.windowMs, 60_000, 1_000, 3_600_000);
+  const requestLimit = boundedInteger(rate.requests, 60, 1, 10_000);
+  const recent = (egressRateWindows.get(String(row.target_id)) ?? []).filter((timestamp) => timestamp > now - windowMs);
+  if (recent.length >= requestLimit) throw new Error('EGRESS_RATE_LIMITED');
+  recent.push(now); egressRateWindows.set(String(row.target_id), recent);
+  const maxConcurrency = boundedInteger(rate.maxConcurrency, 4, 1, 64);
+  const currentInflight = egressInflight.get(String(row.target_id)) ?? 0;
+  if (currentInflight >= maxConcurrency) throw new Error('EGRESS_CONCURRENCY_LIMITED');
+  egressInflight.set(String(row.target_id), currentInflight + 1);
+  const started = Date.now();
+  let response: Awaited<ReturnType<typeof performPinnedRequest>>;
+  let redirectCount = 0;
+  try {
+    while (true) {
+      response = await performPinnedRequest(url, { method, headers, timeoutMs: policy.timeoutMs, maxResponseBytes: policy.maxResponseBytes, ...(body ? { body } : {}) });
+      if (![301,302,303,307,308].includes(response.status)) break;
+      if (![307,308].includes(response.status) && !['GET','HEAD'].includes(method)) throw new Error('EGRESS_REDIRECT_METHOD_CHANGE_DENIED');
+      if (++redirectCount > 3) throw new Error('EGRESS_REDIRECT_LIMIT_EXCEEDED');
+      const location = response.headers.location;
+      if (typeof location !== 'string') throw new Error('EGRESS_REDIRECT_LOCATION_INVALID');
+      const redirected = new URL(location, url);
+      if (redirected.origin !== new URL(policy.baseUrl).origin) throw new Error('EGRESS_REDIRECT_TARGET_DENIED');
+      url = authorizeEgressUrl(policy, `${redirected.pathname}${redirected.search}`, method);
+      if (!(url.pathname === bindingRoute || url.pathname.startsWith(bindingRoute.endsWith('/') ? bindingRoute : `${bindingRoute}/`))) throw new Error('EGRESS_BINDING_ROUTE_MISMATCH');
+    }
+  } finally {
+    const remaining = (egressInflight.get(String(row.target_id)) ?? 1) - 1;
+    if (remaining > 0) egressInflight.set(String(row.target_id), remaining); else egressInflight.delete(String(row.target_id));
+  }
+  const responseHeaders: Record<string, string | string[]> = {};
+  for (const name of ['content-type','content-length','etag','x-request-id']) if (response.headers[name] !== undefined) responseHeaders[name] = response.headers[name];
+  const requestEvidence = { executionId: lineage.executionId, lineageDigest: lineage.lineageDigest, bindingId: row.binding_id, bindingRevision: String(row.binding_revision), targetId: row.target_id, method, origin: url.origin, path: url.pathname, requestBytes: body?.length ?? 0, redirects: redirectCount };
+  const responseEvidence = { status: response.status, responseBytes: response.body.length, remoteAddressDigest: sha256(response.remoteAddress), headers: responseHeaders };
+  const evidenceBytes = Buffer.from(canonicalJson(jsonSafe({ requestEvidence, responseEvidence })));
+  const requestDigest = createHash('sha256').update(body ?? Buffer.alloc(0)).digest();
+  const responseDigest = createHash('sha256').update(response.body).digest();
+  const readOnly = ['GET','HEAD'].includes(method);
+  const event = await pool.query(`INSERT INTO kcml.external_request_event(external_target_id,binding_id,binding_revision,route,method,attempt,target_idempotency_key,request_metadata,request_payload_digest,dispatch_state,sent_at,transport_evidence,response_metadata,response_payload_digest,outcome,reconciliation_state,reconciliation_evidence,next_action,latency_ms,http_status,retry_classification,circuit_decision,trace_id,canonical_digest,activation_epoch,platform_incarnation_id,application_deployment_epoch)
+    VALUES($1,$2,$3,$4,$5,1,$6,$7,$8,'COMPLETED',clock_timestamp(),$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,'ALLOWED',$19,kcml.canonical_digest($20),$21,$22,$23) RETURNING id`, [row.target_id,row.binding_id,row.binding_revision,url.pathname,method,headers['idempotency-key']??null,requestEvidence,requestDigest,{tls:url.protocol==='https:',pinnedAddressDigest:sha256(response.remoteAddress),redirects:redirectCount},responseEvidence,responseDigest,readOnly?'READ_ONLY_RESULT':'UNKNOWN',readOnly?'NOT_REQUIRED':'PENDING',readOnly?{reason:'READ_ONLY'}:{reason:'HTTP_RESPONSE_IS_NOT_SIDE_EFFECT_ORACLE'},readOnly?'NONE':'RECONCILE',Date.now()-started,response.status,readOnly?'NOT_RETRYABLE':'RECONCILE_REQUIRED',payload.traceId??null,evidenceBytes,lineage.activationEpoch,lineage.platformIncarnationId,lineage.applicationDeploymentEpoch]);
+  return { status: response.status, headers: responseHeaders, body: response.body.toString('utf8'), targetId: row.target_id, bindingId: row.binding_id, targetStateVersion: row.state_version, executionId: lineage.executionId, evidenceId: event.rows[0].id, outcome: readOnly ? 'READ_ONLY_RESULT' : 'UNKNOWN' };
 }
 
 async function handleBrokerRequest(pool: ReturnType<typeof createDatabasePool>, secrets: SecretManager, broker: NonNullable<ServiceOptions['broker']>, request: CapabilityRequest): Promise<CapabilityResponse> {
@@ -237,14 +320,14 @@ async function handleBrokerRequest(pool: ReturnType<typeof createDatabasePool>, 
     let responsePayload: unknown;
     if (broker === 'secret') {
       if (request.capability !== 'SECRET_USE') throw new Error('CAPABILITY_MISMATCH');
-      const revealed = await secrets.reveal(String(payload.secretId), `runtime:${request.executionId}`);
-      responsePayload = { value: revealed.value, fingerprint: revealed.fingerprint };
+      const revealed = await secrets.revealForRuntimeBinding(lineage, String(payload.bindingAlias ?? ''), String(payload.purpose ?? ''), request.operation);
+      responsePayload = { value: revealed.value, fingerprint: revealed.fingerprint, versionId: revealed.versionId };
     } else if (broker === 'state') {
       if (!['STATE_READ', 'STATE_WRITE'].includes(request.capability)) throw new Error('CAPABILITY_MISMATCH');
       responsePayload = request.capability === 'STATE_READ' ? await stateRead(pool, lineage, payload) : await stateWrite(pool, lineage, payload);
     } else {
       if (request.capability !== 'EGRESS_REQUEST') throw new Error('CAPABILITY_MISMATCH');
-      responsePayload = await egressRequest(pool, request.executionId, payload);
+      responsePayload = await egressRequest(pool, secrets, lineage, request.operation, payload);
     }
     return { protocol: 'KCML-CAPABILITY-IPC/1', requestId: request.requestId, ok: true, payload: responsePayload };
   } catch (error) {

@@ -2963,6 +2963,91 @@
           "snippetDigest": "sha256:9d196a1875159c508cfac6bfb2060ff64a56d5d38cb28623767e3b75870fba67"
         }
       ]
+    },
+    {
+      "repositoryPath": "packages/domain/src/secrets.ts",
+      "requirementIds": [
+        "KCML-REQ-SECURITY-2a6652c5a4c684419c04ae09ef4df684e7633fb09f80dff9dd90f1a7c6bf8892"
+      ],
+      "operationIds": [],
+      "registryRecordIds": [],
+      "testIds": [],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-SECURITY-2a6652c5a4c684419c04ae09ef4df684e7633fb09f80dff9dd90f1a7c6bf8892",
+          "locator": "packages/domain/src/secrets.ts:108",
+          "symbol": "runtime-secret-binding",
+          "snippetDigest": "sha256:9f4f174e774640c44da923570a0160e49b1fd35d458d4e0bf4290916aaca6e9a"
+        }
+      ]
+    },
+    {
+      "repositoryPath": "packages/component-sdk/src/index.ts",
+      "requirementIds": [
+        "KCML-REQ-SECURITY-2a6652c5a4c684419c04ae09ef4df684e7633fb09f80dff9dd90f1a7c6bf8892"
+      ],
+      "operationIds": [],
+      "registryRecordIds": [],
+      "testIds": [],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-SECURITY-2a6652c5a4c684419c04ae09ef4df684e7633fb09f80dff9dd90f1a7c6bf8892",
+          "locator": "packages/component-sdk/src/index.ts:29",
+          "symbol": "runtime-secret-alias",
+          "snippetDigest": "sha256:082d3222c885521a2b8d4df1c54c20b62b06027b1bd37db9e1a74dc20e0e09a8"
+        }
+      ]
+    },
+    {
+      "repositoryPath": "packages/worker-runtime/src/index.ts",
+      "requirementIds": [
+        "KCML-REQ-SECURITY-2a6652c5a4c684419c04ae09ef4df684e7633fb09f80dff9dd90f1a7c6bf8892"
+      ],
+      "operationIds": [],
+      "registryRecordIds": [],
+      "testIds": [],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-SECURITY-2a6652c5a4c684419c04ae09ef4df684e7633fb09f80dff9dd90f1a7c6bf8892",
+          "locator": "packages/worker-runtime/src/index.ts:268",
+          "symbol": "secret-broker-authority",
+          "snippetDigest": "sha256:381604b2f3658f372e74fe24d255bf30ea9d7c979d2d2b7706bdf57e2c3160e4"
+        }
+      ]
+    },
+    {
+      "repositoryPath": "packages/worker-runtime/src/index.ts",
+      "requirementIds": [
+        "KCML-REQ-SECURITY-94460d094a18c0f7fc2f460dc387e2042e1f7791c38e76def83d0f9a87756569"
+      ],
+      "operationIds": [],
+      "registryRecordIds": [],
+      "testIds": [],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-SECURITY-94460d094a18c0f7fc2f460dc387e2042e1f7791c38e76def83d0f9a87756569",
+          "locator": "packages/worker-runtime/src/index.ts:213",
+          "symbol": "egress-broker-authority",
+          "snippetDigest": "sha256:e364090e888532e5abdd64dc0a92f2e05b44cd106c22d36f945cf1b6b7bfbff4"
+        }
+      ]
+    },
+    {
+      "repositoryPath": "packages/worker-runtime/src/egress-policy.ts",
+      "requirementIds": [
+        "KCML-REQ-SECURITY-94460d094a18c0f7fc2f460dc387e2042e1f7791c38e76def83d0f9a87756569"
+      ],
+      "operationIds": [],
+      "registryRecordIds": [],
+      "testIds": [],
+      "traceAnchors": [
+        {
+          "requirementId": "KCML-REQ-SECURITY-94460d094a18c0f7fc2f460dc387e2042e1f7791c38e76def83d0f9a87756569",
+          "locator": "packages/worker-runtime/src/egress-policy.ts:24",
+          "symbol": "ssrf-address-policy",
+          "snippetDigest": "sha256:436b944f49928621ca03bc72492e45a50c5e35ec45e03c29059fb01c75729224"
+        }
+      ]
     }
   ]
 }

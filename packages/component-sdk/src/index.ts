@@ -26,10 +26,10 @@ export class ComponentContext {
   };
 
   public secret = {
-    use: (secretId: string, targetIdentity: string, purpose: string) => this.invoke('SECRET_USE', 'secret.use', { secretId, targetIdentity, purpose })
+    use: (bindingAlias: string, purpose: string) => this.invoke('SECRET_USE', 'secret.use', { bindingAlias, purpose })
   };
 
   public egress = {
-    request: (bindingId: string, request: unknown) => this.invoke('EGRESS_REQUEST', 'egress.request', { bindingId, request })
+    request: (bindingAlias: string, request: unknown) => this.invoke('EGRESS_REQUEST', 'egress.request', { bindingAlias, request })
   };
 }
