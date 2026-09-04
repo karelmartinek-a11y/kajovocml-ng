@@ -700,9 +700,21 @@ async function handleBrowserActionReconcile(client: DatabaseClient, context: Can
   const current = row((await client.query(`SELECT * FROM kcml.browser_action_run WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'BROWSER_ACTION_NOT_FOUND', 'Browser action does not exist');
   assertVersion(context, current);
   const readBack = objectArg(context, 'readBack');
-  const updated = row((await client.query(`UPDATE kcml.browser_action_run SET dispatch_phase=$2,outcome=$3,updated_at=clock_timestamp(),state_version=state_version+1 WHERE id=$1 AND dispatch_phase IN ('RECONCILING','POSSIBLE_EFFECT','OUTCOME_OBSERVED','UNKNOWN') AND state_version=$4 RETURNING *`, [id, textArg(context, 'outcome', 'UNKNOWN'), { readBack, evidence: objectArg(context, 'evidence') }, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Browser action changed while reconciling');
-  await recordAudit(client, context, 'BROWSER_ACTION_RUN', id, { actionId: id, reconciliation: { outcome: textArg(context, 'outcome', 'UNKNOWN'), readBack } });
-  return result(context, 'browser_action_run', updated, updated.state_version, { reconciliation: true });
+  const session = row((await client.query(`SELECT * FROM kcml.browser_session WHERE id=$1 FOR SHARE`, [current.session_id])).rows as Row[], 'BROWSER_SESSION_NOT_FOUND', 'Browser session does not exist');
+  const evidence = readBack.evidence && typeof readBack.evidence === 'object' ? readBack.evidence as Row : {};
+  const identity = readBack.identity && typeof readBack.identity === 'object' ? readBack.identity as Row : {};
+  const evidenceDigest = `sha256:${digest(evidence).toString('hex')}`;
+  const digestValid = readBack.digest === evidenceDigest;
+  const identityCurrent = String(identity.sessionId) === String(session.id) && String(identity.pageId) === String(session.current_page_id) && String(identity.frameId) === String(session.current_frame_id) && BigInt(String(identity.documentEpoch ?? -1)) === BigInt(String(session.document_epoch));
+  let outcome = 'UNKNOWN';
+  if (readBack.oracle === 'INDEPENDENT_HOST_OBSERVE' && digestValid && identityCurrent && current.action === 'NAVIGATE' && typeof (current.payload as Row)?.url === 'string' && typeof evidence.url === 'string' && new URL(String((current.payload as Row).url)).href === new URL(String(evidence.url)).href) outcome = 'CONFIRMED_APPLIED';
+  if (readBack.oracle === 'INDEPENDENT_HOST_OBSERVE' && digestValid && identityCurrent && current.action === 'OBSERVE') outcome = 'CONFIRMED_NOT_APPLIED';
+  const requested = context.arguments.outcome === undefined ? outcome : String(context.arguments.outcome);
+  if (requested !== outcome) throw new DomainError('BROWSER_RECONCILIATION_REQUIRED', 'Caller-supplied outcome differs from the independently derived browser outcome', 409, 'RECONCILE_THEN_RETRY');
+  const updated = row((await client.query(`UPDATE kcml.browser_action_run SET dispatch_phase=$2,outcome=$3,updated_at=clock_timestamp(),state_version=state_version+1 WHERE id=$1 AND dispatch_phase IN ('RECONCILING','POSSIBLE_EFFECT','OUTCOME_OBSERVED','UNKNOWN') AND state_version=$4 RETURNING *`, [id, outcome, { readBack, derived: true }, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Browser action changed while reconciling');
+  await client.query(`UPDATE kcml.browser_action_attempt SET postcondition=$2,readback=$3,ended_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp() WHERE action_run_id=$1 AND attempt=(SELECT max(attempt) FROM kcml.browser_action_attempt WHERE action_run_id=$1)`, [id, { classification: outcome, independentlyDerived: true }, readBack]);
+  await recordAudit(client, context, 'BROWSER_ACTION_RUN', id, { actionId: id, reconciliation: { outcome, evidenceDigest, identityCurrent } });
+  return result(context, 'browser_action_run', updated, updated.state_version, { reconciliation: true, outcome, independentlyDerived: true });
 }
 
 async function handleBrowserActionResolveOutcome(client: DatabaseClient, context: CanonicalHandlerContext): Promise<unknown> {
