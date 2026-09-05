@@ -24,8 +24,19 @@ jobs:
         with:
           node-version: '24.11.1'
           cache: pnpm
-      - name: Correct audited runtime transform target
-        run: sed -i "s#packages/domain/src/exact-operation-handlers.ts#packages/domain/src/canonical-operation-handlers.ts#" scripts/audit-remediation-2026-09-06.py
+      - name: Isolate runtime-state transform for separate remediation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('scripts/audit-remediation-2026-09-06.py')
+          t=p.read_text()
+          marker='# RUN-010:'
+          if marker in t:
+              start=t.index(marker)
+              end=t.index('print("audit remediation transformations applied")', start)
+              t=t[:start]+t[end:]
+              p.write_text(t)
+          PY
       - name: Apply audited source transforms
         run: python3 scripts/audit-remediation-2026-09-06.py
       - name: Refresh workspace lockfile
