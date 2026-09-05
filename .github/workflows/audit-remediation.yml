@@ -1,0 +1,51 @@
+name: Audit remediation apply
+on:
+  push:
+    branches: [audit-remediation-2026-09-06]
+permissions:
+  contents: write
+concurrency:
+  group: audit-remediation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: audit-remediation-2026-09-06
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+          cache: pnpm
+      - name: Apply audited source transforms
+        run: python3 scripts/audit-remediation-2026-09-06.py
+      - name: Refresh workspace lockfile
+        run: pnpm install --no-frozen-lockfile
+      - name: Verify contract generation
+        run: pnpm contracts:check
+      - name: Verify lint
+        run: pnpm lint
+      - name: Verify types
+        run: pnpm typecheck
+      - name: Verify build
+        run: pnpm build
+      - name: Verify patch whitespace
+        run: git diff --check
+      - name: Commit verified remediation
+        run: |
+          if git diff --quiet && [[ -z "$(git ls-files --others --exclude-standard)" ]]; then
+            echo 'No generated remediation changes.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix(audit): apply verified forensic remediation batch'
+          git push origin HEAD:audit-remediation-2026-09-06
