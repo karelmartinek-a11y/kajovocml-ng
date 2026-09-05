@@ -127,6 +127,11 @@ export class OwnerAuthenticationService {
     const envelope = this.cipher.encrypt(secret, `owner-mfa-enrollment:${principal.ownerId}`);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     await inTransaction(this.pool, 'SERIALIZABLE', async (client) => {
+      const owner = (await client.query(`SELECT id,mfa_enabled FROM kcml.owner_identity WHERE id=$1 FOR UPDATE`, [principal.ownerId])).rows[0];
+      if (!owner) throw new DomainError('AGENTIC_OWNER_INTENT_MISSING', 'OWNER identity is not initialized', 503);
+      const session = (await client.query(`SELECT mfa_verified,revoked_at,expires_at FROM kcml.owner_session WHERE id=$1 AND owner_identity_id=$2 FOR UPDATE`, [principal.sessionId, principal.ownerId])).rows[0];
+      if (!session || session.revoked_at || new Date(session.expires_at).getTime() <= Date.now()) throw new DomainError('AGENTIC_OPERATION_CONTEXT_INVALID', 'Session is invalid or expired', 401);
+      if (owner.mfa_enabled && !session.mfa_verified) throw new DomainError('AGENTIC_OWNER_INTENT_MISSING', 'Existing MFA must be verified before it can be replaced', 401);
       await client.query(`DELETE FROM kcml.owner_mfa_enrollment WHERE owner_identity_id=$1 AND verified_at IS NULL`, [principal.ownerId]);
       await client.query(`INSERT INTO kcml.owner_mfa_enrollment(owner_identity_id,enrollment_token_digest,seed_ciphertext,seed_nonce,seed_auth_tag,expires_at)
         VALUES($1,$2,$3,$4,$5,$6)`, [principal.ownerId, tokenDigest(enrollmentToken), envelope.ciphertext, envelope.nonce, envelope.authTag, expiresAt]);
@@ -137,6 +142,11 @@ export class OwnerAuthenticationService {
   public async completeMfa(sessionToken: string, code: string): Promise<{ recoveryCodes: string[] }> {
     const principal = await this.authenticate(sessionToken, false);
     return inTransaction(this.pool, 'SERIALIZABLE', async (client) => {
+      const owner = (await client.query(`SELECT id,mfa_enabled FROM kcml.owner_identity WHERE id=$1 FOR UPDATE`, [principal.ownerId])).rows[0];
+      if (!owner) throw new DomainError('AGENTIC_OWNER_INTENT_MISSING', 'OWNER identity is not initialized', 503);
+      const session = (await client.query(`SELECT mfa_verified,revoked_at,expires_at FROM kcml.owner_session WHERE id=$1 AND owner_identity_id=$2 FOR UPDATE`, [principal.sessionId, principal.ownerId])).rows[0];
+      if (!session || session.revoked_at || new Date(session.expires_at).getTime() <= Date.now()) throw new DomainError('AGENTIC_OPERATION_CONTEXT_INVALID', 'Session is invalid or expired', 401);
+      if (owner.mfa_enabled && !session.mfa_verified) throw new DomainError('AGENTIC_OWNER_INTENT_MISSING', 'Existing MFA must be verified before it can be replaced', 401);
       const enrollmentResult = await client.query(`SELECT * FROM kcml.owner_mfa_enrollment WHERE owner_identity_id=$1 AND verified_at IS NULL AND expires_at>clock_timestamp() ORDER BY created_at DESC LIMIT 1 FOR UPDATE`, [principal.ownerId]);
       const enrollment = enrollmentResult.rows[0];
       if (!enrollment) throw new DomainError('AGENTIC_OPERATION_CONTEXT_INVALID', 'Start MFA enrollment first', 409);
@@ -148,7 +158,11 @@ export class OwnerAuthenticationService {
       for (const recovery of recoveryCodes) await client.query(`INSERT INTO kcml.owner_recovery_code(owner_identity_id,code_hash)VALUES($1,$2)`, [principal.ownerId, tokenDigest(recovery)]);
       await client.query(`UPDATE kcml.owner_mfa_enrollment SET verified_at=clock_timestamp() WHERE id=$1`, [enrollment.id]);
       await client.query(`UPDATE kcml.owner_identity SET mfa_enabled=true,mfa_secret_ciphertext=$1,mfa_secret_nonce=$2,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$3`, [Buffer.concat([activeEnvelope.authTag, activeEnvelope.ciphertext]), activeEnvelope.nonce, principal.ownerId]);
+      await client.query(`UPDATE kcml.owner_session SET revoked_at=clock_timestamp(),state_version=state_version+1 WHERE owner_identity_id=$1 AND id<>$2 AND revoked_at IS NULL`, [principal.ownerId, principal.sessionId]);
       await client.query(`UPDATE kcml.owner_session SET mfa_verified=true,reauthenticated_at=clock_timestamp(),state_version=state_version+1 WHERE id=$1`, [principal.sessionId]);
+      const correlationId = randomUUID();
+      const payload = { ownerId: principal.ownerId, sessionId: principal.sessionId, replacement: Boolean(owner.mfa_enabled), otherSessionsRevoked: true };
+      await client.query(`SELECT * FROM kcml.append_audit_event('owner.mfa.enrollment.completed','OWNER',$1,'OWNER',$2,$3,NULL,$4,$5)`, [principal.ownerId, principal.ownerId, correlationId, payload, Buffer.from(canonicalJson(payload as CanonicalJsonValue))]);
       return { recoveryCodes };
     });
   }
@@ -209,7 +223,6 @@ export class OwnerAuthenticationService {
     const result = await this.pool.query(`UPDATE kcml.owner_session SET revoked_at=clock_timestamp(),state_version=state_version+1 WHERE owner_identity_id=$1 AND revoked_at IS NULL`, [ownerId]);
     return result.rowCount ?? 0;
   }
-
 
   public async rotateRecoveryCodes(sessionToken: string): Promise<{ recoveryCodes: string[] }> {
     const principal = await this.authenticate(sessionToken, true);
