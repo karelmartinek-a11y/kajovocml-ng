@@ -39,6 +39,17 @@ jobs:
           PY
       - name: Apply audited source transforms
         run: python3 scripts/audit-remediation-2026-09-06.py
+      - name: Fix exact optional artifact inventory representation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('packages/domain/src/closure-predicates.ts')
+          t=p.read_text()
+          old="artifacts.push({ id: item.id, path, present: true, size: stat.size, digest: item.state === 'PUBLISHED' ? await fileDigest(path) : undefined });"
+          new="if (item.state === 'PUBLISHED') artifacts.push({ id: item.id, path, present: true, size: stat.size, digest: await fileDigest(path) }); else artifacts.push({ id: item.id, path, present: true, size: stat.size });"
+          if t.count(old) != 1: raise SystemExit('artifact inventory transform marker mismatch')
+          p.write_text(t.replace(old,new,1))
+          PY
       - name: Refresh workspace lockfile
         run: pnpm install --no-frozen-lockfile
       - name: Verify SSOT surface and error registry
