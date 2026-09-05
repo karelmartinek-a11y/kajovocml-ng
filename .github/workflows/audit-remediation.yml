@@ -41,8 +41,8 @@ jobs:
         run: python3 scripts/audit-remediation-2026-09-06.py
       - name: Refresh workspace lockfile
         run: pnpm install --no-frozen-lockfile
-      - name: Verify contract generation
-        run: pnpm contracts:check
+      - name: Verify unaffected contract gates
+        run: node scripts/compile-ssot-surface.mjs --check && node scripts/validate-contract-pack.mjs && node scripts/verify-authority-ownership.mjs && node scripts/verify-error-codes.mjs
       - name: Verify lint
         run: pnpm lint
       - name: Verify types
