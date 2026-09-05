@@ -58,8 +58,8 @@ jobs:
         run: pnpm lint
       - name: Verify types
         run: pnpm typecheck
-      - name: Verify build
-        run: pnpm build
+      - name: Verify workspace build
+        run: pnpm -r --sort --if-present build
       - name: Verify patch whitespace
         run: git diff --check
       - name: Commit verified remediation
