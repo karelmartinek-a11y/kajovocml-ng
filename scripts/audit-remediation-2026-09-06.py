@@ -201,13 +201,4 @@ insert_after(
     "kcml-mcp-worker|kcml-mcp|kcml-release-readers|kcml_mcp_worker|database-url|/opt/kajovocml-ng/current /etc/kajovocml-ng/runtime.env\n",
 )
 
-# RUN-010: STARTING is an idempotent in-progress state, not a state eligible for
-# a second prepare transition. This removes the internal precondition/UPDATE
-# contradiction while preserving the current attempt.
-replace_once(
-    "packages/domain/src/exact-operation-handlers.ts",
-    "  if (!['STOPPED', 'FAILED', 'UNKNOWN', 'ABSENT', 'STARTING'].includes(String(current.effective_state))) throw new DomainError('RUNTIME_STATE_CONFLICT', 'Runtime instance cannot be prepared from its current state', 409, 'RECONCILE_THEN_RETRY');",
-    "  if (String(current.effective_state) === 'STARTING') return result(context, 'runtime_instance', current, current.state_version, { transition: 'STARTING->STARTING', idempotent: true, inProgress: true });\n  if (!['STOPPED', 'FAILED', 'UNKNOWN', 'ABSENT'].includes(String(current.effective_state))) throw new DomainError('RUNTIME_STATE_CONFLICT', 'Runtime instance cannot be prepared from its current state', 409, 'RECONCILE_THEN_RETRY');",
-)
-
 print("audit remediation transformations applied")

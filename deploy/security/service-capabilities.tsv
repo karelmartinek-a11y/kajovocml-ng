@@ -11,6 +11,7 @@ kcml-generation-activation-worker|kcml-gen-act|kcml-release-readers|kcml_generat
 kcml-agent-worker|kcml-agent|kcml-release-readers|kcml_agent_worker|database-url|/opt/kajovocml-ng/current /etc/kajovocml-ng/runtime.env
 kcml-browser-worker|kcml-browser-worker|kcml-release-readers kcml-browser-worker kcml-browser-host|kcml_browser_worker|database-url|/opt/kajovocml-ng/current /etc/kajovocml-ng/runtime.env
 kcml-browser-bridge-gateway|kcml-browser-bridge|kcml-release-readers|kcml_browser_bridge_gateway|database-url|/opt/kajovocml-ng/current /etc/kajovocml-ng/runtime.env
+kcml-mcp-worker|kcml-mcp|kcml-release-readers|kcml_mcp_worker|database-url|/opt/kajovocml-ng/current /etc/kajovocml-ng/runtime.env
 kcml-component-control-worker|kcml-comp-ctl|kcml-release-readers|kcml_component_control_worker|database-url|/opt/kajovocml-ng/current /etc/kajovocml-ng/runtime.env
 kcml-component-e2e-worker|kcml-comp-e2e|kcml-release-readers|kcml_component_e2e_worker|database-url|/opt/kajovocml-ng/current /etc/kajovocml-ng/runtime.env
 kcml-monitor-worker|kcml-monitor|kcml-release-readers|kcml_monitor_worker|database-url|/opt/kajovocml-ng/current /etc/kajovocml-ng/runtime.env

@@ -1,9 +1,12 @@
-import { lstat } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { lstat, readFile } from 'node:fs/promises';
 import { kill } from 'node:process';
 import type { DatabaseClient, DatabasePool } from '@kcml/database';
 import { inSerializableReadOnlyDeferrable } from '@kcml/database';
 import { loadRegistry, type RegistryRecord } from '@kcml/contract-pack';
 import { canonicalDigest, type CanonicalJsonValue } from '@kcml/schemas';
+import { verifyAuditChainClient } from './audit-integrity.js';
 
 /**
  * Closure is deliberately a small interpreter.  A registry record contains
@@ -140,7 +143,7 @@ const rootState: Record<string, { table: string; column: string; terminal: strin
   SECRET_RECORD: { table: 'secret_record', column: 'lifecycle', terminal: ['CLOSED'] },
   SELF_TEST_RUN: { table: 'self_test_run', column: 'status', terminal: ['PASS', 'FAIL', 'CANCELLED', 'NOT_EXECUTED_ENVIRONMENTAL'] },
   SIDE_EFFECT: { table: 'side_effect_operation', column: 'status', terminal: ['CONFIRMED_APPLIED', 'CONFIRMED_NOT_APPLIED', 'FAILED_FINAL'] },
-  SYSTEM_CHAT_CONVERSATION: { table: 'system_chat_conversation', column: 'state', terminal: ['CANCELLED', 'CLOSED', 'FAILED'] }
+  SYSTEM_CHAT_CONVERSATION: { table: 'system_chat_conversation', column: 'status', terminal: ['CLOSED', 'FAILED'] }
 };
 
 function safeJson(value: unknown): CanonicalJsonValue {
@@ -184,7 +187,7 @@ async function readDatabaseEvidence(client: DatabaseClient, rootKind: string, ro
   const children = await queryOne(client, `SELECT
     count(*) FILTER (WHERE c.status NOT IN ('SUCCEEDED','FAILED_FINAL','CANCELLED_FINAL') AND c.target_id=$1)::int AS pending_commands,
     count(*) FILTER (WHERE c.status='MANUAL_REVIEW' AND c.target_id=$1)::int AS manual_commands,
-    count(*) FILTER (WHERE c.target_id=$1 AND (c.expected_activation_epoch IS NOT NULL))::int AS provisional_children
+    count(*) FILTER (WHERE c.target_id=$1 AND c.expected_activation_epoch IS NOT NULL AND c.status NOT IN ('SUCCEEDED','FAILED_FINAL','CANCELLED_FINAL'))::int AS provisional_children
     FROM kcml.domain_command c`, [rootId]);
   evidence.children.pendingCommands = numberValue(children?.pending_commands);
   evidence.children.provisionalChildren = numberValue(children?.provisional_children);
@@ -269,11 +272,19 @@ async function readDatabaseEvidence(client: DatabaseClient, rootKind: string, ro
     (SELECT count(*) FROM kcml.cleanup_resource r JOIN kcml.cleanup_operation o ON o.id=r.cleanup_operation_id WHERE o.parent_id=$1 AND r.status NOT IN ('VERIFIED_ABSENT','RETAINED_EVIDENCE'))::int AS live_resources`, [rootId]);
   evidence.cleanup = { incomplete: numberValue(cleanup?.incomplete), liveResources: numberValue(cleanup?.live_resources) };
 
-  const audit = await queryOne(client, `SELECT
-    (SELECT count(*) FROM kcml.component_audit_stream WHERE component_id=$1 AND integrity_state<>'VALID')::int +
-    (SELECT count(*) FROM kcml.audit_event WHERE aggregate_id=$1 AND (octet_length(payload_digest)<>32 OR octet_length(previous_hash)<>32 OR octet_length(event_hash)<>32))::int AS invalid_streams,
-    0::int AS missing_terminal_event`, [rootId]);
-  evidence.audit = { invalidStreams: numberValue(audit?.invalid_streams), missingTerminalEvent: numberValue(audit?.missing_terminal_event) };
+  let invalidAuditStreams = 0;
+  try { await verifyAuditChainClient(client); } catch { invalidAuditStreams += 1; }
+  const componentAudit = await queryOne(client, `SELECT count(*)::int AS count FROM kcml.component_audit_stream WHERE component_id=$1 AND integrity_state<>'VALID'`, [rootId]);
+  invalidAuditStreams += numberValue(componentAudit?.count);
+  let missingTerminalEvent = 0;
+  if (rootId && evidence.root.exists && config.terminal.includes(String(evidence.root.state))) {
+    const terminalAudit = await queryOne(client, `SELECT count(*)::int AS count FROM kcml.audit_event WHERE aggregate_id=$1 AND (
+      payload->>'state'=ANY($2::text[]) OR payload->>'status'=ANY($2::text[]) OR payload->>'lifecycle'=ANY($2::text[]) OR payload->>'dispatchPhase'=ANY($2::text[]) OR payload->>'effectiveState'=ANY($2::text[]) OR
+      event_type ~* '(succeeded|completed|closed|cancelled|failed|activated|rolled.?back|deregistered|stopped|pass)'
+    )`, [rootId, config.terminal]);
+    missingTerminalEvent = numberValue(terminalAudit?.count) > 0 ? 0 : 1;
+  }
+  evidence.audit = { invalidStreams: invalidAuditStreams, missingTerminalEvent };
   const manual = await queryOne(client, `SELECT
     (SELECT count(*) FROM kcml.domain_command WHERE target_id=$1 AND status='MANUAL_REVIEW')::int +
     (SELECT count(*) FROM kcml.side_effect_operation e JOIN kcml.domain_command c ON c.id=e.command_id WHERE c.target_id=$1 AND e.status='UNKNOWN')::int AS objects,
@@ -304,17 +315,49 @@ export function evaluateClosureAst(ast: ClosureAst, values: Readonly<Record<Clos
   return ast.op === 'AND' ? ast.args.every((item) => evaluateClosureAst(item, values)) : ast.args.some((item) => evaluateClosureAst(item, values));
 }
 
+function processIsAlive(pid: number): boolean {
+  if (!Number.isSafeInteger(pid) || pid <= 0) return true;
+  try { kill(pid, 0); return true; }
+  catch (error) {
+    const code = error && typeof error === 'object' && 'code' in error ? String((error as { code?: unknown }).code) : '';
+    if (code === 'ESRCH') return false;
+    return true;
+  }
+}
+
+async function cgroupPopulated(cgroupPath: string): Promise<boolean> {
+  if (!cgroupPath) return true;
+  const path = cgroupPath.startsWith('/sys/fs/cgroup/') ? cgroupPath : `/sys/fs/cgroup${cgroupPath.startsWith('/') ? '' : '/'}${cgroupPath}`;
+  try {
+    const events = await readFile(`${path}/cgroup.events`, 'utf8');
+    const populated = /^populated\s+1$/mu.test(events);
+    const procs = await readFile(`${path}/cgroup.procs`, 'utf8');
+    return populated || procs.trim().length > 0;
+  } catch {
+    return true;
+  }
+}
+
 async function defaultRuntimeInventory(evidence: ClosureDatabaseEvidence): Promise<RuntimeInventory> {
-  const processes = evidence.runtime.processes.map((item) => {
-    let alive = item.active;
-    if (alive) { try { kill(item.pid, 0); } catch { alive = false; } }
-    return { ...item, active: alive };
-  });
+  const processes = evidence.runtime.processes.map((item) => ({ ...item, active: item.active ? processIsAlive(item.pid) : false }));
   const sockets = await Promise.all(evidence.runtime.sockets.map(async (item) => {
     if (!item.path) return item;
-    try { await lstat(item.path); return item; } catch { return { ...item, active: false }; }
+    try { await lstat(item.path); return { ...item, active: true }; } catch { return { ...item, active: false }; }
   }));
-  return { processes, sockets, cgroups: processes.map((item) => ({ path: item.cgroupPath, populated: item.active })) };
+  const cgroupPaths = [...new Set(evidence.runtime.processes.map((item) => item.cgroupPath).filter(Boolean))];
+  const cgroups = await Promise.all(cgroupPaths.map(async (path) => ({ path, populated: await cgroupPopulated(path) })));
+  return { processes, sockets, cgroups };
+}
+
+async function fileDigest(path: string): Promise<string> {
+  const hash = createHash('sha256');
+  await new Promise<void>((resolve, reject) => {
+    const stream = createReadStream(path);
+    stream.on('data', (chunk) => hash.update(chunk));
+    stream.on('error', reject);
+    stream.on('end', resolve);
+  });
+  return `sha256:${hash.digest('hex')}`;
 }
 
 async function defaultFilesystemInventory(evidence: ClosureDatabaseEvidence): Promise<FilesystemInventory> {
@@ -322,8 +365,10 @@ async function defaultFilesystemInventory(evidence: ClosureDatabaseEvidence): Pr
   for (const item of evidence.artifacts) {
     const paths = item.state === 'PUBLISHED' ? [item.finalPath].filter((value): value is string => Boolean(value)) : [item.tempPath];
     for (const path of paths) {
-      try { const stat = await lstat(path); artifacts.push({ id: item.id, path, present: true, size: stat.size }); }
-      catch { artifacts.push({ id: item.id, path, present: false }); }
+      try {
+        const stat = await lstat(path);
+        if (item.state === 'PUBLISHED') artifacts.push({ id: item.id, path, present: true, size: stat.size, digest: await fileDigest(path) }); else artifacts.push({ id: item.id, path, present: true, size: stat.size });
+      } catch { artifacts.push({ id: item.id, path, present: false }); }
     }
   }
   return { artifacts };
@@ -335,7 +380,7 @@ export async function evaluateClosureRecord(record: ClosureRegistryRecord, datab
   const external: ExternalReadBack[] = [];
   for (const effect of database.effects) if (effect.possibleEffect) external.push(await (options.externalReadBack?.(effect, record.rootKind, rootId) ?? { effectId: effect.id, available: false, consistent: false }));
   const runtimeClosed = runtime.processes.every((item) => !item.active) && runtime.sockets.every((item) => !item.active) && runtime.cgroups.every((item) => !item.populated) && database.runtime.contexts === 0;
-  const artifactClosed = database.artifacts.every((item) => ['PUBLISHED', 'CLEANED', 'FAILED'].includes(item.state)) && filesystem.artifacts.every((item) => !item.present || database.artifacts.find((artifact) => artifact.id === item.id)?.state === 'PUBLISHED');
+  const artifactClosed = database.artifacts.every((item) => { const observed=filesystem.artifacts.find((artifact)=>artifact.id===item.id); if(item.state==='PUBLISHED')return Boolean(observed?.present)&&Boolean(item.expectedDigest)&&observed?.digest===item.expectedDigest; if(item.state==='CLEANED'||item.state==='FAILED')return !observed?.present; return false; });
   const activePointerForbidden = ['COMPONENT', 'BROWSER_SESSION', 'RUNTIME_INSTANCE', 'SECRET_RECORD'].includes(record.rootKind) && database.pointers.activePointer > 0;
   const values: Record<ClosurePredicateName, boolean> = {
     terminal_state: database.root.exists && record.terminalStates.includes(String(database.root.state)),

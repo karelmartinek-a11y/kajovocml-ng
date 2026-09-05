@@ -14,6 +14,7 @@ import { exactMonitorMutationOperations, exactMonitorQueryOperations, executeExa
 import { mutationHandlerFor, queryHandlerFor, validateCanonicalOperationCommand } from './canonical-operation-handlers.js';
 import { createGenerationJob } from './generation-lifecycle.js';
 import { planCanonicalRetry } from './retry-planner.js';
+import { verifyAuditChainSnapshot } from './audit-integrity.js';
 
 function requiredSourceSha(): string {
   const value = process.env.KCML_SOURCE_SHA;
@@ -197,7 +198,7 @@ export class CanonicalOperationService {
     else if(exactSecretQueryOperations.has(operation.operationName))result=await executeExactSecretQuery(this.pool,operation.operationName,targetId,args);
     else if(exactSelfTestQueryOperations.has(operation.operationName))result=await executeExactSelfTestQuery(this.pool,operation.operationName,targetId,args);
     else if(exactMonitorQueryOperations.has(operation.operationName))result=await executeExactMonitorQuery(this.pool,operation.operationName,targetId,args);
-    else if(operation.operationName==='audit.integrity.verify')result=await verifyAuditChain(this.pool);
+    else if(operation.operationName==='audit.integrity.verify')result=await verifyAuditChainSnapshot(this.pool);
     else result=await queryHandlerFor(operation)(this.pool,{operation,targetId,arguments:args});
     return this.acceptedResult(randomUUID(),randomUUID(),context.correlationId,0n,0n,await currentActivationEpoch(this.pool),false,result,'SUCCEEDED');
   }
@@ -209,29 +210,6 @@ export class CanonicalOperationService {
 }
 
 function queueFor(operation:OperationContract):string{return operationHandlerFor(operation.operationName).queue;}
-async function verifyAuditChain(pool:DatabasePool):Promise<{valid:true;eventCount:number;lastSequence:string;lastHash:string}>{
-  const events=await pool.query(`SELECT chain_sequence,event_type,payload_canonical_bytes,payload_digest,previous_hash,event_hash FROM kcml.audit_event ORDER BY chain_sequence`);
-  const headResult=await pool.query(`SELECT last_sequence,last_hash FROM kcml.audit_head WHERE singleton_key=1`);
-  const head=headResult.rows[0];
-  if(!head)throw new DomainError('CLOSURE_PREDICATE_INCOMPLETE','Audit head is missing',503,'DO_NOT_RETRY');
-  let previous=Buffer.alloc(32);
-  let expectedSequence=1n;
-  for(const event of events.rows){
-    const sequence=BigInt(event.chain_sequence);
-    if(sequence!==expectedSequence)throw new DomainError('SEQUENCE_GAP',`Expected audit sequence ${expectedSequence} but found ${sequence}`,409,'DO_NOT_RETRY');
-    const storedPrevious=Buffer.from(event.previous_hash);
-    if(!storedPrevious.equals(previous))throw new DomainError('CHECKPOINT_DIGEST_INVALID',`Audit chain predecessor mismatch at ${sequence}`,409,'DO_NOT_RETRY');
-    const payloadDigest=createHash('sha256').update(Buffer.from(event.payload_canonical_bytes)).digest();
-    if(!payloadDigest.equals(Buffer.from(event.payload_digest)))throw new DomainError('CHECKPOINT_DIGEST_INVALID',`Audit payload digest mismatch at ${sequence}`,409,'DO_NOT_RETRY');
-    const sequenceBytes=Buffer.alloc(8); sequenceBytes.writeBigInt64BE(sequence);
-    const calculated=createHash('sha256').update(Buffer.concat([previous,sequenceBytes,Buffer.from(String(event.event_type),'utf8'),payloadDigest])).digest();
-    if(!calculated.equals(Buffer.from(event.event_hash)))throw new DomainError('CHECKPOINT_DIGEST_INVALID',`Audit event hash mismatch at ${sequence}`,409,'DO_NOT_RETRY');
-    previous=calculated; expectedSequence+=1n;
-  }
-  const lastSequence=expectedSequence-1n;
-  if(BigInt(head.last_sequence)!==lastSequence||!Buffer.from(head.last_hash).equals(previous))throw new DomainError('CLOSURE_PREDICATE_INCOMPLETE','Audit head does not match the terminal chain event',409,'DO_NOT_RETRY');
-  return {valid:true,eventCount:events.rows.length,lastSequence:lastSequence.toString(),lastHash:previous.toString('hex')};
-}
 async function currentActivationEpoch(pool:DatabasePool):Promise<bigint>{const result=await pool.query(`SELECT current_epoch FROM kcml.activation_head WHERE singleton_key=1`);return BigInt(result.rows[0].current_epoch);}
 async function nextStreamSequence(client:DatabaseClient,stream:string):Promise<bigint>{const commandId=stream.startsWith('command:')?stream.slice('command:'.length):stream;if(!/^[0-9a-f-]{36}$/iu.test(commandId))throw new DomainError('TOOL_ARGUMENT_SCHEMA_INVALID','Authoritative outbox stream must be UUID-addressable',500);return allocateContiguousSequence(client,'TRANSACTIONAL_OUTBOX',commandId,'STREAM_SEQUENCE');}
 async function audit(client:DatabaseClient,eventType:string,actorId:string,aggregateType:string,aggregateId:string,correlationId:string,causationId:string|null,payload:JsonObject):Promise<void>{const bytes=Buffer.from(canonicalJson(jsonSafe(payload)));await client.query(`SELECT * FROM kcml.append_audit_event($1,'OWNER',$2,$3,$4,$5,$6,$7,$8)`,[eventType,actorId,aggregateType,aggregateId,correlationId,causationId,payload,bytes]);}

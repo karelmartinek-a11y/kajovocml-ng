@@ -11,6 +11,7 @@ kcml-generation-activation-worker|generation-activation-worker|kcml-gen-act|AF_U
 kcml-agent-worker|agent-worker|kcml-agent|AF_UNIX AF_INET AF_INET6|/var/lib/kajovocml-ng/data| |yes
 kcml-browser-worker|browser-worker|kcml-browser-worker|AF_UNIX|/var/lib/kajovocml-ng/browser| |yes
 kcml-browser-bridge-gateway|browser-bridge-gateway|kcml-browser-bridge|AF_UNIX AF_INET AF_INET6|/var/lib/kajovocml-ng/browser| |yes
+kcml-mcp-worker|mcp-worker|kcml-mcp|AF_UNIX AF_INET AF_INET6|/var/lib/kajovocml-ng/data| |yes
 kcml-component-control-worker|component-control-worker|kcml-comp-ctl|AF_UNIX|/var/lib/kajovocml-ng/components| |yes
 kcml-component-e2e-worker|component-e2e-worker|kcml-comp-e2e|AF_UNIX AF_INET AF_INET6|/var/lib/kajovocml-ng/components| |yes
 kcml-monitor-worker|monitor-worker|kcml-monitor|AF_UNIX AF_INET AF_INET6|/var/lib/kajovocml-ng/data| |yes
