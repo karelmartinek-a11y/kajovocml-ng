@@ -1,4 +1,4 @@
-name: Audit remediation verification
+name: Audit remediation ARCH-001
 on:
   push:
     branches: [audit-remediation-2026-09-06]
@@ -8,7 +8,7 @@ concurrency:
   group: audit-remediation-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  verify:
+  apply:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-24.04
     steps:
@@ -24,11 +24,53 @@ jobs:
         with:
           node-version: '24.11.1'
           cache: pnpm
+      - name: De-shadow canonical family handlers
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          canonical=Path('packages/domain/src/canonical-operation-handlers.ts')
+          text=canonical.read_text(encoding='utf-8')
+          a=text.index('async function runtimeMutation(')
+          b=text.index('function unsupportedOperationRejection(',a)
+          text=text[:a]+text[b:]
+          marker='export function mutationHandlerFor(operation: OperationContract): CanonicalMutationHandler {'
+          start=text.index(marker)
+          end=text.index('\nexport function queryHandlerFor(',start)
+          generation=[
+            'generation.activation.prepare','generation.activation.rollback','generation.activation.switch','generation.candidate.publish',
+            'generation.integration.step','generation.job.cancel','generation.job.complete','generation.job.resume','generation.job.retry',
+            'generation.message.append','generation.phase.complete','generation.phase.start','generation.validation.run','generation.workspace.patch'
+          ]
+          browser=[
+            'browser.action.cancel','browser.action.complete','browser.action.dispatchPhase','browser.action.fail','browser.action.reconcile',
+            'browser.action.resolveOutcome','browser.action.start','browser.artifact.created','browser.challenge.required','browser.challenge.resolve',
+            'browser.cleanup.resume','browser.control.transfer','browser.download.persist','browser.download.started','browser.page.observed',
+            'browser.session.attach','browser.session.close','browser.session.pause','browser.session.recover','browser.session.resume',
+            'browser.upload.consume','browser.upload.create'
+          ]
+          quote=lambda values:',\n  '.join(repr(v) for v in values)
+          replacement=f'''const detailedGenerationMutationOperations: ReadonlySet<string> = new Set([\n  {quote(generation)}\n]);\nconst detailedBrowserMutationOperations: ReadonlySet<string> = new Set([\n  {quote(browser)}\n]);\n\nexport function mutationHandlerFor(operation: OperationContract): CanonicalMutationHandler {{\n  const operationName = operation.operationName;\n  if (detailedGenerationMutationOperations.has(operationName)) return generationMutation;\n  if (detailedBrowserMutationOperations.has(operationName)) return browserMutation;\n  const exactHandler = exactMutationHandlerFor(operationName);\n  if (exactHandler) return exactHandler;\n  switch (operationName) {{\n    case 'browser.session.create': return browserMutation;\n    case 'component.deregister':\n    case 'component.heartbeat':\n    case 'component.quarantine':\n    case 'component.recertify':\n    case 'component.register':\n    case 'component.restore':\n    case 'component.revision.publish':\n    case 'component.state.report':\n    case 'component.suspend': return componentMutation;\n    case 'generation.job.create': return generationMutation;\n    case 'monitor.alert.close':\n    case 'monitor.alert.open':\n    case 'monitor.alert.update': return monitorMutation;\n    case 'selfTest.run.start': return selfTestMutation;\n    default: return async (_client, context) => unsupportedOperationRejection(operation.operationFamily, context);\n  }}\n}}\n'''
+          text=text[:start]+replacement+text[end:]
+          canonical.write_text(text,encoding='utf-8')
+
+          exact=Path('packages/domain/src/exact-operation-handlers.ts')
+          et=exact.read_text(encoding='utf-8')
+          removed=0
+          for op in generation+browser:
+            import re
+            pattern=re.compile(rf"^\s*case '{re.escape(op)}': return [^;]+;\n",re.M)
+            et,n=pattern.subn('',et,count=1)
+            removed+=n
+          if removed < 20:
+            raise SystemExit(f'expected substantial exact overlap, removed only {removed}')
+          exact.write_text(et,encoding='utf-8')
+          print(f'ARCH-001 de-shadowed {len(generation)+len(browser)} detailed mutations; removed {removed} exact dispatch aliases')
+          PY
       - name: Regenerate implementation evidence
         run: node scripts/compile-contract-trace.mjs
       - name: Install
         run: pnpm install --frozen-lockfile
-      - name: Verify Contract Pack, evidence and ownership
+      - name: Verify Contract Pack and ownership
         run: pnpm contracts:check
       - name: Verify lint
         run: pnpm lint
@@ -36,18 +78,14 @@ jobs:
         run: pnpm typecheck
       - name: Verify root build
         run: pnpm build
-      - name: Verify conformance audit
+      - name: Verify conformance
         run: pnpm conformance:audit
       - name: Verify patch whitespace
         run: git diff --check
-      - name: Commit refreshed evidence when needed
+      - name: Commit verified dispatch remediation
         run: |
-          if git diff --quiet -- contracts/traceability/artifact-trace; then
-            echo 'Implementation evidence already current.'
-            exit 0
-          fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add contracts/traceability/artifact-trace
-          git commit -m 'chore(contracts): refresh implementation evidence'
+          git add packages/domain/src/canonical-operation-handlers.ts packages/domain/src/exact-operation-handlers.ts contracts/traceability/artifact-trace
+          git commit -m 'fix(domain): make detailed canonical handlers authoritative'
           git push origin HEAD:audit-remediation-2026-09-06
