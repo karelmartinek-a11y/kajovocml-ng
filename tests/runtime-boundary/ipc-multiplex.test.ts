@@ -3,6 +3,9 @@ import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
   RuntimeCapabilityClient,
+  RUNTIME_IPC_HEADER_BYTES,
+  decodeRuntimeFrameHeader,
+  encodeRuntimeFrame,
   createCapabilityFdServer,
   type RuntimeCapabilityRequest,
 } from '@kcml/runtime-capability-ipc';
@@ -38,6 +41,22 @@ function request(index: number, deadlineMs = 10_000): RuntimeCapabilityRequest {
 }
 
 describe('runtime capability multiplexing', () => {
+
+  it('uses the exact 16-byte KCML-RUNTIME-IPC/1 network-order header', () => {
+    const frame = encodeRuntimeFrame({ frameType: 'REQUEST', flags: 0x1234, sequence: 7, payload: { z: 1, a: 2 } });
+    expect(RUNTIME_IPC_HEADER_BYTES).toBe(16);
+    expect(frame.subarray(0, 4).toString('ascii')).toBe('KCR1');
+    expect(frame.readUInt8(4)).toBe(1);
+    expect(frame.readUInt16BE(6)).toBe(0x1234);
+    expect(frame.readUInt32BE(12)).toBe(7);
+    expect(frame.subarray(16).toString('utf8')).toBe('{"a":2,"z":1}');
+    expect(decodeRuntimeFrameHeader(frame.subarray(0, 16))).toMatchObject({ frameType: 'REQUEST', flags: 0x1234, sequence: 7 });
+  });
+
+  it('rejects zero and wrapped runtime sequence values', () => {
+    expect(() => encodeRuntimeFrame({ frameType: 'REQUEST', flags: 0, sequence: 0, payload: {} })).toThrow('RUNTIME_PROTOCOL_SEQUENCE_INVALID');
+    expect(() => encodeRuntimeFrame({ frameType: 'REQUEST', flags: 0, sequence: 0x1_0000_0000, payload: {} })).toThrow('RUNTIME_PROTOCOL_SEQUENCE_INVALID');
+  });
   it('correlates 10k reordered responses without listener growth', async () => {
     const pair = await connectedPair(async (value) => {
       const index = Number((value.payload as { index: number }).index);

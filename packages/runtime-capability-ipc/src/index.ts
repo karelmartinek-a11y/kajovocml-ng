@@ -2,7 +2,7 @@ import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { createConnection, createServer, type Server, type Socket } from 'node:net';
 import { spawn } from 'node:child_process';
 import { chmod, unlink } from 'node:fs/promises';
-import { canonicalJson, type CanonicalJsonValue, z } from '@kcml/schemas';
+import { canonicalJson, toCanonicalJsonValue, type CanonicalJsonValue, z } from '@kcml/schemas';
 
 /** The anonymous handler channel is deliberately separate from the legacy
  * broker UDS API below. It carries no bearer key or server identity envelope;
@@ -11,8 +11,10 @@ import { canonicalJson, type CanonicalJsonValue, z } from '@kcml/schemas';
 export const RUNTIME_IPC_PROTOCOL = 'KCML-RUNTIME-IPC/1' as const;
 export const RUNTIME_IPC_MAGIC = Buffer.from('KCR1', 'ascii');
 export const RUNTIME_IPC_MAX_PAYLOAD = 1024 * 1024;
-export const RUNTIME_IPC_HEADER_BYTES = 20;
-export const RUNTIME_IPC_MAX_PENDING = 1024;
+export const RUNTIME_IPC_MAX_UNARY = 16 * 1024 * 1024;
+export const RUNTIME_IPC_MAX_STREAM_CHUNK = 64 * 1024;
+export const RUNTIME_IPC_HEADER_BYTES = 16;
+export const RUNTIME_IPC_MAX_PENDING = 32;
 
 export const runtimeFrameType = {
   HELLO: 1, READY: 2, REQUEST: 3, RESPONSE: 4, ERROR: 5, STREAM_OPEN: 6,
@@ -24,7 +26,7 @@ export type RuntimeFrameType = keyof typeof runtimeFrameType;
 export interface RuntimeFrame {
   frameType: RuntimeFrameType;
   flags: number;
-  sequence: bigint;
+  sequence: number;
   payload: unknown;
 }
 
@@ -39,34 +41,45 @@ export const runtimeCapabilityRequestSchema = z.object({
 }).strict();
 export type RuntimeCapabilityRequest = z.infer<typeof runtimeCapabilityRequestSchema>;
 
+function runtimePayloadBytes(frame: RuntimeFrame): Buffer {
+  if (frame.frameType === 'STREAM_CHUNK') {
+    if (!Buffer.isBuffer(frame.payload)) throw new Error('RUNTIME_PROTOCOL_STREAM_CHUNK_INVALID');
+    if (frame.payload.length > RUNTIME_IPC_MAX_STREAM_CHUNK) throw new Error('RUNTIME_PAYLOAD_TOO_LARGE');
+    return frame.payload;
+  }
+  return Buffer.from(canonicalJson(toCanonicalJsonValue(frame.payload)), 'utf8');
+}
+
 export function encodeRuntimeFrame(frame: RuntimeFrame): Buffer {
   const frameType = runtimeFrameType[frame.frameType];
   if (!frameType) throw new Error('RUNTIME_PROTOCOL_UNKNOWN_FRAME');
-  const payload = Buffer.from(JSON.stringify(frame.payload), 'utf8');
+  const payload = runtimePayloadBytes(frame);
   if (payload.length > RUNTIME_IPC_MAX_PAYLOAD) throw new Error('RUNTIME_PAYLOAD_TOO_LARGE');
-  if (frame.sequence < 0n || frame.sequence > 0xffffffffffffffffn) throw new Error('RUNTIME_PROTOCOL_SEQUENCE_INVALID');
+  if (!Number.isSafeInteger(frame.sequence) || frame.sequence < 1 || frame.sequence > 0xffffffff) throw new Error('RUNTIME_PROTOCOL_SEQUENCE_INVALID');
   const header = Buffer.alloc(RUNTIME_IPC_HEADER_BYTES);
   RUNTIME_IPC_MAGIC.copy(header, 0);
   header.writeUInt8(1, 4);
   header.writeUInt8(frameType, 5);
   header.writeUInt16BE(frame.flags, 6);
   header.writeUInt32BE(payload.length, 8);
-  header.writeBigUInt64BE(frame.sequence, 12);
+  header.writeUInt32BE(frame.sequence, 12);
   return Buffer.concat([header, payload]);
 }
 
-export function decodeRuntimeFrameHeader(header: Buffer): { frameType: RuntimeFrameType; flags: number; payloadLength: number; sequence: bigint } {
+export function decodeRuntimeFrameHeader(header: Buffer): { frameType: RuntimeFrameType; flags: number; payloadLength: number; sequence: number } {
   if (header.length !== RUNTIME_IPC_HEADER_BYTES || !header.subarray(0, 4).equals(RUNTIME_IPC_MAGIC) || header.readUInt8(4) !== 1) throw new Error('RUNTIME_PROTOCOL_INVALID_HEADER');
   const frameType = (Object.entries(runtimeFrameType).find(([, value]) => value === header.readUInt8(5))?.[0] ?? null) as RuntimeFrameType | null;
   if (!frameType) throw new Error('RUNTIME_PROTOCOL_UNKNOWN_FRAME');
   const payloadLength = header.readUInt32BE(8);
   if (payloadLength > RUNTIME_IPC_MAX_PAYLOAD) throw new Error('RUNTIME_PAYLOAD_TOO_LARGE');
-  return { frameType, flags: header.readUInt16BE(6), payloadLength, sequence: header.readBigUInt64BE(12) };
+  const sequence = header.readUInt32BE(12);
+  if (sequence < 1) throw new Error('RUNTIME_PROTOCOL_SEQUENCE_INVALID');
+  return { frameType, flags: header.readUInt16BE(6), payloadLength, sequence };
 }
 
 function consumeRuntimeFrames(socket: Socket, onFrame: (frame: RuntimeFrame) => Promise<void>): void {
   let pending = Buffer.alloc(0);
-  let expectedSequence = 1n;
+  let expectedSequence = 1;
   socket.on('data', (chunk: Buffer) => {
     pending = Buffer.concat([pending, chunk]);
     while (pending.length >= RUNTIME_IPC_HEADER_BYTES) {
@@ -77,6 +90,10 @@ function consumeRuntimeFrames(socket: Socket, onFrame: (frame: RuntimeFrame) => 
         socket.destroy(error instanceof Error ? error : new Error(String(error)));
         return;
       }
+      if (expectedSequence === 0) {
+        socket.destroy(new Error('RUNTIME_PROTOCOL_SEQUENCE_WRAP'));
+        return;
+      }
       if (header.sequence !== expectedSequence) {
         socket.destroy(new Error('RUNTIME_PROTOCOL_SEQUENCE_INVALID'));
         return;
@@ -84,16 +101,17 @@ function consumeRuntimeFrames(socket: Socket, onFrame: (frame: RuntimeFrame) => 
       if (pending.length < RUNTIME_IPC_HEADER_BYTES + header.payloadLength) return;
       const payloadBytes = pending.subarray(RUNTIME_IPC_HEADER_BYTES, RUNTIME_IPC_HEADER_BYTES + header.payloadLength);
       pending = pending.subarray(RUNTIME_IPC_HEADER_BYTES + header.payloadLength);
-      expectedSequence += 1n;
+      expectedSequence = expectedSequence === 0xffffffff ? 0 : expectedSequence + 1;
       let payload: unknown;
-      try { payload = JSON.parse(payloadBytes.toString('utf8')); } catch { socket.destroy(new Error('RUNTIME_PROTOCOL_INVALID_JSON')); return; }
+      if (header.frameType === 'STREAM_CHUNK') payload = Buffer.from(payloadBytes);
+      else { try { payload = JSON.parse(payloadBytes.toString('utf8')); } catch { socket.destroy(new Error('RUNTIME_PROTOCOL_INVALID_JSON')); return; } }
       void onFrame({ frameType: header.frameType, flags: header.flags, sequence: header.sequence, payload }).catch((error: unknown) => socket.destroy(error instanceof Error ? error : new Error(String(error))));
     }
   });
 }
 
 export function createCapabilityFdServer(socket: Socket, handler: (request: RuntimeCapabilityRequest) => Promise<unknown>): void {
-  let responseSequence = 1n;
+  let responseSequence = 1;
   const cancelled = new Set<string>();
   consumeRuntimeFrames(socket, async (frame) => {
     if (frame.frameType === 'CANCEL') {
@@ -114,7 +132,7 @@ type PendingRuntimeCall = { resolve: (value: unknown) => void; reject: (reason: 
 export class RuntimeCapabilityClient {
   readonly #pending = new Map<string, PendingRuntimeCall>();
   readonly #cancelled = new Set<string>();
-  #sequence = 1n;
+  #sequence = 1;
   #closed = false;
 
   public constructor(private readonly socket: Socket, private readonly maxPending = RUNTIME_IPC_MAX_PENDING) {
@@ -159,7 +177,10 @@ export class RuntimeCapabilityClient {
   }
 
   private async write(frameType: 'REQUEST' | 'CANCEL', payload: unknown): Promise<void> {
-    const frame = encodeRuntimeFrame({ frameType, flags: 0, sequence: this.#sequence++, payload });
+    if (this.#sequence > 0xffffffff) throw new Error('RUNTIME_PROTOCOL_SEQUENCE_WRAP');
+    const sequence = this.#sequence;
+    this.#sequence += 1;
+    const frame = encodeRuntimeFrame({ frameType, flags: 0, sequence, payload });
     if (this.socket.write(frame)) return;
     await new Promise<void>((resolveDrain, reject) => {
       const onError = (error: Error) => { this.socket.off('drain', onDrain); reject(error); };

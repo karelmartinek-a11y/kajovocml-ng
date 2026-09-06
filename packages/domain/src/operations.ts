@@ -215,7 +215,45 @@ async function nextStreamSequence(client:DatabaseClient,stream:string):Promise<b
 async function audit(client:DatabaseClient,eventType:string,actorId:string,aggregateType:string,aggregateId:string,correlationId:string,causationId:string|null,payload:JsonObject):Promise<void>{const bytes=Buffer.from(canonicalJson(jsonSafe(payload)));await client.query(`SELECT * FROM kcml.append_audit_event($1,'OWNER',$2,$3,$4,$5,$6,$7,$8)`,[eventType,actorId,aggregateType,aggregateId,correlationId,causationId,payload,bytes]);}
 
 export type WorkerFaultPoint='AFTER_COMMAND_CHECKPOINT_BEFORE_TERMINAL';
-export interface WorkerOptions {queueNames:readonly string[];allowedOperations?:readonly string[];workerId:string;leaseSeconds?:number;faultInjector?:(point:WorkerFaultPoint,context:Readonly<{commandId:string;logicalOperationId:string;operationName:string}>)=>void|Promise<void>;}
+
+export interface SpecialistExecutionContext {
+  operation: OperationContract;
+  commandId: string;
+  targetId: string | null;
+  arguments: Readonly<Record<string, unknown>>;
+  logicalOperationId: string;
+  correlationId: string;
+  expectedStateVersion: bigint | null;
+  activationEpoch: bigint;
+  platformIncarnationId: string;
+  applicationDeploymentEpoch: bigint;
+  recoveryEpoch: bigint;
+  deadlineAt: string | null;
+}
+
+export type SpecialistExecutionResult =
+  | Readonly<{ ok: true; value: unknown }>
+  | Readonly<{ ok: false; error: unknown }>;
+
+export type SpecialistReconcileResult =
+  | Readonly<{ disposition: 'APPLIED'; output: unknown }>
+  | Readonly<{ disposition: 'FAILED'; error: unknown }>;
+
+/**
+ * A specialist executor owns the real T1/T2/T3 effect boundary for operations
+ * that cannot be represented by a database-only canonical mutation handler.
+ * prepare() runs under the canonical command/fence transaction, execute() runs
+ * outside PostgreSQL, and reconcile() runs under a fresh canonical fence before
+ * the immutable command checkpoint can be committed.
+ */
+export interface SpecialistCommandExecutor {
+  canHandle(operationName: string): boolean;
+  prepare(client: DatabaseClient, context: SpecialistExecutionContext): Promise<unknown>;
+  execute(prepared: unknown, context: SpecialistExecutionContext): Promise<unknown>;
+  reconcile(client: DatabaseClient, prepared: unknown, execution: SpecialistExecutionResult, context: SpecialistExecutionContext): Promise<SpecialistReconcileResult>;
+}
+
+export interface WorkerOptions {queueNames:readonly string[];allowedOperations?:readonly string[];workerId:string;leaseSeconds?:number;specialistExecutor?:SpecialistCommandExecutor;faultInjector?:(point:WorkerFaultPoint,context:Readonly<{commandId:string;logicalOperationId:string;operationName:string}>)=>void|Promise<void>;}
 
 export class CanonicalCommandWorker {
   public constructor(private readonly pool:DatabasePool,private readonly catalog:OperationCatalogService,private readonly options:WorkerOptions){}
@@ -275,6 +313,8 @@ export class CanonicalCommandWorker {
     const operation=this.catalog.get(row.operation_name);this.catalog.authorityFor(operation);const handler=operationHandlerFor(operation.operationName);const args=(row.request.arguments??{}) as JsonObject;
     if(row.queue_name!==handler.queue)throw new DomainError('OPERATION_CONTRACT_INCOMPLETE',`${operation.operationName} was delivered on ${row.queue_name}, expected ${handler.queue}`,409,'DO_NOT_RETRY');
     if(handler.strategy==='CONSISTENT_QUERY')throw new DomainError('OPERATION_CONTRACT_INCOMPLETE',`${operation.operationName} must execute on the consistent-read path`,409,'DO_NOT_RETRY');
+    const specialist=this.options.specialistExecutor;
+    if(specialist?.canHandle(operation.operationName))return this.applySpecialistCommand(row,operation,args,specialist);
     return this.applyInCommandTransaction(row,async(client,head)=>{
       if(operation.operationName==='generation.job.create')return createGenerationJob(client,args,{platformIncarnationId:head.platform_incarnation_id,applicationDeploymentEpoch:BigInt(head.current_epoch),logicalOperationId:row.logical_operation_id,correlationId:row.correlation_id});
       if(operation.operationName==='browser.session.create')return this.createBrowserSession(client,head,args,row);
@@ -304,6 +344,51 @@ export class CanonicalCommandWorker {
         recoveryEpoch:BigInt(head.recovery_epoch)
       });
     });
+  }
+
+  private async applySpecialistCommand(row:any,operation:OperationContract,args:JsonObject,specialist:SpecialistCommandExecutor):Promise<unknown>{
+    const prepared=await inTransactionProfile(this.pool,'WORKER_COMMIT',async(client)=>{
+      const head=await lockAndVerifyPlatformRecovery(client);
+      if(BigInt(row.recovery_epoch)!==BigInt(head.recovery_epoch))throw new DomainError('PLATFORM_INCARNATION_STALE','Worker command recovery epoch is stale before specialist preparation',409,'RECONCILE_THEN_RETRY');
+      const checkpoint=(await client.query(`SELECT * FROM kcml.domain_command_execution_checkpoint WHERE command_id=$1`,[row.command_id])).rows[0];
+      await verifyWorkerClaimAndAdmission(client,row,checkpoint?['ADMITTED','TERMINAL']:['ADMITTED']);
+      if(checkpoint){
+        if(!await checkpointRecoveryAuthorized(client,row,checkpoint))throw new DomainError('CHECKPOINT_DIGEST_INVALID','Persisted specialist command checkpoint does not match current logical operation lineage',409,'MANUAL_REVIEW');
+        return {replay:true as const,output:checkpoint.output};
+      }
+      const deadline=(await client.query(`SELECT deadline_at FROM kcml.domain_command WHERE id=$1 FOR UPDATE`,[row.command_id])).rows[0]?.deadline_at;
+      if(deadline&&new Date(String(deadline)).getTime()<=Date.now())throw new DomainError('KCIP_DEADLINE_EXCEEDED','Command deadline elapsed before specialist execution began',408,'DO_NOT_RETRY');
+      const context:SpecialistExecutionContext={
+        operation,commandId:String(row.command_id),targetId:row.target_id===null?null:String(row.target_id),arguments:args,
+        logicalOperationId:String(row.logical_operation_id),correlationId:String(row.correlation_id),
+        expectedStateVersion:row.request.expectedStateVersion===null||row.request.expectedStateVersion===undefined?null:BigInt(row.request.expectedStateVersion),
+        activationEpoch:BigInt(row.activation_epoch),platformIncarnationId:String(head.platform_incarnation_id),applicationDeploymentEpoch:BigInt(head.current_epoch),
+        recoveryEpoch:BigInt(head.recovery_epoch),deadlineAt:deadline?new Date(String(deadline)).toISOString():null
+      };
+      return {replay:false as const,prepared:await specialist.prepare(client,context),context};
+    });
+    if(prepared.replay)return prepared.output;
+    let execution:SpecialistExecutionResult;
+    try{execution={ok:true,value:await specialist.execute(prepared.prepared,prepared.context)};}
+    catch(error){execution={ok:false,error};}
+    const reconciled=await inTransactionProfile(this.pool,'WORKER_COMMIT',async(client)=>{
+      const head=await lockAndVerifyPlatformRecovery(client);
+      if(BigInt(row.recovery_epoch)!==BigInt(head.recovery_epoch))throw new DomainError('PLATFORM_INCARNATION_STALE','Worker command recovery epoch changed while specialist effect was in flight',409,'RECONCILE_THEN_RETRY');
+      const checkpoint=(await client.query(`SELECT * FROM kcml.domain_command_execution_checkpoint WHERE command_id=$1`,[row.command_id])).rows[0];
+      await verifyWorkerClaimAndAdmission(client,row,checkpoint?['ADMITTED','TERMINAL']:['ADMITTED']);
+      if(checkpoint){
+        if(!await checkpointRecoveryAuthorized(client,row,checkpoint))throw new DomainError('CHECKPOINT_DIGEST_INVALID','Persisted specialist command checkpoint does not match current logical operation lineage',409,'MANUAL_REVIEW');
+        return {disposition:'APPLIED' as const,output:checkpoint.output};
+      }
+      const result=await specialist.reconcile(client,prepared.prepared,execution,prepared.context);
+      if(result.disposition==='FAILED')return result;
+      const safeOutput=jsonSafe(result.output);
+      await client.query(`INSERT INTO kcml.domain_command_execution_checkpoint(command_id,logical_operation_id,checkpoint_state,output,output_digest,concurrency_claim_id,concurrency_fencing_token,recovery_epoch,platform_incarnation_id,application_deployment_epoch)
+        VALUES($1,$2,'APPLIED',$3,digest(convert_to($3::jsonb::text,'UTF8'),'sha256'),$4,$5,$6,$7,$8)`,[row.command_id,row.logical_operation_id,safeOutput,row.concurrency_claim_id,row.concurrency_fencing_token,row.recovery_epoch,head.platform_incarnation_id,head.current_epoch]);
+      return {disposition:'APPLIED' as const,output:safeOutput};
+    });
+    if(reconciled.disposition==='FAILED')throw reconciled.error;
+    return reconciled.output;
   }
 
   private async applyInCommandTransaction(row:any,apply:(client:DatabaseClient,head:RecoveryAuthorityHead)=>Promise<unknown>):Promise<unknown>{
