@@ -1,0 +1,22 @@
+name: Remediation source snapshot
+on:
+  push:
+    branches: [audit-remediation-2026-09-06]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Pack current source tree
+        run: |
+          tar --exclude=.git --exclude=node_modules --exclude='**/node_modules' -czf /tmp/kajovocml-ng-remediation-source.tgz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kajovocml-ng-remediation-source
+          path: /tmp/kajovocml-ng-remediation-source.tgz
+          if-no-files-found: error
+          retention-days: 1
