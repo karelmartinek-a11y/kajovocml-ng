@@ -43,15 +43,40 @@ jobs:
           cc -O2 -Wall -Wextra -Werror -fPIC -shared -I"${node_include}" deploy/runtime/kcml-fd-cloexec-addon.c -o /tmp/kcml-fd-cloexec.node
       - name: Regenerate implementation evidence
         run: pnpm contracts:build
-      - name: Verify RUN-011 closure
+      - name: Verify RUN-011 closure with diagnostics
+        shell: bash
         run: |
-          pnpm contracts:check
-          pnpm lint
-          pnpm typecheck
-          pnpm exec vitest run tests/runtime-boundary/runtime-gateway.test.ts tests/runtime-boundary/ipc-multiplex.test.ts tests/runtime-boundary/matrix.test.ts
-          pnpm build
-          pnpm conformance:audit
-          git diff --check
+          set +e
+          : > /tmp/run011-verify.txt
+          failed=0
+          for command in \
+            "pnpm contracts:check" \
+            "pnpm lint" \
+            "pnpm typecheck" \
+            "pnpm exec vitest run tests/runtime-boundary/runtime-gateway.test.ts tests/runtime-boundary/ipc-multiplex.test.ts tests/runtime-boundary/matrix.test.ts" \
+            "pnpm build" \
+            "pnpm conformance:audit" \
+            "git diff --check"
+          do
+            printf '\n===== %s =====\n' "$command" >> /tmp/run011-verify.txt
+            bash -lc "$command" >> /tmp/run011-verify.txt 2>&1
+            status=$?
+            printf '\nEXIT=%s\n' "$status" >> /tmp/run011-verify.txt
+            if [ "$status" -ne 0 ]; then failed=$status; break; fi
+          done
+          cat /tmp/run011-verify.txt
+          if [ "$failed" -ne 0 ]; then
+            cp /tmp/run011-verify.txt /tmp/run011-verify.saved
+            git reset --hard HEAD
+            mkdir -p .audit
+            cp /tmp/run011-verify.saved .audit/run011-verify.txt
+            git config user.name 'openai-remediation-bot'
+            git config user.email 'openai-remediation-bot@users.noreply.github.com'
+            git add .audit/run011-verify.txt
+            git commit -m 'chore(audit): capture RUN-011 validation failure'
+            git push origin HEAD:audit-remediation-2026-09-06
+            exit "$failed"
+          fi
       - name: Commit verified remediation
         shell: bash
         run: |
