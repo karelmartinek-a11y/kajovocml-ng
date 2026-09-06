@@ -13,7 +13,7 @@ jobs:
         with:
           ref: audit-remediation-2026-09-06
           fetch-depth: 0
-      - name: Apply runtime wiring, trace and writer authority
+      - name: Apply runtime wiring, trace and writer authority after test import repair
         shell: bash
         run: |
           python3 - <<'PYEXTRACT'
