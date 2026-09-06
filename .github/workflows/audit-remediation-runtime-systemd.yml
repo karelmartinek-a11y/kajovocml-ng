@@ -13,7 +13,7 @@ jobs:
         with:
           ref: audit-remediation-2026-09-06
           fetch-depth: 0
-      - name: Apply runtime systemd patch
+      - name: Apply runtime lifecycle and authority patches
         shell: bash
         run: |
           cp .audit/runtime-systemd.patch /tmp/runtime-systemd.patch
@@ -26,21 +26,24 @@ jobs:
             /tmp/runtime-systemd.patch
           git apply --check --verbose /tmp/runtime-systemd.patch
           git apply /tmp/runtime-systemd.patch
-          rm -f .audit/runtime-systemd.patch .audit/runtime-systemd-apply.txt .audit/runtime-systemd-verify.txt .github/workflows/audit-remediation-runtime-systemd.yml
-      - name: Register runtime writer authority
-        shell: bash
-        run: |
+          git apply --check --verbose .audit/runtime-systemd-authority.patch
+          git apply .audit/runtime-systemd-authority.patch
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('scripts/lib/authority-writer-audit.mjs')
+          p=Path('packages/worker-runtime/src/index.ts')
           s=p.read_text()
-          needle="  ['packages/worker-runtime/src/index.ts', 'WRITER-QUEUE'],\n"
-          line="  ['packages/worker-runtime/src/runtime-systemd.ts', 'WRITER-RUNTIME'],\n"
-          if line not in s:
-            if needle not in s: raise SystemExit('authority writer insertion point missing')
-            s=s.replace(needle, needle+line)
-          p.write_text(s)
+          old="  const worker = options.queueNames && catalog ? new CanonicalCommandWorker(pool, catalog, { queueNames: options.queueNames, allowedOperations, workerId: instanceId, specialistExecutor }) : null;"
+          new="  const worker = options.queueNames && catalog ? new CanonicalCommandWorker(pool, catalog, { queueNames: options.queueNames, allowedOperations, workerId: instanceId, ...(specialistExecutor ? { specialistExecutor } : {}) }) : null;"
+          if old not in s:
+            raise SystemExit('worker option insertion point missing')
+          p.write_text(s.replace(old,new))
           PY
+          rm -f \
+            .audit/runtime-systemd.patch \
+            .audit/runtime-systemd-authority.patch \
+            .audit/runtime-systemd-apply.txt \
+            .audit/runtime-systemd-verify.txt \
+            .github/workflows/audit-remediation-runtime-systemd.yml
       - name: Register trace coverage for new runtime artifacts
         shell: bash
         run: |
@@ -57,7 +60,12 @@ jobs:
             {
               'repositoryPath':'packages/worker-runtime/src/runtime-systemd.ts',
               'requirementIds':['KCML-REQ-CORE-d920c29b8d4c55af170389ba35b01410906821f2f92f912c1b1f520dd3e35531','KCML-REQ-CORE-302243efb9970f11308337865ddf7a4fe5e09626545681cedbca054d6f47ebcf','KCML-REQ-CORE-4335ee3693ec80d29052766ff4be4346eb56980881362b237438877efe7957ac','KCML-REQ-CORE-d36540fb4c24dde9134961a35ba4c6a464ee47842444cb8cadda21e27b855838'],
-              'operationIds':runtime_ops,'stateMachineIds':[],'registryRecordIds':[],'testIds':['TEST_CASE:tests/runtime-boundary/runtime-systemd.test.ts#runtime-systemd-lifecycle'],'releaseIds':[],'traceAnchors':[]
+              'operationIds':runtime_ops,'stateMachineIds':['SM-RUNTIME_INSTANCE'],'registryRecordIds':['RUNTIME_INSTANCE'],'testIds':['TEST_CASE:tests/runtime-boundary/runtime-systemd.test.ts#runtime-systemd-lifecycle'],'releaseIds':[],'traceAnchors':[]
+            },
+            {
+              'repositoryPath':'packages/domain/src/side-effect-ledger.ts',
+              'requirementIds':['KCML-REQ-CORE-dfcc2e9b79b514c989582e212cb3c54ef062c9d7638eb9e22c7b4bd4d54cb538','KCML-REQ-POSTGRES-484568bff710d5d709e24cc3c81026a541a823f100b6358d7936bc062fdf3a03','KCML-REQ-SECURITY-f07c9a01244d2b0b0e2afcd6fcd96bd7ce0f0b27a4c35ae461bafe9a327e58ea'],
+              'operationIds':[],'stateMachineIds':['SM-SIDE_EFFECT'],'registryRecordIds':['SIDE_EFFECT_LEDGER'],'testIds':[],'releaseIds':[],'traceAnchors':[]
             },
             {
               'repositoryPath':'deploy/polkit/50-kcml-runtime-gateway.rules',
@@ -67,7 +75,7 @@ jobs:
             {
               'repositoryPath':'tests/runtime-boundary/runtime-systemd.test.ts',
               'requirementIds':['KCML-REQ-CORE-d920c29b8d4c55af170389ba35b01410906821f2f92f912c1b1f520dd3e35531','KCML-REQ-CORE-302243efb9970f11308337865ddf7a4fe5e09626545681cedbca054d6f47ebcf'],
-              'operationIds':runtime_ops,'stateMachineIds':[],'registryRecordIds':[],'testIds':['TEST_CASE:tests/runtime-boundary/runtime-systemd.test.ts#runtime-systemd-lifecycle'],'releaseIds':[],'traceAnchors':[]
+              'operationIds':runtime_ops,'stateMachineIds':['SM-RUNTIME_INSTANCE'],'registryRecordIds':['RUNTIME_INSTANCE'],'testIds':['TEST_CASE:tests/runtime-boundary/runtime-systemd.test.ts#runtime-systemd-lifecycle'],'releaseIds':[],'traceAnchors':[]
             }
           ]
           for record in additions:
@@ -98,6 +106,7 @@ jobs:
             "pnpm lint" \
             "pnpm typecheck" \
             "pnpm exec vitest run tests/runtime-boundary/runtime-systemd.test.ts tests/runtime-boundary/ipc-multiplex.test.ts tests/runtime-boundary/matrix.test.ts" \
+            "pnpm --filter @kcml/domain build" \
             "pnpm --filter @kcml/worker-runtime build" \
             "git diff --check"
           do
