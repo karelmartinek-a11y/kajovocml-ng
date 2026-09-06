@@ -30,30 +30,31 @@ jobs:
         shell: bash
         run: |
           set +e
-          : > /tmp/runtime-foundation-verify.log
+          : > /tmp/runtime-foundation-verify.txt
           for command in \
             "pnpm contracts:check" \
             "pnpm lint" \
             "pnpm typecheck" \
             "pnpm exec vitest run tests/runtime-boundary/ipc-multiplex.test.ts"
           do
-            printf '\n===== %s =====\n' "$command" | tee -a /tmp/runtime-foundation-verify.log
-            bash -lc "$command" 2>&1 | tee -a /tmp/runtime-foundation-verify.log
+            printf '\n===== %s =====\n' "$command" | tee -a /tmp/runtime-foundation-verify.txt
+            bash -lc "$command" 2>&1 | tee -a /tmp/runtime-foundation-verify.txt
             status=${PIPESTATUS[0]}
             if [ "$status" -ne 0 ]; then
               mkdir -p .audit
-              cp /tmp/runtime-foundation-verify.log .audit/runtime-foundation-verify.log
+              cp /tmp/runtime-foundation-verify.txt .audit/runtime-foundation-verify.txt
               git config user.name 'openai-remediation-bot'
               git config user.email 'openai-remediation-bot@users.noreply.github.com'
-              git add .audit/runtime-foundation-verify.log
+              git add -f .audit/runtime-foundation-verify.txt
               git commit -m 'chore(audit): capture runtime foundation validation failure'
+              git pull --rebase origin audit-remediation-2026-09-06
               git push origin HEAD:audit-remediation-2026-09-06
               exit "$status"
             fi
           done
       - name: Commit verified remediation
         run: |
-          rm -f .github/workflows/audit-remediation-runtime-foundation.yml .audit/runtime-foundation.patch .audit/runtime-foundation-verify.log
+          rm -f .github/workflows/audit-remediation-runtime-foundation.yml .audit/runtime-foundation.patch .audit/runtime-foundation-verify.txt
           git add -A
           if git diff --cached --quiet; then
             exit 0
@@ -61,4 +62,5 @@ jobs:
           git config user.name 'openai-remediation-bot'
           git config user.email 'openai-remediation-bot@users.noreply.github.com'
           git commit -m 'fix(runtime): add fenced specialist execution boundary'
+          git pull --rebase origin audit-remediation-2026-09-06
           git push origin HEAD:audit-remediation-2026-09-06
