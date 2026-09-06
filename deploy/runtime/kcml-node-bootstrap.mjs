@@ -42,7 +42,7 @@ function assertEnvironment() {
     if (FORBIDDEN_ENVIRONMENT.test(name) || !REQUIRED_ENVIRONMENT.has(name)) fail(`ENVIRONMENT_NOT_ALLOWLISTED:${name}`);
   }
   const expected = {
-    LANG:'C.UTF-8',LC_ALL:'C.UTF-8',TZ:'UTC',NODE_ENV:'production',HOME:'/work/home',TMPDIR:'/tmp',PATH:'/runtime/bin',UV_USE_IO_URING:'0',KCML_CONTEXT_FD:'3',KCML_CONTEXT_FD_CLOEXEC:'BOOTSTRAP_REQUIRED'
+    LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8', TZ: 'UTC', NODE_ENV: 'production', HOME: '/work/home', TMPDIR: '/tmp', PATH: '/runtime/bin', UV_USE_IO_URING: '0', KCML_CONTEXT_FD: '3', KCML_CONTEXT_FD_CLOEXEC: 'BOOTSTRAP_REQUIRED'
   };
   for (const [name,value] of Object.entries(expected)) if (process.env[name] !== value) fail(`ENVIRONMENT_VALUE_INVALID:${name}`);
   if (process.env.KCML_EXECUTION_ID !== undefined && !UUID.test(process.env.KCML_EXECUTION_ID.toLowerCase())) fail('EXECUTION_ID_INVALID');
