@@ -5,8 +5,12 @@ import type { OperationContract } from '@kcml/contract-pack';
 import { canonicalDigest, toCanonicalJsonValue, type CanonicalJsonValue } from '@kcml/schemas';
 import { DomainError } from './errors.js';
 import { generationWorkerPool, type GenerationPhase } from './generation-lifecycle.js';
-import { exactComponentMutationOperations, executeExactComponentMutation } from './component-operations.js';
-import { exactMonitorMutationOperations, executeExactMonitorMutation } from './monitor-operations.js';
+import { exactComponentMutationOperations, exactComponentQueryOperations, executeExactComponentMutation, executeExactComponentQuery } from './component-operations.js';
+import { exactMonitorMutationOperations, exactMonitorQueryOperations, executeExactMonitorMutation, executeExactMonitorQuery } from './monitor-operations.js';
+import { exactRuntimeQueryOperations, executeExactRuntimeQuery } from './runtime-operations.js';
+import { exactSecretQueryOperations, executeExactSecretQuery } from './secret-operations.js';
+import { exactSelfTestQueryOperations, executeExactSelfTestQuery } from './self-test-operations.js';
+import { verifyAuditChainSnapshot } from './audit-integrity.js';
 import { exactMutationHandlerFor, exactQueryHandlerFor } from './exact-operation-handlers.js';
 
 export { exactMutationHandlerFor, exactQueryHandlerFor } from './exact-operation-handlers.js';
@@ -1071,9 +1075,39 @@ export function mutationHandlerFor(operation: OperationContract): CanonicalMutat
   }
 }
 
+async function exactComponentQueryHandler(pool: DatabasePool, context: Pick<CanonicalHandlerContext, 'operation' | 'targetId' | 'arguments'>): Promise<unknown> {
+  return executeExactComponentQuery(pool, context.operation.operationName, context.targetId, context.arguments);
+}
+
+async function exactRuntimeQueryHandler(pool: DatabasePool, context: Pick<CanonicalHandlerContext, 'operation' | 'targetId' | 'arguments'>): Promise<unknown> {
+  return executeExactRuntimeQuery(pool, context.operation.operationName, context.targetId, context.arguments);
+}
+
+async function exactSecretQueryHandler(pool: DatabasePool, context: Pick<CanonicalHandlerContext, 'operation' | 'targetId' | 'arguments'>): Promise<unknown> {
+  return executeExactSecretQuery(pool, context.operation.operationName, context.targetId, context.arguments);
+}
+
+async function exactSelfTestQueryHandler(pool: DatabasePool, context: Pick<CanonicalHandlerContext, 'operation' | 'targetId' | 'arguments'>): Promise<unknown> {
+  return executeExactSelfTestQuery(pool, context.operation.operationName, context.targetId, context.arguments);
+}
+
+async function exactMonitorQueryHandler(pool: DatabasePool, context: Pick<CanonicalHandlerContext, 'operation' | 'targetId' | 'arguments'>): Promise<unknown> {
+  return executeExactMonitorQuery(pool, context.operation.operationName, context.targetId, context.arguments);
+}
+
+async function exactAuditIntegrityQueryHandler(pool: DatabasePool): Promise<unknown> {
+  return verifyAuditChainSnapshot(pool);
+}
+
 export function queryHandlerFor(operation: OperationContract): CanonicalQueryHandler {
   const exactHandler = exactQueryHandlerFor(operation.operationName);
   if (exactHandler) return exactHandler;
+  if (exactComponentQueryOperations.has(operation.operationName)) return exactComponentQueryHandler;
+  if (exactRuntimeQueryOperations.has(operation.operationName)) return exactRuntimeQueryHandler;
+  if (exactSecretQueryOperations.has(operation.operationName)) return exactSecretQueryHandler;
+  if (exactSelfTestQueryOperations.has(operation.operationName)) return exactSelfTestQueryHandler;
+  if (exactMonitorQueryOperations.has(operation.operationName)) return exactMonitorQueryHandler;
+  if (operation.operationName === 'audit.integrity.verify') return exactAuditIntegrityQueryHandler;
   switch (operation.operationName) {
     case 'runtime.ready.report':
     case 'runtime.state.report':

@@ -56,22 +56,22 @@ describe('TD-03 verified authority ownership', () => {
     const counts = Object.fromEntries(result.writes.reduce((entries, write) => entries.set(write.writerBoundary, (entries.get(write.writerBoundary) ?? 0) + 1), new Map()));
 
     expect(result.violations).toEqual([]);
-    expect(result.writes).toHaveLength(330);
+    expect(result.writes).toHaveLength(320);
     expect(result.writes.every((write) => write.writerBoundary && registeredWriterIds.has(write.writerBoundary))).toBe(true);
     expect(counts).toEqual({
-      'WRITER-AGENT': 38,
+      'WRITER-AGENT': 36,
       'WRITER-AGENTIC': 1,
       'WRITER-AUDIT': 3,
       'WRITER-AUTHORITY': 4,
       'WRITER-BROWSER': 109,
-      'WRITER-CHAT': 17,
+      'WRITER-CHAT': 14,
       'WRITER-COMPONENT': 4,
       'WRITER-GENERATION': 71,
       'WRITER-MCP': 38,
       'WRITER-MONITOR': 4,
       'WRITER-OWNERAPIKEY': 3,
       'WRITER-PROVENANCE': 4,
-      'WRITER-RUNTIME': 16,
+      'WRITER-RUNTIME': 11,
       'WRITER-SECRET': 8,
       'WRITER-SELFTEST': 4,
       'WRITER-SIDE_EFFECT': 6

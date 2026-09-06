@@ -5,12 +5,12 @@
 ## Identita auditu
 
 - Autorita: `SSOT_CURRENT.md`
-- SHA-256 SSOT: `sha256:995937b0a3242a4e022451f96dbd8881562764d1a78e5efbb32502c78217e6d7`
+- SHA-256 SSOT: `sha256:6cb63d0d1aa11a1ae7e4a880e81d49b0fa78f157c4a0c43753260bfc46be27b7`
 - Stav: **PASS**
 - Requirement atomy: 13959
 - Operace: 262
-- Auditované repository files: 411
-- Test files: 64
+- Auditované repository files: 442
+- Test files: 78
 
 ## Blocking findings
 

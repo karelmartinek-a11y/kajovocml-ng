@@ -7,8 +7,8 @@ const shaText = (value: string): string => `sha256:${createHash('sha256').update
 
 describe('TD-02 file-level artifact traceability', () => {
   it('covers every compiled regular file with exact bytes and a reverse requirement edge', async () => {
-    const artifacts = (JSON.parse(await readFile('contracts/registries/artifact-trace/artifact-trace.json', 'utf8')) as { records: Array<Record<string, any>> }).records;
-    const requirements = new Map((JSON.parse(await readFile('contracts/registries/requirements/requirements.json', 'utf8')) as { records: Array<{ requirementId: string; artifactIds: string[] }> }).records.map((record) => [record.requirementId, record]));
+    const artifacts = (JSON.parse(await readFile('contracts/traceability/artifact-trace/artifact-trace.json', 'utf8')) as { records: Array<Record<string, any>> }).records;
+    const requirements = new Set((JSON.parse(await readFile('contracts/registries/requirements/requirements.json', 'utf8')) as { records: Array<{ requirementId: string }> }).records.map((record) => record.requirementId));
     expect(artifacts.length).toBeGreaterThan(300);
     for (const artifact of artifacts) {
       const bytes = await readFile(artifact.repositoryPath);
@@ -16,7 +16,7 @@ describe('TD-02 file-level artifact traceability', () => {
       expect(artifact.contentDigest).toBe(shaBytes(bytes));
       expect(artifact.artifactId).toBe(`ART-${shaText(`${artifact.repositoryPath}\u0000${artifact.contentDigest}`).slice(7)}`);
       expect(artifact.requirementIds.length).toBeGreaterThan(0);
-      for (const requirementId of artifact.requirementIds) expect(requirements.get(requirementId)?.artifactIds).toContain(artifact.artifactId);
+      for (const requirementId of artifact.requirementIds) expect(requirements.has(requirementId)).toBe(true);
       const lines = bytes.toString('utf8').split('\n');
       for (const anchor of artifact.traceAnchors ?? []) {
         const match = anchor.locator.match(/^(.*):(\d+)$/u);

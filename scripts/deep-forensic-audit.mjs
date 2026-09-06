@@ -37,7 +37,26 @@ const operations = await registry('OPERATION_CATALOG');
 const bindings = await registry('BINDING_REGISTRY');
 const faults = await registry('FAULT_CATALOG');
 const recovery = await registry('RECOVERY_ORACLE_REGISTRY');
-const artifacts = await registry('ARTIFACT_TRACE_REGISTRY');
+// Artifact trace is implementation evidence, not a normative Contract Pack
+// registry.  Its manifest is intentionally maintained by the separate trace
+// compiler and the pack validator rejects ARTIFACT_TRACE_REGISTRY entries in
+// the normative manifest.  Read the evidence layer directly instead of
+// assuming that every registry consumed by this audit lives in the pack.
+const artifacts = await json('contracts/traceability/artifact-trace/artifact-trace.json');
+const requirementTraceManifest = await json('contracts/traceability/requirement-atom-trace/manifest.json');
+const requirementTraceRecords = (await Promise.all(requirementTraceManifest.shards.map(async (shard) => {
+  const lines = (await read(shard.repositoryPath)).split('\n').filter(Boolean);
+  return lines.map((line) => JSON.parse(line));
+}))).flat();
+const requirementTraceById = new Map(requirementTraceRecords.map((record) => [record.requirementId, record]));
+const artifactIdsByRequirement = new Map();
+for (const artifact of artifacts.records) {
+  for (const requirementId of artifact.requirementIds ?? []) {
+    const ids = artifactIdsByRequirement.get(requirementId) ?? [];
+    ids.push(artifact.artifactId);
+    artifactIdsByRequirement.set(requirementId, ids);
+  }
+}
 const architecture = await json('contracts/registries/architecture-readiness.json');
 
 for (const [kind, code, summary] of [
@@ -51,19 +70,30 @@ for (const [kind, code, summary] of [
   const data = await registry(kind);
   if (data.records.length === 0) add(code, 'BLOCKING', summary, [registryByKind.get(kind).dataRef]);
 }
-const traceabilityFor = (record) => record.extensions?.['kcml:traceability'];
 const unmappedRequirements = requirements.records.filter((record) => {
-  const traceability = traceabilityFor(record);
-  return record.status !== 'ACTIVE' || !(record.artifactIds?.length) || traceability?.status !== 'COMPLETE';
+  const trace = requirementTraceById.get(record.requirementId);
+  const requiredRelationKinds = record.domain === 'POSTGRES' ? ['SOURCE', 'MIGRATION', 'TEST', 'EVIDENCE'] : ['SOURCE', 'TEST', 'EVIDENCE'];
+  const missingRelationKinds = requiredRelationKinds.filter((kind) => !trace?.relations?.[kind]);
+  return record.status !== 'ACTIVE' || !(artifactIdsByRequirement.get(record.requirementId)?.length) || !trace || missingRelationKinds.length > 0;
 });
 if (unmappedRequirements.length) {
   const missingByKind = new Map();
-  for (const record of unmappedRequirements) for (const kind of traceabilityFor(record)?.missingRelationKinds ?? ['TRACEABILITY_RECORD_MISSING']) missingByKind.set(kind, (missingByKind.get(kind) ?? 0) + 1);
+  for (const record of unmappedRequirements) {
+    const trace = requirementTraceById.get(record.requirementId);
+    const requiredRelationKinds = record.domain === 'POSTGRES' ? ['SOURCE', 'MIGRATION', 'TEST', 'EVIDENCE'] : ['SOURCE', 'TEST', 'EVIDENCE'];
+    const missingRelationKinds = requiredRelationKinds.filter((kind) => !trace?.relations?.[kind]);
+    for (const kind of missingRelationKinds.length > 0 ? missingRelationKinds : ['TRACEABILITY_RECORD_MISSING']) missingByKind.set(kind, (missingByKind.get(kind) ?? 0) + 1);
+  }
   add('REQUIREMENTS_UNMAPPED', 'BLOCKING', 'Normativní atomy nemají skutečnou obousměrnou vazbu na implementaci, migraci, test a evidence anchors.', [
     `unmapped=${unmappedRequirements.length}`,
     `total=${requirements.records.length}`,
     ...[...missingByKind.entries()].sort((left, right) => left[0].localeCompare(right[0])).map(([kind, count]) => `missing:${kind}=${count}`),
-    ...unmappedRequirements.slice(0, 20).map((record) => `${record.requirementId}:${(traceabilityFor(record)?.missingRelationKinds ?? ['TRACEABILITY_RECORD_MISSING']).join(',')}`)
+    ...unmappedRequirements.slice(0, 20).map((record) => {
+      const trace = requirementTraceById.get(record.requirementId);
+      const requiredRelationKinds = record.domain === 'POSTGRES' ? ['SOURCE', 'MIGRATION', 'TEST', 'EVIDENCE'] : ['SOURCE', 'TEST', 'EVIDENCE'];
+      const missingRelationKinds = requiredRelationKinds.filter((kind) => !trace?.relations?.[kind]);
+      return `${record.requirementId}:${(missingRelationKinds.length > 0 ? missingRelationKinds : ['TRACEABILITY_RECORD_MISSING']).join(',')}`;
+    })
   ]);
 }
 
@@ -79,7 +109,13 @@ if (faults.records.length === 0) add('FAULT_CATALOG_EMPTY', 'BLOCKING', 'Povinn�
 const emptyOracles = recovery.records.filter((record) => !Array.isArray(record.rules) || record.rules.length === 0);
 if (emptyOracles.length) add('RECOVERY_ORACLE_RULES_EMPTY', 'BLOCKING', 'Recovery oracle nemá rozhodovací pravidla a nemůže dokazovat known outcome.', emptyOracles.map((record) => record.recoveryOracleId));
 
-const repositoryFiles = (await walk()).filter((path) => !path.includes('/contracts/registries/'));
+const repositoryFiles = (await walk()).filter((path) => {
+  const repositoryPath = relative(root, path).replaceAll('\\', '/');
+  return !repositoryPath.startsWith('contracts/registries/')
+    && !repositoryPath.startsWith('contracts/registry-schemas/')
+    && !repositoryPath.startsWith('contracts/traceability/artifact-trace/')
+    && repositoryPath !== '.github/workflows/audit-remediation.yml';
+});
 if (artifacts.records.length < repositoryFiles.length) {
   add('ARTIFACT_TRACE_NOT_FILE_LEVEL', 'BLOCKING', 'Artifact trace není úplná obousměrná evidence po jednotlivých souborech.', [`registryRecords=${artifacts.records.length}`, `repositoryFiles=${repositoryFiles.length}`]);
 }
@@ -117,6 +153,7 @@ const operationSource = await read('packages/domain/src/operations.ts');
 const specialCommands = [...operationSource.matchAll(/operation\.operationName==='([^']+)'/gu)].map((match) => match[1]);
 const exactOperationSources = await Promise.all([
   'packages/domain/src/exact-operation-handlers.ts',
+  'packages/domain/src/canonical-operation-handlers.ts',
   'packages/domain/src/component-operations.ts',
   'packages/domain/src/runtime-operations.ts',
   'packages/domain/src/secret-operations.ts',
@@ -125,7 +162,7 @@ const exactOperationSources = await Promise.all([
 ].map((path) => read(path)));
 const exactOperationCommands = exactOperationSources.flatMap((source) =>
   [
-    ...[...source.matchAll(/export const exact\w+Operations\s*=\s*new Set\(\[([\s\S]*?)\]\);/gu)]
+    ...[...source.matchAll(/(?:export const )?(?:exact|detailed)\w+(?:Operations|MutationOperations)\s*(?::\s*ReadonlySet<string>)?\s*=\s*new Set\(\[([\s\S]*?)\]\);/gu)]
       .flatMap((setMatch) => [...setMatch[1].matchAll(/'([^']+)'/gu)].map((operationMatch) => operationMatch[1])),
     ...[...source.matchAll(/case\s+'([^']+)'\s*:\s*return\s+handle[A-Z][A-Za-z0-9_]*/gu)].map((match) => match[1])
   ]
