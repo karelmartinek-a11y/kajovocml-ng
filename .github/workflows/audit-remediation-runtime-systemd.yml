@@ -14,15 +14,30 @@ jobs:
           ref: audit-remediation-2026-09-06
           fetch-depth: 0
       - name: Apply runtime systemd patch
+        shell: bash
         run: |
           sed -i \
             -e 's|^--- a/packages/worker-runtime/src/runtime-systemd.ts$|--- /dev/null|' \
             -e 's|^--- a/deploy/polkit/50-kcml-runtime-gateway.rules$|--- /dev/null|' \
             -e 's|^--- a/tests/runtime-boundary/runtime-systemd.test.ts$|--- /dev/null|' \
             .audit/runtime-systemd.patch
-          git apply --check .audit/runtime-systemd.patch
+          set +e
+          git apply --check --verbose .audit/runtime-systemd.patch > /tmp/runtime-systemd-apply.txt 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            mkdir -p .audit
+            cp /tmp/runtime-systemd-apply.txt .audit/runtime-systemd-apply.txt
+            git config user.name 'openai-remediation-bot'
+            git config user.email 'openai-remediation-bot@users.noreply.github.com'
+            git add -f .audit/runtime-systemd-apply.txt
+            git commit -m 'chore(audit): capture runtime systemd patch failure'
+            git pull --rebase origin audit-remediation-2026-09-06
+            git push origin HEAD:audit-remediation-2026-09-06
+            exit "$status"
+          fi
           git apply .audit/runtime-systemd.patch
-          rm -f .audit/runtime-systemd.patch .audit/runtime-systemd-verify.txt .github/workflows/audit-remediation-runtime-systemd.yml
+          rm -f .audit/runtime-systemd.patch .audit/runtime-systemd-apply.txt .audit/runtime-systemd-verify.txt .github/workflows/audit-remediation-runtime-systemd.yml
       - name: Register trace coverage for new runtime artifacts
         shell: bash
         run: |
