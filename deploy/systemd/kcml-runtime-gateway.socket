@@ -3,6 +3,8 @@ Description=KájovoCML NG runtime gateway socket
 
 [Socket]
 ListenStream=/run/kajovocml-ng/gateway/runtime-gateway.sock
+FileDescriptorName=runtime-gateway
+NonBlocking=yes
 SocketUser=kcml-runtime-gateway
 SocketGroup=kcml-runtime-callers
 SocketMode=0660
