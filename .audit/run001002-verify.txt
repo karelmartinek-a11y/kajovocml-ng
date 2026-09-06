@@ -1,0 +1,377 @@
+
+===== pnpm contracts:check =====
+$ node scripts/compile-ssot-surface.mjs --check && node scripts/compile-contract-pack.mjs --check && node scripts/validate-contract-pack.mjs && node scripts/compile-contract-trace.mjs --check && node scripts/validate-contract-trace.mjs && node scripts/verify-authority-ownership.mjs && node scripts/verify-error-codes.mjs
+{
+  "mode": "CHECK",
+  "fingerprint": "d1e1020ff347a9aea8bcf21f4443759b2ae165757b7a53112a2d9f6e0c9c4eb7",
+  "entities": 220,
+  "routes": 503,
+  "generatedTables": 163,
+  "operationBoundRoutes": 278,
+  "directSurfaceRoutes": 225
+}
+verified requirements=13959 operations=262 files=33 pack=sha256:b31a4486a72280f1626ddf791a7b804577c2034aa993c2726095c2a9a47ee807
+Normative Contract Pack validation complete: 13 registries, 13959 SSOT requirements, sha256:b31a4486a72280f1626ddf791a7b804577c2034aa993c2726095c2a9a47ee807. Implementation evidence is validated separately.
+verified artifact evidence=442 mapped=442 unmapped=0 trace=sha256:13b5703691b419c6f98c57366776f33bdf335d1fb032beb74cafa928701b9a6a
+Contract trace/evidence validation complete: 442 repository artifacts and 13959 requirement atoms bound to normative pack sha256:b31a4486a72280f1626ddf791a7b804577c2034aa993c2726095c2a9a47ee807.
+{"status":"PASS","authorityRecordCount":42,"requiredKindCount":36,"operationCount":262,"staticWriterCount":646,"staticEvidenceDigest":"sha256:d665a8b234f798b182de18175c6abcb4eb653aad8ce30fbeaa3a1bb690740514","failures":[],"evidenceDigest":"sha256:ef7fb62b04cc79837e56976b37c1e2cbfd9bf8a4d7faa24670fb5ed5aa38561a"}
+Error code verification PASS registered=258 domainExpressions=598 sqlMarkers=16 unknown=0 conflicts=0
+
+EXIT=0
+
+===== pnpm lint =====
+$ node scripts/lint.mjs
+Repository lint PASS
+
+EXIT=0
+
+===== pnpm typecheck =====
+$ pnpm -r --sort --if-present build
+Scope: 52 of 53 workspace projects
+packages/contract-pack build$ tsc -p tsconfig.json
+packages/observability build$ tsc -p tsconfig.json
+packages/schemas build$ tsc -p tsconfig.json
+packages/ui-kit build$ tsc -p tsconfig.json
+packages/observability build: Done
+packages/ui-kit build: Done
+packages/contract-pack build: Done
+packages/schemas build: Done
+apps/owner-ui build$ vite build
+packages/agentic-authority build$ tsc -p tsconfig.json
+packages/browser-runtime-contracts build$ tsc -p tsconfig.json
+packages/content-provenance build$ tsc -p tsconfig.json
+packages/agentic-authority build: Done
+packages/database build$ tsc -p tsconfig.json
+packages/browser-runtime-contracts build: Done
+packages/kcip build$ tsc -p tsconfig.json
+packages/content-provenance build: Done
+packages/runtime-capability-ipc build$ tsc -p tsconfig.json
+apps/owner-ui build: [36mvite v8.2.2 [32mbuilding client environment for production...[36m[39m
+apps/owner-ui build: transforming...
+packages/database build: Done
+packages/kcip build: Done
+apps/owner-ui build: ✓ 1827 modules transformed.
+packages/runtime-capability-ipc build: Done
+apps/owner-ui build: rendering chunks...
+apps/owner-ui build: computing gzip size...
+apps/owner-ui build: dist/index.html                   0.46 kB │ gzip:  0.31 kB
+apps/owner-ui build: dist/assets/index-hTb9w2jN.css   28.27 kB │ gzip:  6.44 kB
+apps/owner-ui build: dist/assets/index-FXQbZrhn.js   311.19 kB │ gzip: 98.09 kB │ map: 1,523.73 kB
+apps/owner-ui build: [32m✓ built in 672ms[39m
+apps/owner-ui build: Done
+packages/browser-preview-protocol build$ tsc -p tsconfig.json
+packages/component-sdk build$ tsc -p tsconfig.json
+packages/domain build$ tsc -p tsconfig.json
+packages/runtime-boundary build$ tsc -p tsconfig.json
+packages/browser-preview-protocol build: Done
+packages/runtime-boundary build: Done
+packages/component-sdk build: Done
+packages/domain build: Done
+apps/platform-recovery build$ tsc -p tsconfig.json
+packages/browser-interaction build$ tsc -p tsconfig.json
+packages/generation-workspace build$ tsc -p tsconfig.json
+packages/mcp-runtime build$ tsc -p tsconfig.json
+packages/generation-workspace build: Done
+packages/openai-runtime build$ tsc -p tsconfig.json
+apps/platform-recovery build: Done
+packages/testing build$ tsc -p tsconfig.json
+packages/browser-interaction build: Done
+packages/worker-runtime build$ tsc -p tsconfig.json
+packages/mcp-runtime build: Done
+packages/testing build: Done
+packages/worker-runtime build: Done
+packages/openai-runtime build: Done
+apps/acceptance-runner build$ tsc -p tsconfig.json
+apps/alert-worker build$ tsc -p tsconfig.json
+apps/agent-worker build$ tsc -p tsconfig.json
+apps/audit-archiver build$ tsc -p tsconfig.json
+apps/acceptance-runner build: Done
+apps/browser-bridge-gateway build$ tsc -p tsconfig.json
+apps/audit-archiver build: Done
+apps/central-chat-worker build$ tsc -p tsconfig.json
+apps/alert-worker build: Done
+apps/component-control-worker build$ tsc -p tsconfig.json
+apps/agent-worker build: Done
+apps/component-e2e-worker build$ tsc -p tsconfig.json
+apps/browser-bridge-gateway build: Done
+apps/egress-gateway build$ tsc -p tsconfig.json
+apps/central-chat-worker build: Done
+apps/generation-activation-worker build$ tsc -p tsconfig.json
+apps/component-control-worker build: Done
+apps/generation-coordinator build$ tsc -p tsconfig.json
+apps/component-e2e-worker build: Done
+apps/generation-integration-worker build$ tsc -p tsconfig.json
+apps/egress-gateway build: Done
+apps/generation-openai-worker build$ tsc -p tsconfig.json
+apps/generation-activation-worker build: Done
+apps/generation-validation-worker build$ tsc -p tsconfig.json
+apps/generation-coordinator build: Done
+apps/generation-workspace-worker build$ tsc -p tsconfig.json
+apps/generation-integration-worker build: Done
+apps/mcp-worker build$ tsc -p tsconfig.json
+apps/generation-openai-worker build: Done
+apps/monitor-worker build$ tsc -p tsconfig.json
+apps/generation-validation-worker build: Done
+apps/owner-device-bridge build$ tsc -p tsconfig.json
+apps/mcp-worker build: Done
+apps/retry-scheduler build$ tsc -p tsconfig.json
+apps/generation-workspace-worker build: Done
+apps/runtime-gateway build$ tsc -p tsconfig.json
+apps/retry-scheduler build: Done
+apps/runtime-host build$ tsc -p tsconfig.json
+apps/owner-device-bridge build: Done
+apps/secret-broker build$ tsc -p tsconfig.json
+apps/monitor-worker build: Done
+apps/self-test-runtime build$ tsc -p tsconfig.json
+apps/runtime-gateway build: Done
+apps/server build$ tsc -p tsconfig.json
+apps/self-test-runtime build: Done
+apps/state-broker build$ tsc -p tsconfig.json
+apps/runtime-host build: Done
+packages/agent-sdk build$ tsc -p tsconfig.json
+apps/secret-broker build: Done
+packages/browser-automation-runtime build$ tsc -p tsconfig.json
+apps/state-broker build: Done
+packages/generation-orchestrator build$ tsc -p tsconfig.json
+packages/agent-sdk build: Done
+packages/browser-automation-runtime build: Done
+packages/generation-orchestrator build: Done
+apps/server build: Done
+apps/browser-host build$ tsc -p tsconfig.json
+apps/browser-worker build$ tsc -p tsconfig.json
+apps/browser-host build: Done
+apps/browser-worker build: Done
+
+EXIT=0
+
+===== pnpm exec vitest run tests/runtime-boundary/runtime-host.test.ts tests/runtime-boundary/runtime-gateway.test.ts tests/runtime-boundary/ipc-multiplex.test.ts tests/runtime-boundary/sandbox-contract.test.ts =====
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/home/runner/work/kajovocml-ng/kajovocml-ng[39m
+
+ [31m❯[39m tests/runtime-boundary/sandbox-contract.test.ts [2m([22m[2m5 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 20[2mms[22m[39m
+     [32m✓[39m implements the namespace, pidfd and root linearization[32m 4[2mms[22m[39m
+     [32m✓[39m uses a real FD3 inheritance contract and a fail-closed minimal BPF profile[32m 18[2mms[22m[39m
+     [32m✓[39m has executable behavioral fixtures for namespaces, filesystem and syscall denial[32m 18[2mms[22m[39m
+[31m     [31m×[31m bootstraps only Node 24 and imports a verified handler after FD hardening[39m[32m 16[2mms[22m[39m
+     [32m✓[39m passes the bootstrap pair through the trusted runtime boundary[32m 18[2mms[22m[39m
+ [32m✓[39m tests/runtime-boundary/ipc-multiplex.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 46358[2mms[22m[39m
+     [33m[2m✓[22m[39m correlates 10k reordered responses without listener growth [33m 46356[2mms[22m[39m
+ [32m✓[39m tests/runtime-boundary/runtime-host.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m tests/runtime-boundary/runtime-gateway.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m tests/runtime-boundary/sandbox-contract.test.ts[2m > [22mTD-19 runtime sandbox contract[2m > [22mbootstraps only Node 24 and imports a verified handler after FD hardening
+[31m[1mAssertionError[22m: expected '/*\n * Trusted Node.js 24 bootstrap f…' to contain 'PATH: \'/runtime/bin\''[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- PATH: '/runtime/bin'[39m
+[31m+ /*[39m
+[31m+  * Trusted Node.js 24 bootstrap for generated handlers.[39m
+[31m+  *[39m
+[31m+  * The C launcher has already performed namespace, mount, FD, identity,[39m
+[31m+  * capability and seccomp setup. This file is the last trusted code before a[39m
+[31m+  * generated module is imported; it intentionally has no dynamic module[39m
+[31m+  * resolution, secret loading or network setup.[39m
+[31m+  *[39m
+[31m+  * Traceability: KCML-REQ-RUNTIME-9b9b39e3819dbe737df54e9ee052d0af1ab56d7c3320e03dc0cee777262d7a60,[39m
+[31m+  * KCML-REQ-RUNTIME-2e05853970fa83ad9006d03338413a61660f196ba1e79dd1a20c6181898d3f90,[39m
+[31m+  * KCML-REQ-RUNTIME-321b40ee21af05286246bd355e173646751caf68855f0d516cbce8d3258c562d,[39m
+[31m+  * KCML-REQ-RUNTIME-570451223c7a193f435310a19277521d92745091538e309ffd02edb0121d237c,[39m
+[31m+  * KCML-REQ-RUNTIME-e72ce9a3c678f40b689ebb0c1aa916cf4fcf2ba99f84d92370edca5d02b6804c.[39m
+[31m+  */[39m
+[31m+[39m
+[31m+ import { createHash } from 'node:crypto';[39m
+[31m+ import { fstatSync, lstatSync, realpathSync } from 'node:fs';[39m
+[31m+ import { Socket } from 'node:net';[39m
+[31m+ import { fileURLToPath, pathToFileURL } from 'node:url';[39m
+[31m+[39m
+[31m+ const REQUIRED_ENVIRONMENT = new Set([[39m
+[31m+   'LANG','LC_ALL','TZ','NODE_ENV','HOME','TMPDIR','PATH','UV_USE_IO_URING',[39m
+[31m+   'KCML_CONTEXT_FD','KCML_CONTEXT_FD_CLOEXEC','KCML_EXECUTION_ID'[39m
+[31m+ ]);[39m
+[31m+ const FORBIDDEN_ENVIRONMENT = /^(?:NODE_OPTIONS|LD_PRELOAD|LD_LIBRARY_PATH|PYTHONPATH|RUSTFLAGS|KCML_OWNER_API_KEY|DATABASE_URL|PG(?:HOST|PORT|USER|PASSWORD|DATABASE)|.*(?:SECRET|TOKEN|CREDENTIAL|BROKER|GATEWAY).*)$/u;[39m
+[31m+ const DIGEST = /^sha256:[0-9a-f]{64}$/u;[39m
+[31m+ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;[39m
+[31m+ const TOOL_NAME = /^[A-Za-z][A-Za-z0-9._:-]{0,127}$/u;[39m
+[31m+ const KCR1 = Buffer.from('KCR1','ascii');[39m
+[31m+ const HEADER_BYTES = 16;[39m
+[31m+ const FRAME = Object.freeze({ HELLO:1, READY:2, REQUEST:3, RESPONSE:4, ERROR:5, STREAM_OPEN:6, STREAM_CHUNK:7, STREAM_CREDIT:8, STREAM_END:9, CANCEL:10, SHUTDOWN:11, HEARTBEAT:12 });[39m
+[31m+ const PROTOCOL = 'KCML-RUNTIME-IPC/1';[39m
+[31m+[39m
+[31m+ function fail(code) {[39m
+[31m+   console.error(`kcml-node-bootstrap: ${code}`);[39m
+[31m+   process.exit(70);[39m
+[31m+ }[39m
+[31m+[39m
+[31m+ function assertEnvironment() {[39m
+[31m+   if (Number(process.versions.node.split('.')[0]) !== 24) fail('NODE_RUNTIME_VERSION_UNSUPPORTED');[39m
+[31m+   for (const name of Object.keys(process.env)) {[39m
+[31m+     if (FORBIDDEN_ENVIRONMENT.test(name) || !REQUIRED_ENVIRONMENT.has(name)) fail(`ENVIRONMENT_NOT_ALLOWLISTED:${name}`);[39m
+[31m+   }[39m
+[31m+   const expected = {[39m
+[31m+     LANG:'C.UTF-8',LC_ALL:'C.UTF-8',TZ:'UTC',NODE_ENV:'production',HOME:'/work/home',TMPDIR:'/tmp',PATH:'/runtime/bin',UV_USE_IO_URING:'0',KCML_CONTEXT_FD:'3',KCML_CONTEXT_FD_CLOEXEC:'BOOTSTRAP_REQUIRED'[39m
+[31m+   };[39m
+[31m+   for (const [name,value] of Object.entries(expected)) if (process.env[name] !== value) fail(`ENVIRONMENT_VALUE_INVALID:${name}`);[39m
+[31m+   if (process.env.KCML_EXECUTION_ID !== undefined && !UUID.test(process.env.KCML_EXECUTION_ID.toLowerCase())) fail('EXECUTION_ID_INVALID');[39m
+[31m+ }[39m
+[31m+[39m
+[31m+ function assertCapabilityFd() {[39m
+[31m+   const fd = Number(process.env.KCML_CONTEXT_FD);[39m
+[31m+   if (!Number.isInteger(fd) || fd !== 3) fail('CAPABILITY_FD_INVALID');[39m
+[31m+   try {[39m
+[31m+     const descriptor = fstatSync(fd);[39m
+[31m+     if (!descriptor.isSocket()) fail('CAPABILITY_FD_NOT_SOCKET');[39m
+[31m+   } catch {[39m
+[31m+     fail('CAPABILITY_FD_UNAVAILABLE');[39m
+[31m+   }[39m
+[31m+   if (process.env.KCML_CONTEXT_FD_CLOEXEC !== 'BOOTSTRAP_REQUIRED') fail('CAPABILITY_FD_CLOEXEC_NOT_ENFORCED');[39m
+[31m+ }[39m
+[31m+[39m
+[31m+ function setCapabilityCloseOnExec() {[39m
+[31m+   try {[39m
+[31m+     const addon = { exports: {} };[39m
+[31m+     process.dlopen(addon, fileURLToPath(new URL('./kcml-fd-cloexec.node', import.meta.url)));[39m
+[31m+   } catch {[39m
+[31m+     fail('CAPABILITY_FD_CLOEXEC_FAILED');[39m
+[31m+   }[39m
+[31m+ }[39m
+[31m+[39m
+[31m+ function parseEntrypoint() {[39m
+[31m+   const args = process.argv.slice(2);[39m
+[31m+   if (args[0] !== '--entrypoint' || args[1] === undefined || args[2] !== '--') fail('BOOTSTRAP_ARGUMENTS_INVALID');[39m
+[31m+   if (args.slice(3).some((arg) => arg === '--require' || arg === '--loader' || arg.startsWith('--import'))) fail('NODE_INJECTION_ARGUMENT');[39m
+[31m+   const entrypoint = realpathSync(args[1]);[39m
+[31m+   if (!entrypoint.startsWith('/runtime/') || entrypoint.includes('/../')) fail('HANDLER_PATH_ESCAPE');[39m
+[31m+   const status = lstatSync(entrypoint);[39m
+[31m+   if (!status.isFile() || status.isSymbolicLink() || status.nlink !== 1 || (status.mode & 0o6000) !== 0) fail('HANDLER_FILE_CONTRACT_INVALID');[39m
+[31m+   const handlerArgs = args.slice(3);[39m
+[31m+   if (handlerArgs[0] !== '--kcml-handshake' || handlerArgs[1] === undefined) fail('RUNTIME_HANDSHAKE_ARGUMENT_REQUIRED');[39m
+[31m+   let handshake;[39m
+[31m+   try { handshake = JSON.parse(Buffer.from(handlerArgs[1], 'base64url').toString('utf8')); }[39m
+[31m+   catch { fail('RUNTIME_HANDSHAKE_ARGUMENT_INVALID'); }[39m
+[31m+   const required = ['runtimeInstanceId','runtimeGeneration','runtimeDigest','exportDigest','inputSchemaDigest','outputSchemaDigest'];[39m
+[31m+   if (handshake?.protocol !== PROTOCOL || !UUID.test(String(handshake?.runtimeInstanceId ?? '').toLowerCase()) || !/^[1-9][0-9]*$/u.test(String(handshake?.runtimeGeneration ?? '')) || required.slice(2).some((key) => !DIGEST.test(String(handshake?.[key] ?? '')))) fail('RUNTIME_HANDSHAKE_ARGUMENT_INVALID');[39m
+[31m+   return { entrypoint, handlerArgs: handlerArgs.slice(2), handshake };[39m
+[31m+ }[39m
+[31m+[39m
+[31m+ function canonical(value) {[39m
+[31m+   if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;[39m
+[31m+   if (typeof value === 'number') {[39m
+[31m+     if (!Number.isFinite(value)) fail('HANDLER_SCHEMA_NOT_CANONICAL');[39m
+[31m+     return value;[39m
+[31m+   }[39m
+[31m+   if (Array.isArray(value)) return value.map(canonical);[39m
+[31m+   if (typeof value !== 'object') fail('HANDLER_SCHEMA_NOT_CANONICAL');[39m
+[31m+   return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));[39m
+[31m+ }[39m
+[31m+[39m
+[31m+ function canonicalJson(value) { return JSON.stringify(canonical(value)); }[39m
+[31m+ function digest(value) { return `sha256:${createHash('sha256').update(canonicalJson(value)).digest('hex')}`; }[39m
+[31m+[39m
+[31m+ function actualHandlerContract(module) {[39m
+[31m+   if (typeof module.invoke !== 'function' || !Array.isArray(module.tools) || module.tools.length > 512) fail('HANDLER_EXPORT_CONTRACT_INVALID');[39m
+[31m+   const tools = module.tools.map((tool) => {[39m
+[31m+     if (!tool || typeof tool !== 'object' || typeof tool.name !== 'string' || !TOOL_NAME.test(tool.name) || !tool.inputSchema || typeof tool.inputSchema !== 'object' || Array.isArray(tool.inputSchema) || !tool.outputSchema || typeof tool.outputSchema !== 'object' || Array.isArray(tool.outputSchema)) fail('HANDLER_TOOL_CONTRACT_INVALID');[39m
+[31m+     return { name: tool.name, inputSchema: canonical(tool.inputSchema), outputSchema: canonical(tool.outputSchema) };[39m
+[31m+   }).sort((left,right) => left.name.localeCompare(right.name));[39m
+[31m+   if (new Set(tools.map((tool) => tool.name)).size !== tools.length) fail('HANDLER_TOOL_DUPLICATE');[39m
+[31m+   return {[39m
+[31m+     exportDigest: digest({ invoke:true, tools:tools.map((tool) => tool.name) }),[39m
+[31m+     inputSchemaDigest: digest(tools.map((tool) => ({ name:tool.name, schema:tool.inputSchema }))),[39m
+[31m+     outputSchemaDigest: digest(tools.map((tool) => ({ name:tool.name, schema:tool.outputSchema }))),[39m
+[31m+   };[39m
+[31m+ }[39m
+[31m+[39m
+[31m+ function encodeFrame(frameType, sequence, payload) {[39m
+[31m+   if (!Number.isSafeInteger(sequence) || sequence < 1 || sequence > 0xffffffff || !FRAME[frameType]) fail('RUNTIME_PROTOCOL_SEQUENCE_INVALID');[39m
+[31m+   const body = Buffer.from(canonicalJson(payload), 'utf8');[39m
+[31m+   if (body.length > 1024 * 1024) fail('RUNTIME_PAYLOAD_TOO_LARGE');[39m
+[31m+   const header = Buffer.alloc(HEADER_BYTES);[39m
+[31m+   KCR1.copy(header,0); header.writeUInt8(1,4); header.writeUInt8(FRAME[frameType],5); header.writeUInt16BE(0,6); header.writeUInt32BE(body.length,8); header.writeUInt32BE(sequence,12);[39m
+[31m+   return Buffer.concat([header,body]);[39m
+[31m+ }[39m
+[31m+[39m
+[31m+ function keepRuntimeChannel(socket) {[39m
+[31m+   let pending = Buffer.alloc(0);[39m
+[31m+   let expectedSequence = 1;[39m
+[31m+   let outboundSequence = 3;[39m
+[31m+   socket.on('data', (chunk) => {[39m
+[31m+     pending = Buffer.concat([pending, chunk]);[39m
+[31m+     while (pending.length >= HEADER_BYTES) {[39m
+[31m+       const header = pending.subarray(0,HEADER_BYTES);[39m
+[31m+       if (!header.subarray(0,4).equals(KCR1) || header.readUInt8(4) !== 1 || header.readUInt32BE(12) !== expectedSequence) fail('RUNTIME_PROTOCOL_INVALID_HEADER');[39m
+[31m+       const length = header.readUInt32BE(8);[39m
+[31m+       if (length > 1024 * 1024 || pending.length < HEADER_BYTES + length) return;[39m
+[31m+       const type = header.readUInt8(5);[39m
+[31m+       const payloadBytes = pending.subarray(HEADER_BYTES,HEADER_BYTES+length);[39m
+[31m+       pending = pending.subarray(HEADER_BYTES+length);[39m
+[31m+       expectedSequence += 1;[39m
+[31m+       let payload = {};[39m
+[31m+       try { payload = JSON.parse(payloadBytes.toString('utf8')); } catch { fail('RUNTIME_PROTOCOL_INVALID_JSON'); }[39m
+[31m+       if (type === FRAME.SHUTDOWN) {[39m
+[31m+         socket.write(encodeFrame('RESPONSE',outboundSequence++,{ requestId:payload?.requestId ?? null, status:'SHUTDOWN_ACK' }));[39m
+[31m+         socket.end();[39m
+[31m+         process.exitCode = 0;[39m
+[31m+         return;[39m
+[31m+       }[39m
+[31m+       if (type === FRAME.HEARTBEAT) continue;[39m
+[31m+       socket.write(encodeFrame('ERROR',outboundSequence++,{ requestId:payload?.requestId ?? null, error:'RUNTIME_REQUEST_DISPATCH_NOT_READY' }));[39m
+[31m+     }[39m
+[31m+   });[39m
+[31m+   socket.once('error', (error) => { console.error(`kcml-node-bootstrap: RUNTIME_CHANNEL_FAILED:${error.message}`); process.exitCode = 70; });[39m
+[31m+   socket.once('close', () => { if (process.exitCode === undefined) process.exitCode = 70; });[39m
+[31m+ }[39m
+[31m+[39m
+[31m+ async function main() {[39m
+[31m+   assertEnvironment();[39m
+[31m+   assertCapabilityFd();[39m
+[31m+   setCapabilityCloseOnExec();[39m
+[31m+   const { entrypoint, handlerArgs, handshake } = parseEntrypoint();[39m
+[31m+   process.chdir('/work');[39m
+[31m+   process.argv = [process.argv[0], entrypoint, ...handlerArgs];[39m
+[31m+   const module = await import(pathToFileURL(entrypoint).href);[39m
+[31m+   const actual = actualHandlerContract(module);[39m
+[31m+   if (actual.exportDigest !== handshake.exportDigest || actual.inputSchemaDigest !== handshake.inputSchemaDigest || actual.outputSchemaDigest !== handshake.outputSchemaDigest) fail('RUNTIME_HANDLER_CONFORMANCE_MISMATCH');[39m
+[31m+   const socket = new Socket({ fd:3, readable:true, writable:true });[39m
+[31m+   const payload = {[39m
+[31m+     protocol:PROTOCOL,[39m
+[31m+     runtimeInstanceId:String(handshake.runtimeInstanceId).toLowerCase(),[39m
+[31m+     runtimeGeneration:String(handshake.runtimeGeneration),[39m
+[31m+     runtimeDigest:String(handshake.runtimeDigest),[39m
+[31m+     exportDigest:actual.exportDigest,[39m
+[31m+     inputSchemaDigest:actual.inputSchemaDigest,[39m
+[31m+     outputSchemaDigest:actual.outputSchemaDigest,[39m
+[31m+   };[39m
+[31m+   socket.write(encodeFrame('HELLO',1,payload));[39m
+[31m+   socket.write(encodeFrame('READY',2,{...payload,stage:'HANDLER_CONFORMANCE_VALIDATED'}));[39m
+[31m+   keepRuntimeChannel(socket);[39m
+[31m+ }[39m
+[31m+[39m
+[31m+ await main().catch((error) => {[39m
+[31m+   console.error(`kcml-node-bootstrap: HANDLER_IMPORT_FAILED:${error instanceof Error ? error.message : String(error)}`);[39m
+[31m+   process.exitCode = 70;[39m
+[31m+ });[39m
+
+[36m [2m❯[22m tests/runtime-boundary/sandbox-contract.test.ts:[2m80:20[22m[39m
+    [90m 78|[39m     [34mexpect[39m(source)[33m.[39m[34mtoContain[39m([32m'process.dlopen'[39m)[33m;[39m
+    [90m 79|[39m     [34mexpect[39m(source)[33m.[39m[34mtoContain[39m([32m'FD_CLOEXEC'[39m)[33m;[39m
+    [90m 80|[39m     [34mexpect[39m(source)[33m.[39m[34mtoContain[39m([32m"PATH: '/runtime/bin'"[39m)[33m;[39m
+    [90m   |[39m                    [31m^[39m
+    [90m 81|[39m     [34mexpect[39m(source)[33m.[39m[34mtoContain[39m([32m'NODE_OPTIONS'[39m)[33m;[39m
+    [90m 82|[39m     [34mexpect[39m(source)[33m.[39m[34mtoContain[39m([32m'realpathSync'[39m)[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m3 passed[39m[22m[90m (4)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m14 passed[39m[22m[90m (15)[39m
+[2m   Start at [22m 19:18:26
+[2m   Duration [22m 47.96s[2m (transform 504ms, setup 0ms, import 1.04s, tests 46.40s, environment 0ms)[22m
+
+
+::error file=/home/runner/work/kajovocml-ng/kajovocml-ng/tests/runtime-boundary/sandbox-contract.test.ts,title=tests/runtime-boundary/sandbox-contract.test.ts > TD-19 runtime sandbox contract > bootstraps only Node 24 and imports a verified handler after FD hardening,line=80,column=20::AssertionError: expected '/*\n * Trusted Node.js 24 bootstrap f…' to contain 'PATH: \'/runtime/bin\''%0A%0A- Expected%0A+ Received%0A%0A- PATH: '/runtime/bin'%0A+ /*%0A+  * Trusted Node.js 24 bootstrap for generated handlers.%0A+  *%0A+  * The C launcher has already performed namespace, mount, FD, identity,%0A+  * capability and seccomp setup. This file is the last trusted code before a%0A+  * generated module is imported; it intentionally has no dynamic module%0A+  * resolution, secret loading or network setup.%0A+  *%0A+  * Traceability: KCML-REQ-RUNTIME-9b9b39e3819dbe737df54e9ee052d0af1ab56d7c3320e03dc0cee777262d7a60,%0A+  * KCML-REQ-RUNTIME-2e05853970fa83ad9006d03338413a61660f196ba1e79dd1a20c6181898d3f90,%0A+  * KCML-REQ-RUNTIME-321b40ee21af05286246bd355e173646751caf68855f0d516cbce8d3258c562d,%0A+  * KCML-REQ-RUNTIME-570451223c7a193f435310a19277521d92745091538e309ffd02edb0121d237c,%0A+  * KCML-REQ-RUNTIME-e72ce9a3c678f40b689ebb0c1aa916cf4fcf2ba99f84d92370edca5d02b6804c.%0A+  */%0A+%0A+ import { createHash } from 'node:crypto';%0A+ import { fstatSync, lstatSync, realpathSync } from 'node:fs';%0A+ import { Socket } from 'node:net';%0A+ import { fileURLToPath, pathToFileURL } from 'node:url';%0A+%0A+ const REQUIRED_ENVIRONMENT = new Set([%0A+   'LANG','LC_ALL','TZ','NODE_ENV','HOME','TMPDIR','PATH','UV_USE_IO_URING',%0A+   'KCML_CONTEXT_FD','KCML_CONTEXT_FD_CLOEXEC','KCML_EXECUTION_ID'%0A+ ]);%0A+ const FORBIDDEN_ENVIRONMENT = /^(?:NODE_OPTIONS|LD_PRELOAD|LD_LIBRARY_PATH|PYTHONPATH|RUSTFLAGS|KCML_OWNER_API_KEY|DATABASE_URL|PG(?:HOST|PORT|USER|PASSWORD|DATABASE)|.*(?:SECRET|TOKEN|CREDENTIAL|BROKER|GATEWAY).*)$/u;%0A+ const DIGEST = /^sha256:[0-9a-f]{64}$/u;%0A+ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;%0A+ const TOOL_NAME = /^[A-Za-z][A-Za-z0-9._:-]{0,127}$/u;%0A+ const KCR1 = Buffer.from('KCR1','ascii');%0A+ const HEADER_BYTES = 16;%0A+ const FRAME = Object.freeze({ HELLO:1, READY:2, REQUEST:3, RESPONSE:4, ERROR:5, STREAM_OPEN:6, STREAM_CHUNK:7, STREAM_CREDIT:8, STREAM_END:9, CANCEL:10, SHUTDOWN:11, HEARTBEAT:12 });%0A+ const PROTOCOL = 'KCML-RUNTIME-IPC/1';%0A+%0A+ function fail(code) {%0A+   console.error(`kcml-node-bootstrap: ${code}`);%0A+   process.exit(70);%0A+ }%0A+%0A+ function assertEnvironment() {%0A+   if (Number(process.versions.node.split('.')[0]) !== 24) fail('NODE_RUNTIME_VERSION_UNSUPPORTED');%0A+   for (const name of Object.keys(process.env)) {%0A+     if (FORBIDDEN_ENVIRONMENT.test(name) || !REQUIRED_ENVIRONMENT.has(name)) fail(`ENVIRONMENT_NOT_ALLOWLISTED:${name}`);%0A+   }%0A+   const expected = {%0A+     LANG:'C.UTF-8',LC_ALL:'C.UTF-8',TZ:'UTC',NODE_ENV:'production',HOME:'/work/home',TMPDIR:'/tmp',PATH:'/runtime/bin',UV_USE_IO_URING:'0',KCML_CONTEXT_FD:'3',KCML_CONTEXT_FD_CLOEXEC:'BOOTSTRAP_REQUIRED'%0A+   };%0A+   for (const [name,value] of Object.entries(expected)) if (process.env[name] !== value) fail(`ENVIRONMENT_VALUE_INVALID:${name}`);%0A+   if (process.env.KCML_EXECUTION_ID !== undefined && !UUID.test(process.env.KCML_EXECUTION_ID.toLowerCase())) fail('EXECUTION_ID_INVALID');%0A+ }%0A+%0A+ function assertCapabilityFd() {%0A+   const fd = Number(process.env.KCML_CONTEXT_FD);%0A+   if (!Number.isInteger(fd) || fd !== 3) fail('CAPABILITY_FD_INVALID');%0A+   try {%0A+     const descriptor = fstatSync(fd);%0A+     if (!descriptor.isSocket()) fail('CAPABILITY_FD_NOT_SOCKET');%0A+   } catch {%0A+     fail('CAPABILITY_FD_UNAVAILABLE');%0A+   }%0A+   if (process.env.KCML_CONTEXT_FD_CLOEXEC !== 'BOOTSTRAP_REQUIRED') fail('CAPABILITY_FD_CLOEXEC_NOT_ENFORCED');%0A+ }%0A+%0A+ function setCapabilityCloseOnExec() {%0A+   try {%0A+     const addon = { exports: {} };%0A+     process.dlopen(addon, fileURLToPath(new URL('./kcml-fd-cloexec.node', import.meta.url)));%0A+   } catch {%0A+     fail('CAPABILITY_FD_CLOEXEC_FAILED');%0A+   }%0A+ }%0A+%0A+ function parseEntrypoint() {%0A+   const args = process.argv.slice(2);%0A+   if (args[0] !== '--entrypoint' || args[1] === undefined || args[2] !== '--') fail('BOOTSTRAP_ARGUMENTS_INVALID');%0A+   if (args.slice(3).some((arg) => arg === '--require' || arg === '--loader' || arg.startsWith('--import'))) fail('NODE_INJECTION_ARGUMENT');%0A+   const entrypoint = realpathSync(args[1]);%0A+   if (!entrypoint.startsWith('/runtime/') || entrypoint.includes('/../')) fail('HANDLER_PATH_ESCAPE');%0A+   const status = lstatSync(entrypoint);%0A+   if (!status.isFile() || status.isSymbolicLink() || status.nlink !== 1 || (status.mode & 0o6000) !== 0) fail('HANDLER_FILE_CONTRACT_INVALID');%0A+   const handlerArgs = args.slice(3);%0A+   if (handlerArgs[0] !== '--kcml-handshake' || handlerArgs[1] === undefined) fail('RUNTIME_HANDSHAKE_ARGUMENT_REQUIRED');%0A+   let handshake;%0A+   try { handshake = JSON.parse(Buffer.from(handlerArgs[1], 'base64url').toString('utf8')); }%0A+   catch { fail('RUNTIME_HANDSHAKE_ARGUMENT_INVALID'); }%0A+   const required = ['runtimeInstanceId','runtimeGeneration','runtimeDigest','exportDigest','inputSchemaDigest','outputSchemaDigest'];%0A+   if (handshake?.protocol !== PROTOCOL || !UUID.test(String(handshake?.runtimeInstanceId ?? '').toLowerCase()) || !/^[1-9][0-9]*$/u.test(String(handshake?.runtimeGeneration ?? '')) || required.slice(2).some((key) => !DIGEST.test(String(handshake?.[key] ?? '')))) fail('RUNTIME_HANDSHAKE_ARGUMENT_INVALID');%0A+   return { entrypoint, handlerArgs: handlerArgs.slice(2), handshake };%0A+ }%0A+%0A+ function canonical(value) {%0A+   if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;%0A+   if (typeof value === 'number') {%0A+     if (!Number.isFinite(value)) fail('HANDLER_SCHEMA_NOT_CANONICAL');%0A+     return value;%0A+   }%0A+   if (Array.isArray(value)) return value.map(canonical);%0A+   if (typeof value !== 'object') fail('HANDLER_SCHEMA_NOT_CANONICAL');%0A+   return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));%0A+ }%0A+%0A+ function canonicalJson(value) { return JSON.stringify(canonical(value)); }%0A+ function digest(value) { return `sha256:${createHash('sha256').update(canonicalJson(value)).digest('hex')}`; }%0A+%0A+ function actualHandlerContract(module) {%0A+   if (typeof module.invoke !== 'function' || !Array.isArray(module.tools) || module.tools.length > 512) fail('HANDLER_EXPORT_CONTRACT_INVALID');%0A+   const tools = module.tools.map((tool) => {%0A+     if (!tool || typeof tool !== 'object' || typeof tool.name !== 'string' || !TOOL_NAME.test(tool.name) || !tool.inputSchema || typeof tool.inputSchema !== 'object' || Array.isArray(tool.inputSchema) || !tool.outputSchema || typeof tool.outputSchema !== 'object' || Array.isArray(tool.outputSchema)) fail('HANDLER_TOOL_CONTRACT_INVALID');%0A+     return { name: tool.name, inputSchema: canonical(tool.inputSchema), outputSchema: canonical(tool.outputSchema) };%0A+   }).sort((left,right) => left.name.localeCompare(right.name));%0A+   if (new Set(tools.map((tool) => tool.name)).size !== tools.length) fail('HANDLER_TOOL_DUPLICATE');%0A+   return {%0A+     exportDigest: digest({ invoke:true, tools:tools.map((tool) => tool.name) }),%0A+     inputSchemaDigest: digest(tools.map((tool) => ({ name:tool.name, schema:tool.inputSchema }))),%0A+     outputSchemaDigest: digest(tools.map((tool) => ({ name:tool.name, schema:tool.outputSchema }))),%0A+   };%0A+ }%0A+%0A+ function encodeFrame(frameType, sequence, payload) {%0A+   if (!Number.isSafeInteger(sequence) || sequence < 1 || sequence > 0xffffffff || !FRAME[frameType]) fail('RUNTIME_PROTOCOL_SEQUENCE_INVALID');%0A+   const body = Buffer.from(canonicalJson(payload), 'utf8');%0A+   if (body.length > 1024 * 1024) fail('RUNTIME_PAYLOAD_TOO_LARGE');%0A+   const header = Buffer.alloc(HEADER_BYTES);%0A+   KCR1.copy(header,0); header.writeUInt8(1,4); header.writeUInt8(FRAME[frameType],5); header.writeUInt16BE(0,6); header.writeUInt32BE(body.length,8); header.writeUInt32BE(sequence,12);%0A+   return Buffer.concat([header,body]);%0A+ }%0A+%0A+ function keepRuntimeChannel(socket) {%0A+   let pending = Buffer.alloc(0);%0A+   let expectedSequence = 1;%0A+   let outboundSequence = 3;%0A+   socket.on('data', (chunk) => {%0A+     pending = Buffer.concat([pending, chunk]);%0A+     while (pending.length >= HEADER_BYTES) {%0A+       const header = pending.subarray(0,HEADER_BYTES);%0A+       if (!header.subarray(0,4).equals(KCR1) || header.readUInt8(4) !== 1 || header.readUInt32BE(12) !== expectedSequence) fail('RUNTIME_PROTOCOL_INVALID_HEADER');%0A+       const length = header.readUInt32BE(8);%0A+       if (length > 1024 * 1024 || pending.length < HEADER_BYTES + length) return;%0A+       const type = header.readUInt8(5);%0A+       const payloadBytes = pending.subarray(HEADER_BYTES,HEADER_BYTES+length);%0A+       pending = pending.subarray(HEADER_BYTES+length);%0A+       expectedSequence += 1;%0A+       let payload = {};%0A+       try { payload = JSON.parse(payloadBytes.toString('utf8')); } catch { fail('RUNTIME_PROTOCOL_INVALID_JSON'); }%0A+       if (type === FRAME.SHUTDOWN) {%0A+         socket.write(encodeFrame('RESPONSE',outboundSequence++,{ requestId:payload?.requestId ?? null, status:'SHUTDOWN_ACK' }));%0A+         socket.end();%0A+         process.exitCode = 0;%0A+         return;%0A+       }%0A+       if (type === FRAME.HEARTBEAT) continue;%0A+       socket.write(encodeFrame('ERROR',outboundSequence++,{ requestId:payload?.requestId ?? null, error:'RUNTIME_REQUEST_DISPATCH_NOT_READY' }));%0A+     }%0A+   });%0A+   socket.once('error', (error) => { console.error(`kcml-node-bootstrap: RUNTIME_CHANNEL_FAILED:${error.message}`); process.exitCode = 70; });%0A+   socket.once('close', () => { if (process.exitCode === undefined) process.exitCode = 70; });%0A+ }%0A+%0A+ async function main() {%0A+   assertEnvironment();%0A+   assertCapabilityFd();%0A+   setCapabilityCloseOnExec();%0A+   const { entrypoint, handlerArgs, handshake } = parseEntrypoint();%0A+   process.chdir('/work');%0A+   process.argv = [process.argv[0], entrypoint, ...handlerArgs];%0A+   const module = await import(pathToFileURL(entrypoint).href);%0A+   const actual = actualHandlerContract(module);%0A+   if (actual.exportDigest !== handshake.exportDigest || actual.inputSchemaDigest !== handshake.inputSchemaDigest || actual.outputSchemaDigest !== handshake.outputSchemaDigest) fail('RUNTIME_HANDLER_CONFORMANCE_MISMATCH');%0A+   const socket = new Socket({ fd:3, readable:true, writable:true });%0A+   const payload = {%0A+     protocol:PROTOCOL,%0A+     runtimeInstanceId:String(handshake.runtimeInstanceId).toLowerCase(),%0A+     runtimeGeneration:String(handshake.runtimeGeneration),%0A+     runtimeDigest:String(handshake.runtimeDigest),%0A+     exportDigest:actual.exportDigest,%0A+     inputSchemaDigest:actual.inputSchemaDigest,%0A+     outputSchemaDigest:actual.outputSchemaDigest,%0A+   };%0A+   socket.write(encodeFrame('HELLO',1,payload));%0A+   socket.write(encodeFrame('READY',2,{...payload,stage:'HANDLER_CONFORMANCE_VALIDATED'}));%0A+   keepRuntimeChannel(socket);%0A+ }%0A+%0A+ await main().catch((error) => {%0A+   console.error(`kcml-node-bootstrap: HANDLER_IMPORT_FAILED:${error instanceof Error ? error.message : String(error)}`);%0A+   process.exitCode = 70;%0A+ });%0A%0A ❯ tests/runtime-boundary/sandbox-contract.test.ts:80:20%0A%0A
+
+EXIT=1
