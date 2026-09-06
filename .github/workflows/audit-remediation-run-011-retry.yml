@@ -13,7 +13,7 @@ jobs:
         with:
           ref: audit-remediation-2026-09-06
           fetch-depth: 0
-      - name: Apply runtime wiring and trace authority
+      - name: Apply runtime wiring, trace and writer authority
         shell: bash
         run: |
           python3 - <<'PYEXTRACT'
@@ -42,33 +42,44 @@ jobs:
             'KCML-REQ-RUNTIME-db74ee6d319c31d8bd8147a91b7160cb8eff9a88c501323b8cf85b967fb8fcfc'
           ]
           operations=['OP-RUNTIME-BOUNDARY-VERIFY','OP-RUNTIME-CONNECTION-INSPECT','OP-RUNTIME-HEARTBEAT','OP-RUNTIME-READY-REPORT','OP-RUNTIME-STATE-REPORT']
-          gateway={
-            'repositoryPath':'packages/worker-runtime/src/runtime-gateway.ts',
-            'requirementIds':gateway_requirements,
-            'operationIds':operations,
-            'stateMachineIds':['SM-RUNTIME_INSTANCE'],
-            'registryRecordIds':['RUNTIME_INSTANCE'],
-            'testIds':['TEST_CASE:tests/runtime-boundary/runtime-gateway.test.ts#runtime-gateway-identity'],
-            'releaseIds':[],
-            'traceAnchors':[]
-          }
-          test={
-            'repositoryPath':'tests/runtime-boundary/runtime-gateway.test.ts',
-            'requirementIds':test_requirements,
-            'operationIds':operations,
-            'stateMachineIds':['SM-RUNTIME_INSTANCE'],
-            'registryRecordIds':['RUNTIME_INSTANCE'],
-            'testIds':['TEST_CASE:tests/runtime-boundary/runtime-gateway.test.ts#runtime-gateway-identity'],
-            'releaseIds':[],
-            'traceAnchors':[]
-          }
-          for record in (gateway,test):
+          records=[
+            {
+              'repositoryPath':'packages/worker-runtime/src/runtime-gateway.ts',
+              'requirementIds':gateway_requirements,
+              'operationIds':operations,
+              'stateMachineIds':['SM-RUNTIME_INSTANCE'],
+              'registryRecordIds':['RUNTIME_INSTANCE'],
+              'testIds':['TEST_CASE:tests/runtime-boundary/runtime-gateway.test.ts#runtime-gateway-identity'],
+              'releaseIds':[],
+              'traceAnchors':[]
+            },
+            {
+              'repositoryPath':'tests/runtime-boundary/runtime-gateway.test.ts',
+              'requirementIds':test_requirements,
+              'operationIds':operations,
+              'stateMachineIds':['SM-RUNTIME_INSTANCE'],
+              'registryRecordIds':['RUNTIME_INSTANCE'],
+              'testIds':['TEST_CASE:tests/runtime-boundary/runtime-gateway.test.ts#runtime-gateway-identity'],
+              'releaseIds':[],
+              'traceAnchors':[]
+            }
+          ]
+          for record in records:
             if record['repositoryPath'] in by_path:
               by_path[record['repositoryPath']].update(record)
             else:
               trace['records'].append(record)
           trace['records'].sort(key=lambda item:item['repositoryPath'])
           trace_path.write_text(json.dumps(trace,separators=(',',':'))+'\n')
+
+          writer_path=Path('scripts/lib/authority-writer-audit.mjs')
+          writer=writer_path.read_text()
+          anchor="  ['packages/worker-runtime/src/runtime-systemd.ts', 'WRITER-RUNTIME'],\n"
+          addition="  ['packages/worker-runtime/src/runtime-gateway.ts', 'WRITER-RUNTIME'],\n"
+          if addition not in writer:
+            if anchor not in writer: raise SystemExit('runtime writer authority anchor missing')
+            writer=writer.replace(anchor, anchor+addition)
+          writer_path.write_text(writer)
           PYEXTRACT
           rm -f .github/workflows/audit-remediation-run-011.yml .github/workflows/audit-remediation-run-011-retry.yml .audit/run011-verify.txt
       - uses: pnpm/action-setup@v4
