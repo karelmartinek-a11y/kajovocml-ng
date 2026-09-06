@@ -119,7 +119,7 @@ async function fileDigest(path: string): Promise<string> {
   const hash = createHash('sha256');
   await new Promise<void>((resolveRead, reject) => {
     const stream = createReadStream(path, { highWaterMark: 256 * 1024 });
-    stream.on('data', (chunk: Buffer) => hash.update(chunk));
+    stream.on('data', (chunk) => { hash.update(chunk); });
     stream.once('error', reject);
     stream.once('end', resolveRead);
   });
