@@ -413,9 +413,19 @@ async function browserMutation(_client: DatabaseClient, context: CanonicalHandle
     if (sourceUrl) {
       let parsedUrl: URL;
       try { parsedUrl = new URL(sourceUrl); } catch { throw new DomainError('BROWSER_ACTIONABILITY_FAILED', 'Download source URL must be an absolute URL', 422, 'DO_NOT_RETRY'); }
-      if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new DomainError('BROWSER_ACTIONABILITY_FAILED', 'Download source URL must use HTTP(S)', 422, 'DO_NOT_RETRY');
-      sourceOrigin ??= parsedUrl.origin;
-      if (sourceOrigin !== parsedUrl.origin) throw new DomainError('BROWSER_ACCOUNT_MISMATCH', 'Download source origin does not match its URL', 422, 'DO_NOT_RETRY');
+      if (!['http:', 'https:', 'blob:', 'data:'].includes(parsedUrl.protocol)) throw new DomainError('BROWSER_ACTIONABILITY_FAILED', 'Download source URL uses an unsupported protocol', 422, 'DO_NOT_RETRY');
+      const urlKind = String(context.arguments.urlKind ?? 'HTTP').toUpperCase();
+      const expectedUrlKind = parsedUrl.protocol === 'blob:' ? 'BLOB' : parsedUrl.protocol === 'data:' ? 'DATA' : 'HTTP';
+      if (urlKind !== expectedUrlKind) throw new DomainError('BROWSER_ACTIONABILITY_FAILED', 'Download URL kind does not match its URL protocol', 422, 'DO_NOT_RETRY');
+      if (expectedUrlKind === 'HTTP') {
+        sourceOrigin ??= parsedUrl.origin;
+        if (sourceOrigin !== parsedUrl.origin) throw new DomainError('BROWSER_ACCOUNT_MISMATCH', 'Download source origin does not match its URL', 422, 'DO_NOT_RETRY');
+      } else {
+        if (!sourceOrigin) throw new DomainError('BROWSER_ACCOUNT_MISMATCH', 'Opaque download URLs require the observed page origin', 422, 'DO_NOT_RETRY');
+        let originUrl: URL;
+        try { originUrl = new URL(sourceOrigin); } catch { throw new DomainError('BROWSER_ACCOUNT_MISMATCH', 'Download source origin must be an absolute origin', 422, 'DO_NOT_RETRY'); }
+        if (!['http:', 'https:'].includes(originUrl.protocol) || originUrl.origin !== sourceOrigin) throw new DomainError('BROWSER_ACCOUNT_MISMATCH', 'Download source origin must be an HTTP(S) origin', 422, 'DO_NOT_RETRY');
+      }
     }
     const row = (await _client.query(`INSERT INTO kcml.browser_download(id,session_id,run_id,step_id,action_id,source_origin,source_url,url_kind,event_sequence,suggested_name,safe_name,mime_type,expected_size_bytes,state,temp_path_handle,cleanup_state,canonical_digest,logical_operation_id,correlation_id,activation_epoch,platform_incarnation_id,application_deployment_epoch)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'STARTED',$14,'RETAINED',$15,$16,$17,$18,$19,$20) RETURNING *`, [
@@ -1031,9 +1041,7 @@ const detailedBrowserMutationOperations: ReadonlySet<string> = new Set([
   'browser.action.fail',
   'browser.action.resolveOutcome',
   'browser.action.start',
-  'browser.artifact.created',
   'browser.challenge.required',
-  'browser.challenge.resolve',
   'browser.cleanup.resume',
   'browser.control.transfer',
   'browser.download.persist',

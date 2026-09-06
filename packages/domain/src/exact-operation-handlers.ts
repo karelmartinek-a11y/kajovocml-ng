@@ -2809,6 +2809,8 @@ export function exactMutationHandlerFor(operationName: string): CanonicalMutatio
     case 'browser.account.logout': return handleBrowserAccountLogout;
     case 'browser.account.save': return handleBrowserAccountSave;
     case 'browser.action.reconcile': return handleBrowserActionReconcile;
+    case 'browser.artifact.created': return handleBrowserArtifactCreated;
+    case 'browser.challenge.resolve': return handleBrowserChallengeResolve;
     case 'browser.automation.cancel': return handleBrowserAutomationCancel;
     case 'browser.automation.preflight': return handleBrowserAutomationPreflight;
     case 'browser.automation.reauthenticate': return handleBrowserAutomationReauthenticate;
