@@ -1,21 +1,19 @@
-name: Audit remediation batch four
+name: Audit remediation verification
 on:
   push:
     branches: [audit-remediation-2026-09-06]
 permissions:
-  contents: write
+  contents: read
 concurrency:
   group: audit-remediation-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  apply:
-    if: github.actor != 'github-actions[bot]'
+  verify:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: audit-remediation-2026-09-06
       - uses: pnpm/action-setup@v4
         with:
           version: 11.19.0
@@ -24,8 +22,6 @@ jobs:
         with:
           node-version: '24.11.1'
           cache: pnpm
-      - name: Apply strict recoverable chat remediation
-        run: python3 scripts/audit-remediation-batch4.py
       - name: Install
         run: pnpm install --frozen-lockfile
       - name: Verify SSOT surface and registries
@@ -38,14 +34,3 @@ jobs:
         run: pnpm -r --sort --if-present build
       - name: Verify patch whitespace
         run: git diff --check
-      - name: Commit verified chat remediation
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add apps/server/src/server.ts packages/domain/src/system-chat.ts packages/openai-runtime/src/index.ts
-          if git diff --cached --quiet; then
-            echo 'No chat remediation changes.'
-            exit 0
-          fi
-          git commit -m 'fix(chat): enforce semantic authority and recoverable tool execution'
-          git push origin HEAD:audit-remediation-2026-09-06
