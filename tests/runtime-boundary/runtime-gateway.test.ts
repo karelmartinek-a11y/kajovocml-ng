@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assertRuntimeGatewayActivationEnvironment, parseProcStartTicks, runtimeUnitFromCgroup } from '@kcml/worker-runtime';
+import { assertRuntimeGatewayActivationEnvironment, parseProcStartTicks, runtimeUnitFromCgroup } from '../../packages/worker-runtime/src/index.js';
 
 describe('runtime gateway identity primitives', () => {
   it('requires exactly the named systemd socket activation descriptor', () => {
