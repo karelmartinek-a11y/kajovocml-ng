@@ -37,6 +37,13 @@ jobs:
           if old not in s:
             raise SystemExit('worker option insertion point missing')
           p.write_text(s.replace(old,new))
+          t=Path('tests/runtime-boundary/runtime-systemd.test.ts')
+          ts=t.read_text()
+          old_test="import { parseSystemdShow, runtimeHostUnit } from '@kcml/worker-runtime';"
+          new_test="import { parseSystemdShow, runtimeHostUnit } from '../../packages/worker-runtime/src/index.js';"
+          if old_test not in ts:
+            raise SystemExit('runtime systemd test import insertion point missing')
+          t.write_text(ts.replace(old_test,new_test))
           PY
           rm -f \
             .audit/runtime-systemd.patch \
