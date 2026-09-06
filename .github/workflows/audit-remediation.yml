@@ -42,7 +42,7 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add packages/worker-runtime/src/index.ts packages/worker-runtime/src/outbox-delivery.ts
+          git add packages/worker-runtime/src/index.ts packages/worker-runtime/src/outbox-delivery.ts scripts/lib/authority-writer-audit.mjs
           if git diff --cached --quiet; then
             echo 'No outbox remediation changes.'
             exit 0
