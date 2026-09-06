@@ -13,10 +13,11 @@ jobs:
         with:
           ref: audit-remediation-2026-09-06
           fetch-depth: 0
-      - name: Apply runtime foundation patch
+      - name: Apply runtime foundation patch and remove staging artifacts
         run: |
           git apply --check .audit/runtime-foundation.patch
           git apply .audit/runtime-foundation.patch
+          rm -f .audit/runtime-foundation.patch .audit/runtime-foundation-verify.txt .github/workflows/audit-remediation-runtime-foundation.yml
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -26,39 +27,15 @@ jobs:
           pnpm install --frozen-lockfile
       - name: Regenerate implementation trace evidence
         run: pnpm contracts:build
-      - name: Verify and capture diagnostics
-        shell: bash
+      - name: Verify runtime foundation
         run: |
-          set +e
-          : > /tmp/runtime-foundation-verify.txt
-          for command in \
-            "pnpm contracts:check" \
-            "pnpm lint" \
-            "pnpm typecheck" \
-            "pnpm exec vitest run tests/runtime-boundary/ipc-multiplex.test.ts"
-          do
-            printf '\n===== %s =====\n' "$command" | tee -a /tmp/runtime-foundation-verify.txt
-            bash -lc "$command" 2>&1 | tee -a /tmp/runtime-foundation-verify.txt
-            status=${PIPESTATUS[0]}
-            if [ "$status" -ne 0 ]; then
-              mkdir -p .audit
-              cp /tmp/runtime-foundation-verify.txt .audit/runtime-foundation-verify.txt
-              git config user.name 'openai-remediation-bot'
-              git config user.email 'openai-remediation-bot@users.noreply.github.com'
-              git add -f .audit/runtime-foundation-verify.txt
-              git commit -m 'chore(audit): capture runtime foundation validation failure'
-              git pull --rebase origin audit-remediation-2026-09-06
-              git push origin HEAD:audit-remediation-2026-09-06
-              exit "$status"
-            fi
-          done
+          pnpm contracts:check
+          pnpm lint
+          pnpm typecheck
+          pnpm exec vitest run tests/runtime-boundary/ipc-multiplex.test.ts
       - name: Commit verified remediation
         run: |
-          rm -f .github/workflows/audit-remediation-runtime-foundation.yml .audit/runtime-foundation.patch .audit/runtime-foundation-verify.txt
           git add -A
-          if git diff --cached --quiet; then
-            exit 0
-          fi
           git config user.name 'openai-remediation-bot'
           git config user.email 'openai-remediation-bot@users.noreply.github.com'
           git commit -m 'fix(runtime): add fenced specialist execution boundary'
