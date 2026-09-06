@@ -15,9 +15,14 @@ jobs:
           fetch-depth: 0
       - name: Apply runtime systemd patch
         run: |
+          sed -i \
+            -e 's|^--- a/packages/worker-runtime/src/runtime-systemd.ts$|--- /dev/null|' \
+            -e 's|^--- a/deploy/polkit/50-kcml-runtime-gateway.rules$|--- /dev/null|' \
+            -e 's|^--- a/tests/runtime-boundary/runtime-systemd.test.ts$|--- /dev/null|' \
+            .audit/runtime-systemd.patch
           git apply --check .audit/runtime-systemd.patch
           git apply .audit/runtime-systemd.patch
-          rm -f .audit/runtime-systemd.patch .github/workflows/audit-remediation-runtime-systemd.yml .github/workflows/audit-remediation.yml
+          rm -f .audit/runtime-systemd.patch .audit/runtime-systemd-verify.txt .github/workflows/audit-remediation-runtime-systemd.yml
       - name: Register trace coverage for new runtime artifacts
         shell: bash
         run: |
@@ -66,13 +71,33 @@ jobs:
       - name: Regenerate implementation trace evidence
         run: pnpm contracts:build
       - name: Verify runtime systemd lifecycle
+        shell: bash
         run: |
-          pnpm contracts:check
-          pnpm lint
-          pnpm typecheck
-          pnpm exec vitest run tests/runtime-boundary/runtime-systemd.test.ts tests/runtime-boundary/ipc-multiplex.test.ts tests/runtime-boundary/matrix.test.ts
-          pnpm --filter @kcml/worker-runtime build
-          git diff --check
+          set +e
+          : > /tmp/runtime-systemd-verify.txt
+          for command in \
+            "pnpm contracts:check" \
+            "pnpm lint" \
+            "pnpm typecheck" \
+            "pnpm exec vitest run tests/runtime-boundary/runtime-systemd.test.ts tests/runtime-boundary/ipc-multiplex.test.ts tests/runtime-boundary/matrix.test.ts" \
+            "pnpm --filter @kcml/worker-runtime build" \
+            "git diff --check"
+          do
+            printf '\n===== %s =====\n' "$command" | tee -a /tmp/runtime-systemd-verify.txt
+            bash -lc "$command" 2>&1 | tee -a /tmp/runtime-systemd-verify.txt
+            status=${PIPESTATUS[0]}
+            if [ "$status" -ne 0 ]; then
+              mkdir -p .audit
+              cp /tmp/runtime-systemd-verify.txt .audit/runtime-systemd-verify.txt
+              git config user.name 'openai-remediation-bot'
+              git config user.email 'openai-remediation-bot@users.noreply.github.com'
+              git add -f .audit/runtime-systemd-verify.txt
+              git commit -m 'chore(audit): capture runtime systemd validation failure'
+              git pull --rebase origin audit-remediation-2026-09-06
+              git push origin HEAD:audit-remediation-2026-09-06
+              exit "$status"
+            fi
+          done
       - name: Commit verified remediation
         run: |
           git add -A
