@@ -21,7 +21,7 @@ index = index.replace(outbox_import, '', 1)
 
 if 'class TransactionalOutboxDeliveryWorker' in index:
     raise SystemExit('outbox worker already embedded')
-index = index.rstrip() + '\n\n' + body + '\n'
+index = index.rstrip() + '\n\n' + body.rstrip() + '\n'
 index_path.write_text(index, encoding='utf-8')
 outbox_path.unlink()
 print('batch5 outbox delivery moved under WRITER-QUEUE boundary')
