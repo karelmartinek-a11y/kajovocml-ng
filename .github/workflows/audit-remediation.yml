@@ -24,22 +24,35 @@ jobs:
         with:
           node-version: '24.11.1'
           cache: pnpm
-      - name: Correct batch two source marker
+      - name: Correct batch two source markers
         run: |
           python3 - <<'PY'
           from pathlib import Path
           path = Path('scripts/audit-remediation-batch2.py')
           text = path.read_text(encoding='utf-8')
-          old = 'needle="contentDigest, context.logicalOperationId, context.correlationId, context.activationEpoch.toString(), context.platformIncarnationId, context.applicationDeploymentEpoch.toString()"'
-          new = 'needle="digest(content), context.logicalOperationId, context.correlationId, context.activationEpoch.toString(), context.platformIncarnationId, context.applicationDeploymentEpoch.toString()"'
-          if old not in text:
-              raise SystemExit('batch two generation message needle declaration not found')
-          text = text.replace(old, new, 1)
-          old = 't=t.replace(needle,"contentDigest, digest({ jobId, sequence: sequence.toString(), role: context.arguments.role ?? \'OWNER\', content: context.arguments.content, attachments: context.arguments.attachments ?? [] })'
-          new = 't=t.replace(needle,"digest(content), digest({ jobId, sequence: sequence.toString(), role: context.arguments.role ?? \'OWNER\', content: context.arguments.content, attachments: context.arguments.attachments ?? [] })'
-          if old not in text:
-              raise SystemExit('batch two generation message replacement declaration not found')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          replacements = [
+            (
+              'needle="contentDigest, context.logicalOperationId, context.correlationId, context.activationEpoch.toString(), context.platformIncarnationId, context.applicationDeploymentEpoch.toString()"',
+              'needle="digest(content), context.logicalOperationId, context.correlationId, context.activationEpoch.toString(), context.platformIncarnationId, context.applicationDeploymentEpoch.toString()"'
+            ),
+            (
+              't=t.replace(needle,"contentDigest, digest({ jobId, sequence: sequence.toString(), role: context.arguments.role ?? \'OWNER\', content: context.arguments.content, attachments: context.arguments.attachments ?? [] })',
+              't=t.replace(needle,"digest(content), digest({ jobId, sequence: sequence.toString(), role: context.arguments.role ?? \'OWNER\', content: context.arguments.content, attachments: context.arguments.attachments ?? [] })'
+            ),
+            (
+              'marker="VALUES($1,$2,$3,$4,$5,\'COMPLETED\',$6,$7,$8,$9,$10,$11) RETURNING *`"',
+              'marker="VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`"'
+            ),
+            (
+              't=t.replace(marker,"VALUES($1,$2,$3,$4,$5,\'COMPLETED\',$6,$7,$8,$9,$10,$11,$12) RETURNING *`",1)',
+              't=t.replace(marker,"VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`",1)'
+            )
+          ]
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f'batch two marker not found: {old[:100]}')
+              text = text.replace(old, new, 1)
+          path.write_text(text, encoding='utf-8')
           PY
       - name: Apply forensic batch two
         run: python3 scripts/audit-remediation-batch2.py
