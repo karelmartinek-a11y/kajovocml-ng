@@ -1,4 +1,4 @@
-name: Audit remediation trace normalization
+name: Audit remediation verification
 on:
   push:
     branches: [audit-remediation-2026-09-06]
@@ -8,7 +8,7 @@ concurrency:
   group: audit-remediation-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  normalize:
+  verify:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-24.04
     steps:
@@ -28,7 +28,7 @@ jobs:
         run: node scripts/compile-contract-trace.mjs
       - name: Install
         run: pnpm install --frozen-lockfile
-      - name: Verify full authority and evidence
+      - name: Verify Contract Pack, evidence and ownership
         run: pnpm contracts:check
       - name: Verify lint
         run: pnpm lint
@@ -40,10 +40,14 @@ jobs:
         run: pnpm conformance:audit
       - name: Verify patch whitespace
         run: git diff --check
-      - name: Commit normalized evidence
+      - name: Commit refreshed evidence when needed
         run: |
+          if git diff --quiet -- contracts/traceability/artifact-trace; then
+            echo 'Implementation evidence already current.'
+            exit 0
+          fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add contracts/traceability/artifact-trace
-          git commit -m 'fix(contracts): normalize implementation evidence after authority split'
+          git commit -m 'chore(contracts): refresh implementation evidence'
           git push origin HEAD:audit-remediation-2026-09-06
