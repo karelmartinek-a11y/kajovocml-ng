@@ -21,6 +21,8 @@ jobs:
             -e 's|^--- a/packages/worker-runtime/src/runtime-systemd.ts$|--- /dev/null|' \
             -e 's|^--- a/deploy/polkit/50-kcml-runtime-gateway.rules$|--- /dev/null|' \
             -e 's|^--- a/tests/runtime-boundary/runtime-systemd.test.ts$|--- /dev/null|' \
+            -e 's|^@@ -0,0 +1,11 @@$|@@ -0,0 +1,10 @@|' \
+            -e 's|^@@ -0,0 +1,24 @@$|@@ -0,0 +1,18 @@|' \
             /tmp/runtime-systemd.patch
           set +e
           git apply --check --verbose /tmp/runtime-systemd.patch > /tmp/runtime-systemd-apply.txt 2>&1
