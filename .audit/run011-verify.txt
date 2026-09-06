@@ -1,0 +1,21 @@
+
+===== pnpm contracts:check =====
+$ node scripts/compile-ssot-surface.mjs --check && node scripts/compile-contract-pack.mjs --check && node scripts/validate-contract-pack.mjs && node scripts/compile-contract-trace.mjs --check && node scripts/validate-contract-trace.mjs && node scripts/verify-authority-ownership.mjs && node scripts/verify-error-codes.mjs
+{
+  "mode": "CHECK",
+  "fingerprint": "d1e1020ff347a9aea8bcf21f4443759b2ae165757b7a53112a2d9f6e0c9c4eb7",
+  "entities": 220,
+  "routes": 503,
+  "generatedTables": 163,
+  "operationBoundRoutes": 278,
+  "directSurfaceRoutes": 225
+}
+verified requirements=13959 operations=262 files=33 pack=sha256:b31a4486a72280f1626ddf791a7b804577c2034aa993c2726095c2a9a47ee807
+Normative Contract Pack validation complete: 13 registries, 13959 SSOT requirements, sha256:b31a4486a72280f1626ddf791a7b804577c2034aa993c2726095c2a9a47ee807. Implementation evidence is validated separately.
+verified artifact evidence=440 mapped=438 unmapped=2 trace=sha256:d471e29df264f7a61ab728eb16ddf8d27de2a1e0496b5ca00674b2278a652cf0
+TRACE_LAYER_UNMAPPED_ARTIFACTS:packages/worker-runtime/src/runtime-gateway.ts,tests/runtime-boundary/runtime-gateway.test.ts
+TRACE_LAYER_UNMAPPED:packages/worker-runtime/src/runtime-gateway.ts
+TRACE_LAYER_UNMAPPED:tests/runtime-boundary/runtime-gateway.test.ts
+[ELIFECYCLE] Command failed with exit code 1.
+
+EXIT=1
