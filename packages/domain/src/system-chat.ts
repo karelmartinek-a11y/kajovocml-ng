@@ -6,18 +6,49 @@ import { DomainError } from './errors.js';
 
 function canonicalValue(value:unknown):CanonicalJsonValue{return JSON.parse(JSON.stringify(value,(_key,item)=>typeof item==='bigint'?item.toString():item)) as CanonicalJsonValue;}
 function digestBytes(value:unknown):Buffer{return Buffer.from(canonicalDigest(canonicalValue(value)).slice(7),'hex');}
+function digestText(value:unknown):string{return canonicalDigest(canonicalValue(value));}
+function sameDigest(left:unknown,right:Buffer):boolean{return Buffer.isBuffer(left)&&left.length===right.length&&left.equals(right);}
+
+type JsonObject=Record<string,unknown>;
 
 export interface SystemChatReservationInput{
   conversationId:string;messageId:string;message:string;model:string;context:Record<string,unknown>;accessChannel:'SESSION'|'API_KEY';idempotencyKey:string;correlationId:string;
 }
 export type SystemChatReservation=
-  |{replay:false;conversationId:string;ownerMessageId:string}
+  |{replay:false;recover:boolean;conversationId:string;ownerMessageId:string;modelIntentId:string;requestDigest:string}
   |{replay:true;conversationId:string;ownerMessageId:string;assistantMessageId:string;assistantContent:string;assistantStatus:string;modelCallId:string|null};
+
+export interface SystemChatHistoryItem{
+  id:string;sequence:string;role:'OWNER'|'ASSISTANT';content:string;status:string;modelCallId:string|null;usage:unknown;
+}
+
+export interface SystemChatActionInput{
+  actionId:string;messageId:string;operationKey:string;target:JsonObject;arguments:JsonObject;authorityEvidence:JsonObject;providerCallId:string;parentModelCallId:string;correlationId:string;
+}
 
 export class SystemChatService{
   public constructor(private readonly pool:DatabasePool){}
 
+  private requestShape(input:SystemChatReservationInput):JsonObject{
+    return {conversationId:input.conversationId,messageId:input.messageId,message:input.message,model:input.model,context:input.context,accessChannel:input.accessChannel,idempotencyKey:input.idempotencyKey};
+  }
+
+  private async createModelIntent(client:Parameters<Parameters<typeof inTransaction>[3]>[0] extends never ? never : any,input:SystemChatReservationInput,ownerMessageId:string,heads:any):Promise<string>{
+    const id=randomUUID();
+    const requestDigest=digestText(this.requestShape(input));
+    const argumentsValue={messageId:ownerMessageId,model:input.model,context:input.context,requestDigest};
+    const canonical={id,messageId:ownerMessageId,operationKey:'chat.model.respond',target:{conversationId:input.conversationId},arguments:argumentsValue};
+    await client.query(`INSERT INTO kcml.system_chat_action(id,message_id,operation_key,target,arguments,arguments_digest,status,started_at,canonical_digest,logical_operation_id,correlation_id,activation_epoch,platform_incarnation_id,application_deployment_epoch)
+      VALUES($1,$2,'chat.model.respond',$3,$4,$5,'RESERVED',clock_timestamp(),$6,$7,$8,$9,$10,$11)`,[
+      id,ownerMessageId,{conversationId:input.conversationId},argumentsValue,digestBytes(argumentsValue),digestBytes(canonical),id,input.correlationId,heads.activation_epoch,heads.platform_incarnation_id,heads.current_epoch
+    ]);
+    return id;
+  }
+
   public async reserve(input:SystemChatReservationInput):Promise<SystemChatReservation>{
+    const requestShape=this.requestShape(input);
+    const requestDigest=digestBytes(requestShape);
+    const requestDigestText=digestText(requestShape);
     return inTransaction(this.pool,'SERIALIZABLE',async client=>{
       const heads=(await client.query(`SELECT p.platform_incarnation_id,d.current_epoch,a.current_epoch AS activation_epoch
         FROM kcml.platform_incarnation p CROSS JOIN kcml.application_deployment_head d CROSS JOIN kcml.activation_head a
@@ -37,20 +68,70 @@ export class SystemChatService{
         FROM kcml.system_chat_message m LEFT JOIN kcml.system_chat_message a ON a.causation_id=m.id AND a.role='ASSISTANT'
         WHERE m.stable_key=$1 ORDER BY a.sequence DESC NULLS LAST LIMIT 1`,[stableKey])).rows[0];
       if(prior){
-        if(prior.content!==input.message)throw new DomainError('IDEMPOTENCY_CONFLICT','Chat idempotency key was used with a different OWNER message',409,'DO_NOT_RETRY');
+        if(!sameDigest(prior.canonical_digest,requestDigest))throw new DomainError('IDEMPOTENCY_CONFLICT','Chat idempotency key was reused with a different message, model, context or access channel',409,'DO_NOT_RETRY',{requestDigest:requestDigestText});
         if(prior.assistant_message_id)return{replay:true,conversationId:input.conversationId,ownerMessageId:String(prior.id),assistantMessageId:String(prior.assistant_message_id),assistantContent:String(prior.assistant_content),assistantStatus:String(prior.assistant_status),modelCallId:prior.assistant_model_call_id?String(prior.assistant_model_call_id):null};
-        throw new DomainError('PLATFORM_RECOVERY_IN_PROGRESS','The idempotent chat request is still in progress',409,'RETRY_SAME_OPERATION');
+        let modelIntent=(await client.query(`SELECT id FROM kcml.system_chat_action WHERE message_id=$1 AND operation_key='chat.model.respond' ORDER BY started_at ASC LIMIT 1 FOR UPDATE`,[prior.id])).rows[0];
+        if(!modelIntent){modelIntent={id:await this.createModelIntent(client,input,String(prior.id),heads)};}
+        return{replay:false,recover:true,conversationId:input.conversationId,ownerMessageId:String(prior.id),modelIntentId:String(modelIntent.id),requestDigest:requestDigestText};
       }
       const nextSequence=await allocateContiguousSequence(client,'SYSTEM_CHAT_MESSAGE',input.conversationId,'SEQUENCE');
-      const shape={conversationId:input.conversationId,messageId:input.messageId,sequence:nextSequence.toString(),role:'OWNER',content:input.message,context:input.context,idempotencyKey:input.idempotencyKey};
       await client.query(`INSERT INTO kcml.system_chat_message(id,parent_id,stable_key,display_name,conversation_id,sequence,role,content,status,completed_at,
         correlation_id,canonical_digest,platform_incarnation_id,application_deployment_epoch,activation_epoch)
         VALUES($1,$2,$3,$4,$2,$5,'OWNER',$4,'COMPLETED',clock_timestamp(),$6,$7,$8,$9,$10)`,[
-        input.messageId,input.conversationId,stableKey,input.message,nextSequence.toString(),input.correlationId,digestBytes(shape),heads.platform_incarnation_id,heads.current_epoch,heads.activation_epoch
+        input.messageId,input.conversationId,stableKey,input.message,nextSequence.toString(),input.correlationId,requestDigest,heads.platform_incarnation_id,heads.current_epoch,heads.activation_epoch
       ]);
+      const modelIntentId=await this.createModelIntent(client,input,input.messageId,heads);
       await client.query(`UPDATE kcml.system_chat_conversation SET status='PROCESSING',selected_model=$2,current_object_context=$3,last_activity_at=clock_timestamp(),
         state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`,[input.conversationId,input.model,input.context]);
-      return{replay:false,conversationId:input.conversationId,ownerMessageId:input.messageId};
+      return{replay:false,recover:false,conversationId:input.conversationId,ownerMessageId:input.messageId,modelIntentId,requestDigest:requestDigestText};
+    });
+  }
+
+  public async history(conversationId:string):Promise<SystemChatHistoryItem[]>{
+    const rows=(await this.pool.query(`SELECT id,sequence::text AS sequence,role,content,status,model_call_id,usage
+      FROM kcml.system_chat_message WHERE conversation_id=$1 AND role IN ('OWNER','ASSISTANT') ORDER BY sequence ASC,id ASC`,[conversationId])).rows;
+    return rows.map((row)=>({id:String(row.id),sequence:String(row.sequence),role:String(row.role) as 'OWNER'|'ASSISTANT',content:String(row.content),status:String(row.status),modelCallId:row.model_call_id?String(row.model_call_id):null,usage:row.usage??null}));
+  }
+
+  public async markModelIntent(modelIntentId:string,status:'EXECUTING'|'SUCCEEDED'|'FAILED'|'MANUAL_REVIEW',result:unknown=null):Promise<void>{
+    const terminal=status==='SUCCEEDED'||status==='FAILED'||status==='MANUAL_REVIEW';
+    const changed=await this.pool.query(`UPDATE kcml.system_chat_action SET status=$2,result=$3,result_digest=$4,completed_at=CASE WHEN $5 THEN clock_timestamp() ELSE completed_at END,state_version=state_version+1,updated_at=clock_timestamp()
+      WHERE id=$1 AND operation_key='chat.model.respond' AND status IN ('RESERVED','EXECUTING')`,[modelIntentId,status,result,result===null?null:digestBytes(result),terminal]);
+    if(changed.rowCount===0){
+      const current=(await this.pool.query(`SELECT status FROM kcml.system_chat_action WHERE id=$1 AND operation_key='chat.model.respond'`,[modelIntentId])).rows[0];
+      if(!current||String(current.status)!==status)throw new DomainError('STATE_VERSION_CONFLICT','Chat model intent changed while it was being updated',409,'RECONCILE_THEN_RETRY',{modelIntentId,status:current?.status??null});
+    }
+  }
+
+  public async beginAction(input:SystemChatActionInput):Promise<{actionId:string;replay:boolean;status:string;result:unknown}>{
+    return inTransaction(this.pool,'SERIALIZABLE',async client=>{
+      const heads=(await client.query(`SELECT p.platform_incarnation_id,d.current_epoch,a.current_epoch AS activation_epoch
+        FROM kcml.platform_incarnation p CROSS JOIN kcml.application_deployment_head d CROSS JOIN kcml.activation_head a
+        WHERE p.singleton_key=1 AND d.singleton_key=1 AND a.singleton_key=1 FOR SHARE OF p,d,a`)).rows[0];
+      const storedArguments={canonicalArguments:input.arguments,authorityEvidence:input.authorityEvidence,providerCallId:input.providerCallId,parentModelCallId:input.parentModelCallId};
+      const argumentsDigest=digestBytes(storedArguments);
+      const existing=(await client.query(`SELECT * FROM kcml.system_chat_action WHERE id=$1 FOR UPDATE`,[input.actionId])).rows[0];
+      if(existing){
+        if(String(existing.operation_key)!==input.operationKey||!sameDigest(existing.arguments_digest,argumentsDigest))throw new DomainError('IDEMPOTENCY_CONFLICT','Provider function call identity was reused with a different operation or arguments',409,'DO_NOT_RETRY',{actionId:input.actionId});
+        return{actionId:input.actionId,replay:true,status:String(existing.status),result:existing.result??null};
+      }
+      const canonical={actionId:input.actionId,messageId:input.messageId,operationKey:input.operationKey,target:input.target,storedArguments};
+      await client.query(`INSERT INTO kcml.system_chat_action(id,message_id,operation_key,target,arguments,arguments_digest,status,started_at,canonical_digest,logical_operation_id,correlation_id,activation_epoch,platform_incarnation_id,application_deployment_epoch)
+        VALUES($1,$2,$3,$4,$5,$6,'EXECUTING',clock_timestamp(),$7,$8,$9,$10,$11,$12)`,[
+        input.actionId,input.messageId,input.operationKey,input.target,storedArguments,argumentsDigest,digestBytes(canonical),input.actionId,input.correlationId,heads.activation_epoch,heads.platform_incarnation_id,heads.current_epoch
+      ]);
+      return{actionId:input.actionId,replay:false,status:'EXECUTING',result:null};
+    });
+  }
+
+  public async completeAction(actionId:string,status:'SUCCEEDED'|'FAILED'|'CANCELLED'|'MANUAL_REVIEW',result:unknown):Promise<unknown>{
+    return inTransaction(this.pool,'SERIALIZABLE',async client=>{
+      const current=(await client.query(`SELECT * FROM kcml.system_chat_action WHERE id=$1 FOR UPDATE`,[actionId])).rows[0];
+      if(!current)throw new DomainError('KCIP_TARGET_NOT_FOUND','System chat action does not exist',404,'DO_NOT_RETRY',{actionId});
+      if(['SUCCEEDED','FAILED','CANCELLED','MANUAL_REVIEW'].includes(String(current.status)))return current.result??null;
+      const updated=(await client.query(`UPDATE kcml.system_chat_action SET status=$2,result=$3,result_digest=$4,completed_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND status IN ('PROPOSED','RESERVED','EXECUTING') RETURNING result`,[actionId,status,result,digestBytes(result)])).rows[0];
+      if(!updated)throw new DomainError('STATE_VERSION_CONFLICT','System chat action changed before terminal result persistence',409,'RECONCILE_THEN_RETRY',{actionId});
+      return updated.result;
     });
   }
 
