@@ -1,0 +1,283 @@
+--- a/packages/domain/src/operations.ts
++++ b/packages/domain/src/operations.ts
+@@ -215,7 +215,45 @@
+ async function audit(client:DatabaseClient,eventType:string,actorId:string,aggregateType:string,aggregateId:string,correlationId:string,causationId:string|null,payload:JsonObject):Promise<void>{const bytes=Buffer.from(canonicalJson(jsonSafe(payload)));await client.query(`SELECT * FROM kcml.append_audit_event($1,'OWNER',$2,$3,$4,$5,$6,$7,$8)`,[eventType,actorId,aggregateType,aggregateId,correlationId,causationId,payload,bytes]);}
+ 
+ export type WorkerFaultPoint='AFTER_COMMAND_CHECKPOINT_BEFORE_TERMINAL';
+-export interface WorkerOptions {queueNames:readonly string[];allowedOperations?:readonly string[];workerId:string;leaseSeconds?:number;faultInjector?:(point:WorkerFaultPoint,context:Readonly<{commandId:string;logicalOperationId:string;operationName:string}>)=>void|Promise<void>;}
++
++export interface SpecialistExecutionContext {
++  operation: OperationContract;
++  commandId: string;
++  targetId: string | null;
++  arguments: Readonly<Record<string, unknown>>;
++  logicalOperationId: string;
++  correlationId: string;
++  expectedStateVersion: bigint | null;
++  activationEpoch: bigint;
++  platformIncarnationId: string;
++  applicationDeploymentEpoch: bigint;
++  recoveryEpoch: bigint;
++  deadlineAt: string | null;
++}
++
++export type SpecialistExecutionResult =
++  | Readonly<{ ok: true; value: unknown }>
++  | Readonly<{ ok: false; error: unknown }>;
++
++export type SpecialistReconcileResult =
++  | Readonly<{ disposition: 'APPLIED'; output: unknown }>
++  | Readonly<{ disposition: 'FAILED'; error: unknown }>;
++
++/**
++ * A specialist executor owns the real T1/T2/T3 effect boundary for operations
++ * that cannot be represented by a database-only canonical mutation handler.
++ * prepare() runs under the canonical command/fence transaction, execute() runs
++ * outside PostgreSQL, and reconcile() runs under a fresh canonical fence before
++ * the immutable command checkpoint can be committed.
++ */
++export interface SpecialistCommandExecutor {
++  canHandle(operationName: string): boolean;
++  prepare(client: DatabaseClient, context: SpecialistExecutionContext): Promise<unknown>;
++  execute(prepared: unknown, context: SpecialistExecutionContext): Promise<unknown>;
++  reconcile(client: DatabaseClient, prepared: unknown, execution: SpecialistExecutionResult, context: SpecialistExecutionContext): Promise<SpecialistReconcileResult>;
++}
++
++export interface WorkerOptions {queueNames:readonly string[];allowedOperations?:readonly string[];workerId:string;leaseSeconds?:number;specialistExecutor?:SpecialistCommandExecutor;faultInjector?:(point:WorkerFaultPoint,context:Readonly<{commandId:string;logicalOperationId:string;operationName:string}>)=>void|Promise<void>;}
+ 
+ export class CanonicalCommandWorker {
+   public constructor(private readonly pool:DatabasePool,private readonly catalog:OperationCatalogService,private readonly options:WorkerOptions){}
+@@ -275,6 +313,8 @@
+     const operation=this.catalog.get(row.operation_name);this.catalog.authorityFor(operation);const handler=operationHandlerFor(operation.operationName);const args=(row.request.arguments??{}) as JsonObject;
+     if(row.queue_name!==handler.queue)throw new DomainError('OPERATION_CONTRACT_INCOMPLETE',`${operation.operationName} was delivered on ${row.queue_name}, expected ${handler.queue}`,409,'DO_NOT_RETRY');
+     if(handler.strategy==='CONSISTENT_QUERY')throw new DomainError('OPERATION_CONTRACT_INCOMPLETE',`${operation.operationName} must execute on the consistent-read path`,409,'DO_NOT_RETRY');
++    const specialist=this.options.specialistExecutor;
++    if(specialist?.canHandle(operation.operationName))return this.applySpecialistCommand(row,operation,args,specialist);
+     return this.applyInCommandTransaction(row,async(client,head)=>{
+       if(operation.operationName==='generation.job.create')return createGenerationJob(client,args,{platformIncarnationId:head.platform_incarnation_id,applicationDeploymentEpoch:BigInt(head.current_epoch),logicalOperationId:row.logical_operation_id,correlationId:row.correlation_id});
+       if(operation.operationName==='browser.session.create')return this.createBrowserSession(client,head,args,row);
+@@ -306,6 +346,51 @@
+     });
+   }
+ 
++  private async applySpecialistCommand(row:any,operation:OperationContract,args:JsonObject,specialist:SpecialistCommandExecutor):Promise<unknown>{
++    const prepared=await inTransactionProfile(this.pool,'WORKER_COMMIT',async(client)=>{
++      const head=await lockAndVerifyPlatformRecovery(client);
++      if(BigInt(row.recovery_epoch)!==BigInt(head.recovery_epoch))throw new DomainError('PLATFORM_INCARNATION_STALE','Worker command recovery epoch is stale before specialist preparation',409,'RECONCILE_THEN_RETRY');
++      const checkpoint=(await client.query(`SELECT * FROM kcml.domain_command_execution_checkpoint WHERE command_id=$1`,[row.command_id])).rows[0];
++      await verifyWorkerClaimAndAdmission(client,row,checkpoint?['ADMITTED','TERMINAL']:['ADMITTED']);
++      if(checkpoint){
++        if(!await checkpointRecoveryAuthorized(client,row,checkpoint))throw new DomainError('CHECKPOINT_DIGEST_INVALID','Persisted specialist command checkpoint does not match current logical operation lineage',409,'MANUAL_REVIEW');
++        return {replay:true as const,output:checkpoint.output};
++      }
++      const deadline=(await client.query(`SELECT deadline_at FROM kcml.domain_command WHERE id=$1 FOR UPDATE`,[row.command_id])).rows[0]?.deadline_at;
++      if(deadline&&new Date(String(deadline)).getTime()<=Date.now())throw new DomainError('KCIP_DEADLINE_EXCEEDED','Command deadline elapsed before specialist execution began',408,'DO_NOT_RETRY');
++      const context:SpecialistExecutionContext={
++        operation,commandId:String(row.command_id),targetId:row.target_id===null?null:String(row.target_id),arguments:args,
++        logicalOperationId:String(row.logical_operation_id),correlationId:String(row.correlation_id),
++        expectedStateVersion:row.request.expectedStateVersion===null||row.request.expectedStateVersion===undefined?null:BigInt(row.request.expectedStateVersion),
++        activationEpoch:BigInt(row.activation_epoch),platformIncarnationId:String(head.platform_incarnation_id),applicationDeploymentEpoch:BigInt(head.current_epoch),
++        recoveryEpoch:BigInt(head.recovery_epoch),deadlineAt:deadline?new Date(String(deadline)).toISOString():null
++      };
++      return {replay:false as const,prepared:await specialist.prepare(client,context),context};
++    });
++    if(prepared.replay)return prepared.output;
++    let execution:SpecialistExecutionResult;
++    try{execution={ok:true,value:await specialist.execute(prepared.prepared,prepared.context)};}
++    catch(error){execution={ok:false,error};}
++    const reconciled=await inTransactionProfile(this.pool,'WORKER_COMMIT',async(client)=>{
++      const head=await lockAndVerifyPlatformRecovery(client);
++      if(BigInt(row.recovery_epoch)!==BigInt(head.recovery_epoch))throw new DomainError('PLATFORM_INCARNATION_STALE','Worker command recovery epoch changed while specialist effect was in flight',409,'RECONCILE_THEN_RETRY');
++      const checkpoint=(await client.query(`SELECT * FROM kcml.domain_command_execution_checkpoint WHERE command_id=$1`,[row.command_id])).rows[0];
++      await verifyWorkerClaimAndAdmission(client,row,checkpoint?['ADMITTED','TERMINAL']:['ADMITTED']);
++      if(checkpoint){
++        if(!await checkpointRecoveryAuthorized(client,row,checkpoint))throw new DomainError('CHECKPOINT_DIGEST_INVALID','Persisted specialist command checkpoint does not match current logical operation lineage',409,'MANUAL_REVIEW');
++        return {disposition:'APPLIED' as const,output:checkpoint.output};
++      }
++      const result=await specialist.reconcile(client,prepared.prepared,execution,prepared.context);
++      if(result.disposition==='FAILED')return result;
++      const safeOutput=jsonSafe(result.output);
++      await client.query(`INSERT INTO kcml.domain_command_execution_checkpoint(command_id,logical_operation_id,checkpoint_state,output,output_digest,concurrency_claim_id,concurrency_fencing_token,recovery_epoch,platform_incarnation_id,application_deployment_epoch)
++        VALUES($1,$2,'APPLIED',$3,digest(convert_to($3::jsonb::text,'UTF8'),'sha256'),$4,$5,$6,$7,$8)`,[row.command_id,row.logical_operation_id,safeOutput,row.concurrency_claim_id,row.concurrency_fencing_token,row.recovery_epoch,head.platform_incarnation_id,head.current_epoch]);
++      return {disposition:'APPLIED' as const,output:safeOutput};
++    });
++    if(reconciled.disposition==='FAILED')throw reconciled.error;
++    return reconciled.output;
++  }
++
+   private async applyInCommandTransaction(row:any,apply:(client:DatabaseClient,head:RecoveryAuthorityHead)=>Promise<unknown>):Promise<unknown>{
+     return inTransactionProfile(this.pool,'WORKER_COMMIT',async(client)=>{
+       const head=await lockAndVerifyPlatformRecovery(client);
+--- a/packages/runtime-capability-ipc/src/index.ts
++++ b/packages/runtime-capability-ipc/src/index.ts
+@@ -2,7 +2,7 @@
+ import { createConnection, createServer, type Server, type Socket } from 'node:net';
+ import { spawn } from 'node:child_process';
+ import { chmod, unlink } from 'node:fs/promises';
+-import { canonicalJson, type CanonicalJsonValue, z } from '@kcml/schemas';
++import { canonicalJson, toCanonicalJsonValue, type CanonicalJsonValue, z } from '@kcml/schemas';
+ 
+ /** The anonymous handler channel is deliberately separate from the legacy
+  * broker UDS API below. It carries no bearer key or server identity envelope;
+@@ -11,8 +11,10 @@
+ export const RUNTIME_IPC_PROTOCOL = 'KCML-RUNTIME-IPC/1' as const;
+ export const RUNTIME_IPC_MAGIC = Buffer.from('KCR1', 'ascii');
+ export const RUNTIME_IPC_MAX_PAYLOAD = 1024 * 1024;
+-export const RUNTIME_IPC_HEADER_BYTES = 20;
+-export const RUNTIME_IPC_MAX_PENDING = 1024;
++export const RUNTIME_IPC_MAX_UNARY = 16 * 1024 * 1024;
++export const RUNTIME_IPC_MAX_STREAM_CHUNK = 64 * 1024;
++export const RUNTIME_IPC_HEADER_BYTES = 16;
++export const RUNTIME_IPC_MAX_PENDING = 32;
+ 
+ export const runtimeFrameType = {
+   HELLO: 1, READY: 2, REQUEST: 3, RESPONSE: 4, ERROR: 5, STREAM_OPEN: 6,
+@@ -24,7 +26,7 @@
+ export interface RuntimeFrame {
+   frameType: RuntimeFrameType;
+   flags: number;
+-  sequence: bigint;
++  sequence: number;
+   payload: unknown;
+ }
+ 
+@@ -39,34 +41,45 @@
+ }).strict();
+ export type RuntimeCapabilityRequest = z.infer<typeof runtimeCapabilityRequestSchema>;
+ 
++function runtimePayloadBytes(frame: RuntimeFrame): Buffer {
++  if (frame.frameType === 'STREAM_CHUNK') {
++    if (!Buffer.isBuffer(frame.payload)) throw new Error('RUNTIME_PROTOCOL_STREAM_CHUNK_INVALID');
++    if (frame.payload.length > RUNTIME_IPC_MAX_STREAM_CHUNK) throw new Error('RUNTIME_PAYLOAD_TOO_LARGE');
++    return frame.payload;
++  }
++  return Buffer.from(canonicalJson(toCanonicalJsonValue(frame.payload)), 'utf8');
++}
++
+ export function encodeRuntimeFrame(frame: RuntimeFrame): Buffer {
+   const frameType = runtimeFrameType[frame.frameType];
+   if (!frameType) throw new Error('RUNTIME_PROTOCOL_UNKNOWN_FRAME');
+-  const payload = Buffer.from(JSON.stringify(frame.payload), 'utf8');
++  const payload = runtimePayloadBytes(frame);
+   if (payload.length > RUNTIME_IPC_MAX_PAYLOAD) throw new Error('RUNTIME_PAYLOAD_TOO_LARGE');
+-  if (frame.sequence < 0n || frame.sequence > 0xffffffffffffffffn) throw new Error('RUNTIME_PROTOCOL_SEQUENCE_INVALID');
++  if (!Number.isSafeInteger(frame.sequence) || frame.sequence < 1 || frame.sequence > 0xffffffff) throw new Error('RUNTIME_PROTOCOL_SEQUENCE_INVALID');
+   const header = Buffer.alloc(RUNTIME_IPC_HEADER_BYTES);
+   RUNTIME_IPC_MAGIC.copy(header, 0);
+   header.writeUInt8(1, 4);
+   header.writeUInt8(frameType, 5);
+   header.writeUInt16BE(frame.flags, 6);
+   header.writeUInt32BE(payload.length, 8);
+-  header.writeBigUInt64BE(frame.sequence, 12);
++  header.writeUInt32BE(frame.sequence, 12);
+   return Buffer.concat([header, payload]);
+ }
+ 
+-export function decodeRuntimeFrameHeader(header: Buffer): { frameType: RuntimeFrameType; flags: number; payloadLength: number; sequence: bigint } {
++export function decodeRuntimeFrameHeader(header: Buffer): { frameType: RuntimeFrameType; flags: number; payloadLength: number; sequence: number } {
+   if (header.length !== RUNTIME_IPC_HEADER_BYTES || !header.subarray(0, 4).equals(RUNTIME_IPC_MAGIC) || header.readUInt8(4) !== 1) throw new Error('RUNTIME_PROTOCOL_INVALID_HEADER');
+   const frameType = (Object.entries(runtimeFrameType).find(([, value]) => value === header.readUInt8(5))?.[0] ?? null) as RuntimeFrameType | null;
+   if (!frameType) throw new Error('RUNTIME_PROTOCOL_UNKNOWN_FRAME');
+   const payloadLength = header.readUInt32BE(8);
+   if (payloadLength > RUNTIME_IPC_MAX_PAYLOAD) throw new Error('RUNTIME_PAYLOAD_TOO_LARGE');
+-  return { frameType, flags: header.readUInt16BE(6), payloadLength, sequence: header.readBigUInt64BE(12) };
++  const sequence = header.readUInt32BE(12);
++  if (sequence < 1) throw new Error('RUNTIME_PROTOCOL_SEQUENCE_INVALID');
++  return { frameType, flags: header.readUInt16BE(6), payloadLength, sequence };
+ }
+ 
+ function consumeRuntimeFrames(socket: Socket, onFrame: (frame: RuntimeFrame) => Promise<void>): void {
+   let pending = Buffer.alloc(0);
+-  let expectedSequence = 1n;
++  let expectedSequence = 1;
+   socket.on('data', (chunk: Buffer) => {
+     pending = Buffer.concat([pending, chunk]);
+     while (pending.length >= RUNTIME_IPC_HEADER_BYTES) {
+@@ -77,6 +90,10 @@
+         socket.destroy(error instanceof Error ? error : new Error(String(error)));
+         return;
+       }
++      if (expectedSequence === 0) {
++        socket.destroy(new Error('RUNTIME_PROTOCOL_SEQUENCE_WRAP'));
++        return;
++      }
+       if (header.sequence !== expectedSequence) {
+         socket.destroy(new Error('RUNTIME_PROTOCOL_SEQUENCE_INVALID'));
+         return;
+@@ -84,16 +101,17 @@
+       if (pending.length < RUNTIME_IPC_HEADER_BYTES + header.payloadLength) return;
+       const payloadBytes = pending.subarray(RUNTIME_IPC_HEADER_BYTES, RUNTIME_IPC_HEADER_BYTES + header.payloadLength);
+       pending = pending.subarray(RUNTIME_IPC_HEADER_BYTES + header.payloadLength);
+-      expectedSequence += 1n;
++      expectedSequence = expectedSequence === 0xffffffff ? 0 : expectedSequence + 1;
+       let payload: unknown;
+-      try { payload = JSON.parse(payloadBytes.toString('utf8')); } catch { socket.destroy(new Error('RUNTIME_PROTOCOL_INVALID_JSON')); return; }
++      if (header.frameType === 'STREAM_CHUNK') payload = Buffer.from(payloadBytes);
++      else { try { payload = JSON.parse(payloadBytes.toString('utf8')); } catch { socket.destroy(new Error('RUNTIME_PROTOCOL_INVALID_JSON')); return; } }
+       void onFrame({ frameType: header.frameType, flags: header.flags, sequence: header.sequence, payload }).catch((error: unknown) => socket.destroy(error instanceof Error ? error : new Error(String(error))));
+     }
+   });
+ }
+ 
+ export function createCapabilityFdServer(socket: Socket, handler: (request: RuntimeCapabilityRequest) => Promise<unknown>): void {
+-  let responseSequence = 1n;
++  let responseSequence = 1;
+   const cancelled = new Set<string>();
+   consumeRuntimeFrames(socket, async (frame) => {
+     if (frame.frameType === 'CANCEL') {
+@@ -114,7 +132,7 @@
+ export class RuntimeCapabilityClient {
+   readonly #pending = new Map<string, PendingRuntimeCall>();
+   readonly #cancelled = new Set<string>();
+-  #sequence = 1n;
++  #sequence = 1;
+   #closed = false;
+ 
+   public constructor(private readonly socket: Socket, private readonly maxPending = RUNTIME_IPC_MAX_PENDING) {
+@@ -159,7 +177,10 @@
+   }
+ 
+   private async write(frameType: 'REQUEST' | 'CANCEL', payload: unknown): Promise<void> {
+-    const frame = encodeRuntimeFrame({ frameType, flags: 0, sequence: this.#sequence++, payload });
++    if (this.#sequence > 0xffffffff) throw new Error('RUNTIME_PROTOCOL_SEQUENCE_WRAP');
++    const sequence = this.#sequence;
++    this.#sequence += 1;
++    const frame = encodeRuntimeFrame({ frameType, flags: 0, sequence, payload });
+     if (this.socket.write(frame)) return;
+     await new Promise<void>((resolveDrain, reject) => {
+       const onError = (error: Error) => { this.socket.off('drain', onDrain); reject(error); };
+--- a/tests/runtime-boundary/ipc-multiplex.test.ts
++++ b/tests/runtime-boundary/ipc-multiplex.test.ts
+@@ -3,6 +3,9 @@
+ import { describe, expect, it } from 'vitest';
+ import {
+   RuntimeCapabilityClient,
++  RUNTIME_IPC_HEADER_BYTES,
++  decodeRuntimeFrameHeader,
++  encodeRuntimeFrame,
+   createCapabilityFdServer,
+   type RuntimeCapabilityRequest,
+ } from '@kcml/runtime-capability-ipc';
+@@ -38,6 +41,22 @@
+ }
+ 
+ describe('runtime capability multiplexing', () => {
++
++  it('uses the exact 16-byte KCML-RUNTIME-IPC/1 network-order header', () => {
++    const frame = encodeRuntimeFrame({ frameType: 'REQUEST', flags: 0x1234, sequence: 7, payload: { z: 1, a: 2 } });
++    expect(RUNTIME_IPC_HEADER_BYTES).toBe(16);
++    expect(frame.subarray(0, 4).toString('ascii')).toBe('KCR1');
++    expect(frame.readUInt8(4)).toBe(1);
++    expect(frame.readUInt16BE(6)).toBe(0x1234);
++    expect(frame.readUInt32BE(12)).toBe(7);
++    expect(frame.subarray(16).toString('utf8')).toBe('{"a":2,"z":1}');
++    expect(decodeRuntimeFrameHeader(frame.subarray(0, 16))).toMatchObject({ frameType: 'REQUEST', flags: 0x1234, sequence: 7 });
++  });
++
++  it('rejects zero and wrapped runtime sequence values', () => {
++    expect(() => encodeRuntimeFrame({ frameType: 'REQUEST', flags: 0, sequence: 0, payload: {} })).toThrow('RUNTIME_PROTOCOL_SEQUENCE_INVALID');
++    expect(() => encodeRuntimeFrame({ frameType: 'REQUEST', flags: 0, sequence: 0x1_0000_0000, payload: {} })).toThrow('RUNTIME_PROTOCOL_SEQUENCE_INVALID');
++  });
+   it('correlates 10k reordered responses without listener growth', async () => {
+     const pair = await connectedPair(async (value) => {
+       const index = Number((value.payload as { index: number }).index);
