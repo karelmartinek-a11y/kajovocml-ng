@@ -13,17 +13,64 @@ jobs:
         with:
           ref: audit-remediation-2026-09-06
           fetch-depth: 0
-      - name: Apply previously staged runtime wiring
+      - name: Apply runtime wiring and trace authority
         shell: bash
         run: |
           python3 - <<'PYEXTRACT'
           from pathlib import Path
-          import textwrap
+          import json, textwrap
           workflow=Path('.github/workflows/audit-remediation-run-011.yml').read_text()
           body=workflow.split("          python3 - <<'PY'\n",1)[1].split("\n          PY\n",1)[0]
           exec(textwrap.dedent(body), {'__name__':'__main__'})
+
+          trace_path=Path('contracts/traceability/artifact-trace-source-remediation.json')
+          trace=json.loads(trace_path.read_text())
+          by_path={record['repositoryPath']:record for record in trace['records']}
+          gateway_requirements=[
+            'KCML-REQ-RUNTIME-0d17f0e65a367a483368d5830d2274c348c944ca77d8d9803a8ae5d618453e94',
+            'KCML-REQ-RUNTIME-42568b370bf765d08149a68238c64a9be156058c9ec112370059c945e85d572b',
+            'KCML-REQ-RUNTIME-5866f4abf3ff73dab1460b4c4423cd439c97c079f6d0d7a9c7ca00d35bf83fa5',
+            'KCML-REQ-RUNTIME-5c14e96e7f102d70bf612ab9dce896f7f38aa62adcd5f93d6eb4004a7bdb5358',
+            'KCML-REQ-RUNTIME-e3825ab35ac76cbdc656fd65c5587e6ac1478796d63e489bff8fe621a3fce13d',
+            'KCML-REQ-RUNTIME-ec3520fc4788b2aded645d6a29c431c9d611f5a2acd7422eb9b5ab0c54edea8a'
+          ]
+          test_requirements=[
+            'KCML-REQ-RUNTIME-42568b370bf765d08149a68238c64a9be156058c9ec112370059c945e85d572b',
+            'KCML-REQ-RUNTIME-5866f4abf3ff73dab1460b4c4423cd439c97c079f6d0d7a9c7ca00d35bf83fa5',
+            'KCML-REQ-RUNTIME-9d367700d6eeb2c0a7f10b71f5f29c32745f4d50ae5b5872b19825acc91d6ad8',
+            'KCML-REQ-RUNTIME-b66b9a9e0dee01320d8a866011edc5e5a787347ad35a16cd276d4e15a1d561f9',
+            'KCML-REQ-RUNTIME-db74ee6d319c31d8bd8147a91b7160cb8eff9a88c501323b8cf85b967fb8fcfc'
+          ]
+          operations=['OP-RUNTIME-BOUNDARY-VERIFY','OP-RUNTIME-CONNECTION-INSPECT','OP-RUNTIME-HEARTBEAT','OP-RUNTIME-READY-REPORT','OP-RUNTIME-STATE-REPORT']
+          gateway={
+            'repositoryPath':'packages/worker-runtime/src/runtime-gateway.ts',
+            'requirementIds':gateway_requirements,
+            'operationIds':operations,
+            'stateMachineIds':['SM-RUNTIME_INSTANCE'],
+            'registryRecordIds':['RUNTIME_INSTANCE'],
+            'testIds':['TEST_CASE:tests/runtime-boundary/runtime-gateway.test.ts#runtime-gateway-identity'],
+            'releaseIds':[],
+            'traceAnchors':[]
+          }
+          test={
+            'repositoryPath':'tests/runtime-boundary/runtime-gateway.test.ts',
+            'requirementIds':test_requirements,
+            'operationIds':operations,
+            'stateMachineIds':['SM-RUNTIME_INSTANCE'],
+            'registryRecordIds':['RUNTIME_INSTANCE'],
+            'testIds':['TEST_CASE:tests/runtime-boundary/runtime-gateway.test.ts#runtime-gateway-identity'],
+            'releaseIds':[],
+            'traceAnchors':[]
+          }
+          for record in (gateway,test):
+            if record['repositoryPath'] in by_path:
+              by_path[record['repositoryPath']].update(record)
+            else:
+              trace['records'].append(record)
+          trace['records'].sort(key=lambda item:item['repositoryPath'])
+          trace_path.write_text(json.dumps(trace,separators=(',',':'))+'\n')
           PYEXTRACT
-          rm -f .github/workflows/audit-remediation-run-011.yml .github/workflows/audit-remediation-run-011-retry.yml
+          rm -f .github/workflows/audit-remediation-run-011.yml .github/workflows/audit-remediation-run-011-retry.yml .audit/run011-verify.txt
       - uses: pnpm/action-setup@v4
         with:
           version: 11.19.0
