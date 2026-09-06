@@ -680,6 +680,9 @@ importers:
       '@kcml/observability':
         specifier: workspace:*
         version: link:../observability
+      '@kcml/runtime-boundary':
+        specifier: workspace:*
+        version: link:../runtime-boundary
       '@kcml/runtime-capability-ipc':
         specifier: workspace:*
         version: link:../runtime-capability-ipc

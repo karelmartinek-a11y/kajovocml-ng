@@ -35,6 +35,7 @@ const WRITER_BOUNDARIES = [
   ['packages/worker-runtime/src/index.ts', 'WRITER-QUEUE'],
   ['packages/worker-runtime/src/runtime-systemd.ts', 'WRITER-RUNTIME'],
   ['packages/worker-runtime/src/runtime-gateway.ts', 'WRITER-RUNTIME'],
+  ['packages/worker-runtime/src/runtime-host.ts', 'WRITER-RUNTIME'],
   ['apps/server/src/server.ts', 'CANONICAL_OPERATION_SERVICE'],
   ['apps/server/src/preview-ws.ts', 'CANONICAL_OPERATION_SERVICE'],
   ['apps/server/src/admin-cli.ts', 'CANONICAL_OPERATION_SERVICE']

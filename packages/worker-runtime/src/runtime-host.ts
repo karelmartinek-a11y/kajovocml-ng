@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { chmod, mkdir, open, readFile, realpath } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -83,6 +83,7 @@ interface RuntimeLaunchPlan {
   readonly linuxUid: number;
   readonly linuxGid: number;
   readonly tools: readonly ToolContract[];
+  readonly runtime: GeneratedRuntimeManifest;
 }
 
 interface GatewayChannel {
@@ -212,7 +213,7 @@ async function loadRuntimeLaunchPlan(pool: DatabasePool, runtimeInstanceId: stri
     const gid = Number(row.linux_gid);
     if (!Number.isSafeInteger(uid) || uid <= 0 || !Number.isSafeInteger(gid) || gid <= 0) throw new Error('RUNTIME_OS_IDENTITY_INVALID');
     if (typeof row.release_directory !== 'string' || row.release_directory.length === 0) throw new Error('RUNTIME_RELEASE_DIRECTORY_REQUIRED');
-    return { manifest, manifestDigest, releaseDirectory: row.release_directory, linuxUid: uid, linuxGid: gid, tools: parsed.tools };
+    return { manifest, manifestDigest, releaseDirectory: row.release_directory, linuxUid: uid, linuxGid: gid, tools: parsed.tools, runtime: parsed.runtime };
   });
 }
 
@@ -239,7 +240,7 @@ async function materializeLaunchManifest(plan: RuntimeLaunchPlan): Promise<{ ins
 
 async function verifyLaunchFiles(plan: RuntimeLaunchPlan): Promise<RuntimeLaunchSpec> {
   const releaseRoot = await realpath(plan.releaseDirectory);
-  const runtime: GeneratedRuntimeManifest = componentManifestSchema.parse((await inMemoryManifest(plan)).canonicalManifest).runtime;
+  const runtime = plan.runtime;
   const executable = resolve(releaseRoot, runtime.executable);
   const nodeBootstrap = resolve(releaseRoot, runtime.nodeBootstrap);
   const handlerEntrypoint = resolve(releaseRoot, runtime.handlerEntrypoint);
@@ -272,10 +273,6 @@ async function verifyLaunchFiles(plan: RuntimeLaunchPlan): Promise<RuntimeLaunch
     },
     timeoutMs: HANDLER_READY_TIMEOUT_MS,
   };
-}
-
-async function inMemoryManifest(plan: RuntimeLaunchPlan): Promise<{ canonicalManifest: unknown }> {
-  return inTransactionProfile((globalThis as unknown as { __never?: DatabasePool }).__never as never, 'CONSISTENT_READ', async () => ({ canonicalManifest: null }));
 }
 
 async function connectGateway(plan: RuntimeLaunchPlan): Promise<GatewayChannel> {
@@ -354,10 +351,13 @@ async function persistReady(client: DatabaseClient, plan: RuntimeLaunchPlan, gat
     plan.manifest.runtimeInstanceId, readySequence.toString(), plan.manifest.runtimeGeneration, Buffer.from(plan.manifestDigest.slice(7), 'hex'), gateway.connectionId, plan.manifest.platformIncarnationId, plan.manifest.applicationDeploymentEpoch, plan.manifest.activationEpoch
   ]);
   if (update.rowCount !== 1) throw new Error('RUNTIME_CONTEXT_NOT_CURRENT');
-  await client.query(`INSERT INTO kcml.runtime_readiness_evidence(runtime_instance_id,runtime_generation,ready_sequence,check_kind,check_result,evidence,evidence_digest,observed_at,activation_epoch,platform_incarnation_id,application_deployment_epoch)
-    VALUES($1,$2,$3,'HANDLER_READY','PASS',$4,$5,clock_timestamp(),$6,$7,$8)`, [
-    plan.manifest.runtimeInstanceId, plan.manifest.runtimeGeneration, readySequence.toString(), processEvidence, Buffer.from(canonicalDigest(processEvidence).slice(7), 'hex'), plan.manifest.activationEpoch, plan.manifest.platformIncarnationId, plan.manifest.applicationDeploymentEpoch
+  if (handler.process.exitCode !== null || handler.process.killed || handler.pidfd < 0) throw new Error('RUNTIME_HANDLER_NOT_LIVE_AT_READY');
+  const hostReady = await client.query(`UPDATE kcml.runtime_process_identity SET ready_at=coalesce(ready_at,clock_timestamp()),
+    pidfd_evidence=coalesce(pidfd_evidence,'{}'::jsonb) || $4::jsonb,state_version=state_version+1
+    WHERE runtime_instance_id=$1 AND runtime_generation=$2 AND process_role='HOST' AND invocation_id=$3 AND exited_at IS NULL`, [
+    plan.manifest.runtimeInstanceId, plan.manifest.runtimeGeneration, gateway.invocationId, { ...processEvidence, handlerSupervisorPidfdPinned:true, handlerConformance:handshake }
   ]);
+  if (hostReady.rowCount !== 1) throw new Error('RUNTIME_HOST_READY_EVIDENCE_MISSING');
 }
 
 export async function startRuntimeHost(pool: DatabasePool, logger: StructuredLogger): Promise<RuntimeHostHandle> {

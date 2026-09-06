@@ -9,6 +9,7 @@ import { assertRuntimeLocalStateKey, assertStateDocumentWithinLimits, assertStat
 import { authorizeEgressUrl, performPinnedRequest, type EgressPolicy } from './egress-policy.js';
 import { RuntimeLifecycleExecutor } from './runtime-systemd.js';
 import { startRuntimeGatewayServer } from './runtime-gateway.js';
+import { startRuntimeHost } from './runtime-host.js';
 
 export { assertRuntimeLocalStateKey, assertStateDocumentWithinLimits, assertStateValueWithinLimits, loadRuntimeExecutionLineage, runtimeLineageDigest, runtimeStateNamespace } from './broker-authority.js';
 export type { RuntimeExecutionLineage } from './broker-authority.js';
@@ -381,6 +382,11 @@ export async function runService(options: ServiceOptions): Promise<void> {
   await heartbeat('STARTING');
   let closeBroker: (() => Promise<void>) | null = null;
   let closeRuntimeGateway: (() => Promise<void>) | null = null;
+  let closeRuntimeHost: (() => Promise<void>) | null = null;
+  if (options.serviceName === 'kcml-runtime-host') {
+    const runtimeHost = await startRuntimeHost(pool, logger);
+    closeRuntimeHost = () => runtimeHost.close('SERVICE_SHUTDOWN');
+  }
   if (options.serviceName === 'kcml-runtime-gateway') {
     const runtimeGateway = await startRuntimeGatewayServer(pool, logger);
     closeRuntimeGateway = () => new Promise<void>((resolveClose, reject) => runtimeGateway.close((error) => error ? reject(error) : resolveClose()));
@@ -434,6 +440,7 @@ export async function runService(options: ServiceOptions): Promise<void> {
   }
   clearInterval(heartbeatTimer);
   await heartbeat('DRAINING');
+  await closeRuntimeHost?.();
   await closeRuntimeGateway?.();
   await closeBroker?.();
   await pool.end();

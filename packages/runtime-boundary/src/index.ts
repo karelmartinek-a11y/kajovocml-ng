@@ -27,6 +27,7 @@ export interface RuntimeLaunchSpec {
 export interface RuntimeHandle {
   process: ChildProcess;
   pid: number;
+  pidfd: number;
   capabilitySocket: Socket;
   terminate: (signal?: NodeJS.Signals) => Promise<void>;
 }
@@ -39,6 +40,13 @@ export function createAnonymousCapabilityPair(addonPath: string): { childFd: num
   }
   const [hostFd, childFd] = descriptors;
   return { childFd, hostSocket: new Socket({ fd: hostFd, readable: true, writable: true }) };
+}
+
+function openSupervisorPidfd(addonPath: string, pid: number): number {
+  const addon = createRequire(import.meta.url)(addonPath) as { openPidfd?: (candidate: number) => number };
+  const pidfd = addon.openPidfd?.(pid);
+  if (!Number.isInteger(pidfd) || Number(pidfd) < 0) throw new Error('RUNTIME_PIDFD_TRACKING_FAILED');
+  return Number(pidfd);
 }
 
 function assertContained(root: string, candidate: string): void {
@@ -119,17 +127,27 @@ export async function launchTrustedRuntime(spec: RuntimeLaunchSpec, logger: Stru
     child.once('error', reject);
   });
   if (pid <= 0) throw new Error('RUNTIME_SPAWN_FAILED');
+  const addonPath = resolve(spec.releaseRoot, 'deploy/runtime/kcml-fd-cloexec.node');
+  let pidfd: number;
+  try { pidfd = openSupervisorPidfd(addonPath, pid); }
+  catch (error) { child.kill('SIGKILL'); capabilityPair.hostSocket.destroy(); throw error; }
+  let pidfdClosed = false;
+  const closePidfd = () => { if (!pidfdClosed) { pidfdClosed = true; closeSync(pidfd); } };
+  child.once('exit', closePidfd);
   return {
     process: child,
     pid,
+    pidfd,
     capabilitySocket: capabilityPair.hostSocket,
     terminate: async (signal = 'SIGTERM') => {
-      if (child.exitCode !== null) return;
-      child.kill(signal);
-      await new Promise<void>((done) => {
-        const timer = setTimeout(() => { child.kill('SIGKILL'); }, 10_000);
-        child.once('exit', () => { clearTimeout(timer); done(); });
-      });
+      if (child.exitCode === null) {
+        child.kill(signal);
+        await new Promise<void>((done) => {
+          const timer = setTimeout(() => { child.kill('SIGKILL'); }, 10_000);
+          child.once('exit', () => { clearTimeout(timer); done(); });
+        });
+      }
+      closePidfd();
       capabilityPair.hostSocket.destroy();
     }
   };
