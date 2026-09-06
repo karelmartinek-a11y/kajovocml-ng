@@ -1,21 +1,19 @@
-name: Audit remediation PACK-001
+name: Audit remediation verification
 on:
   push:
     branches: [audit-remediation-2026-09-06]
 permissions:
-  contents: write
+  contents: read
 concurrency:
   group: audit-remediation-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  apply:
-    if: github.actor != 'github-actions[bot]'
+  verify:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: audit-remediation-2026-09-06
       - uses: pnpm/action-setup@v4
         with:
           version: 11.19.0
@@ -24,27 +22,9 @@ jobs:
         with:
           node-version: '24.11.1'
           cache: pnpm
-      - name: Apply normative/evidence authority split
-        run: python3 scripts/audit-remediation-pack.py
-      - name: Remove temporary remediation scaffolding
-        run: |
-          rm -f \
-            .github/workflows/remediation-snapshot.yml \
-            scripts/audit-remediation-2026-09-06.py \
-            scripts/audit-remediation-batch2.py \
-            scripts/audit-remediation-batch3-fix.py \
-            scripts/audit-remediation-batch3.py \
-            scripts/audit-remediation-batch4.py \
-            scripts/audit-remediation-batch5-fix.py \
-            scripts/audit-remediation-batch5.py \
-            scripts/audit-remediation-pack.py
-      - name: Regenerate normative Contract Pack
-        run: node scripts/compile-contract-pack.mjs
-      - name: Regenerate requirement and implementation evidence
-        run: node scripts/generate-requirement-trace.mjs && node scripts/compile-contract-trace.mjs
       - name: Install
         run: pnpm install --frozen-lockfile
-      - name: Verify full Contract Pack and evidence boundary
+      - name: Verify Contract Pack and implementation evidence
         run: pnpm contracts:check
       - name: Verify lint
         run: pnpm lint
@@ -56,10 +36,3 @@ jobs:
         run: pnpm conformance:audit
       - name: Verify patch whitespace
         run: git diff --check
-      - name: Commit verified PACK remediation
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git commit -m 'fix(contracts): separate normative authority from implementation evidence'
-          git push origin HEAD:audit-remediation-2026-09-06
