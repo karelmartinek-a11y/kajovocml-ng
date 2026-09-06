@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { DatabasePool } from '@kcml/database';
+import type { DatabaseClient, DatabasePool } from '@kcml/database';
 import { allocateContiguousSequence, inTransaction } from '@kcml/database';
 import { canonicalDigest, type CanonicalJsonValue } from '@kcml/schemas';
 import { DomainError } from './errors.js';
@@ -33,7 +33,7 @@ export class SystemChatService{
     return {conversationId:input.conversationId,messageId:input.messageId,message:input.message,model:input.model,context:input.context,accessChannel:input.accessChannel,idempotencyKey:input.idempotencyKey};
   }
 
-  private async createModelIntent(client:Parameters<Parameters<typeof inTransaction>[3]>[0] extends never ? never : any,input:SystemChatReservationInput,ownerMessageId:string,heads:any):Promise<string>{
+  private async createModelIntent(client:DatabaseClient,input:SystemChatReservationInput,ownerMessageId:string,heads:any):Promise<string>{
     const id=randomUUID();
     const requestDigest=digestText(this.requestShape(input));
     const argumentsValue={messageId:ownerMessageId,model:input.model,context:input.context,requestDigest};
