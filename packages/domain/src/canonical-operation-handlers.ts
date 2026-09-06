@@ -1029,7 +1029,6 @@ const detailedBrowserMutationOperations: ReadonlySet<string> = new Set([
   'browser.action.complete',
   'browser.action.dispatchPhase',
   'browser.action.fail',
-  'browser.action.reconcile',
   'browser.action.resolveOutcome',
   'browser.action.start',
   'browser.artifact.created',
