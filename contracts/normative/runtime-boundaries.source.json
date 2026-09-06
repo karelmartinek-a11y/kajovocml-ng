@@ -1,0 +1,883 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "RUNTIME_BOUNDARY_NORMATIVE_SOURCE",
+  "authoritySourceRefs": [
+    "ssot://55.9/55-9-runtime-boundary-matrix/atom-34"
+  ],
+  "runtimeTypes": [
+    {
+      "runtimeBoundaryId": "RUNTIME-WEB_API",
+      "runtimeType": "WEB_API",
+      "processIdentity": "KERNEL_SYSTEMD_DB_TUPLE",
+      "systemdUnit": "kcml-web-api.service",
+      "osUser": "kcml-web-api",
+      "osGroup": "kcml-web-api",
+      "socketOrCapabilityChannels": [
+        "SYSTEMD_UDS"
+      ],
+      "peerIdentityContract": "SO_PEERCRED_PIDFD_BOOT_START_INVOCATION_CGROUP",
+      "executionContextSource": "PUBLIC_GATEWAY_AUTHENTICATED_SERVER_COMMIT",
+      "allowedNetworkFamilies": [
+        "AF_UNIX",
+        "AF_INET",
+        "AF_INET6"
+      ],
+      "allowedEndpoints": [
+        "/run/kajovocml-ng/web-api.sock",
+        "https://api.openai.com/v1/responses"
+      ],
+      "allowedFilesystemRead": [
+        "/opt/kajovocml-ng/current",
+        "/etc/kajovocml-ng"
+      ],
+      "allowedFilesystemWrite": [
+        "/run/kajovocml-ng",
+        "/var/lib/kajovocml-ng/data"
+      ],
+      "allowedCredentials": [
+        "KCML_OWNER_API_KEY_GATEWAY_ONLY",
+        "SYSTEMD_SCOPED"
+      ],
+      "allowedInheritedFds": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "allowedCapabilities": [],
+      "cgroupProfile": "CPU_200_MEMORY_HIGH_768M_MEMORY_MAX_1G_TASKS_256_NO_SWAP_NO_CORE",
+      "prohibitedResources": [
+        "GENERATED_HANDLER_CHANNEL",
+        "UNDECLARED_RESOURCE"
+      ],
+      "lifecycleStateMachineId": "SM-RUNTIME_INSTANCE",
+      "runtimeGenerationPolicy": "MONOTONIC_ROW_LOCKED",
+      "serviceGenerationPolicy": "SYSTEMD_INVOCATION_ID_BOOT_START_CGROUP",
+      "staleProcessFencing": "ALL_WRITES_PLATFORM_DEPLOYMENT_RECOVERY_EPOCH",
+      "shutdownDrainKillPolicy": "DRAIN_TERM_KILL_CGROUP_EMPTY",
+      "childProcessPolicy": "NONE",
+      "cleanupPredicateId": "CLOSURE-RUNTIME_INSTANCE",
+      "auditEvidence": [
+        "UNIT",
+        "INVOCATION",
+        "PEER",
+        "PROCESS",
+        "FD",
+        "CGROUP",
+        "EPOCH"
+      ],
+      "testIds": [
+        "TEST-RUNTIME-WEB-API-IDENTITY",
+        "TEST-RUNTIME-WEB-API-BOUNDARY"
+      ],
+      "requirementRefs": [
+        "ssot://55.9/55-9-runtime-boundary-matrix/atom-34",
+        "ssot://50.3/50-3-kanonick-runtime-identita/atom-1",
+        "ssot://50.6/50-6-systemd-slu-by-uid-gid-a-groups/atom-11"
+      ],
+      "seccompProfileDigest": "sha256:7220be70eb6fc254e0315c5bd5655c4fd10dab9a26cbebd7fe23071b2e03a211",
+      "namespaceProfileDigest": "sha256:7220be70eb6fc254e0315c5bd5655c4fd10dab9a26cbebd7fe23071b2e03a211",
+      "seccompProfileDigestSource": "deploy/systemd/kcml-service.service.in",
+      "namespaceProfileDigestSource": "deploy/systemd/kcml-service.service.in"
+    },
+    {
+      "runtimeBoundaryId": "RUNTIME-RUNTIME_GATEWAY",
+      "runtimeType": "RUNTIME_GATEWAY",
+      "processIdentity": "KERNEL_SYSTEMD_DB_TUPLE",
+      "systemdUnit": "kcml-runtime-gateway.service",
+      "osUser": "kcml-runtime-gateway",
+      "osGroup": "kcml-runtime-gateway",
+      "socketOrCapabilityChannels": [
+        "SYSTEMD_UDS:/run/kajovocml-ng/gateway/runtime-gateway.sock"
+      ],
+      "peerIdentityContract": "SO_PEERCRED_PIDFD_BOOT_START_INVOCATION_CGROUP",
+      "executionContextSource": "TRUSTED_DISPATCH_SERVER_COMMIT",
+      "allowedNetworkFamilies": [
+        "AF_UNIX"
+      ],
+      "allowedEndpoints": [
+        "/run/kajovocml-ng/gateway/runtime-gateway.sock"
+      ],
+      "allowedFilesystemRead": [
+        "/opt/kajovocml-ng/current",
+        "/etc/kajovocml-ng"
+      ],
+      "allowedFilesystemWrite": [
+        "/run/kajovocml-ng/gateway",
+        "/var/lib/kajovocml-ng/runtime"
+      ],
+      "allowedCredentials": [
+        "SYSTEMD_SCOPED"
+      ],
+      "allowedInheritedFds": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "allowedCapabilities": [],
+      "cgroupProfile": "CPU_200_MEMORY_HIGH_768M_MEMORY_MAX_1G_TASKS_256_NO_SWAP_NO_CORE",
+      "prohibitedResources": [
+        "PUBLIC_OWNER_CREDENTIAL",
+        "GENERATED_HANDLER_PLATFORM_FD",
+        "UNDECLARED_RESOURCE"
+      ],
+      "lifecycleStateMachineId": "SM-RUNTIME_INSTANCE",
+      "runtimeGenerationPolicy": "MONOTONIC_ROW_LOCKED",
+      "serviceGenerationPolicy": "SYSTEMD_INVOCATION_ID_BOOT_START_CGROUP",
+      "staleProcessFencing": "ALL_WRITES_PLATFORM_DEPLOYMENT_RECOVERY_EPOCH",
+      "shutdownDrainKillPolicy": "DRAIN_TERM_KILL_CGROUP_EMPTY",
+      "childProcessPolicy": "NONE",
+      "cleanupPredicateId": "CLOSURE-RUNTIME_INSTANCE",
+      "auditEvidence": [
+        "SOCKET_UNIT",
+        "SOCKET_INODE",
+        "PEER",
+        "PIDFD",
+        "PROCESS",
+        "FD",
+        "CGROUP",
+        "EPOCH"
+      ],
+      "testIds": [
+        "TEST-RUNTIME-GATEWAY-PEER-IDENTITY",
+        "TEST-RUNTIME-GATEWAY-SOCKET-INTEGRITY"
+      ],
+      "requirementRefs": [
+        "ssot://55.9/55-9-runtime-boundary-matrix/atom-34",
+        "ssot://50.8/50-8-socket-activation-a-lifecycle/atom-2",
+        "ssot://50.9/50-9-linux-peer-credentials-a-pid-reuse/atom-1",
+        "ssot://50.21/50-21-runtime-gateway-a-exact-contract-binding/atom-2"
+      ],
+      "seccompProfileDigest": "sha256:caf7c7b45d3531e68086bd175d89d3923d36c9f9ef89509f357e73aaaaa36c91",
+      "namespaceProfileDigest": "sha256:caf7c7b45d3531e68086bd175d89d3923d36c9f9ef89509f357e73aaaaa36c91",
+      "seccompProfileDigestSource": "deploy/systemd/kcml-runtime-gateway.service",
+      "namespaceProfileDigestSource": "deploy/systemd/kcml-runtime-gateway.service"
+    },
+    {
+      "runtimeBoundaryId": "RUNTIME-RUNTIME_HOST",
+      "runtimeType": "RUNTIME_HOST",
+      "processIdentity": "KERNEL_SYSTEMD_DB_TUPLE",
+      "systemdUnit": "kcml-runtime-host@.service",
+      "osUser": "kcml-runtime-host",
+      "osGroup": "kcml-runtime-host",
+      "socketOrCapabilityChannels": [
+        "SYSTEMD_UDS",
+        "ANONYMOUS_HANDLER_SOCKETPAIR"
+      ],
+      "peerIdentityContract": "SO_PEERCRED_PIDFD_BOOT_START_INVOCATION_CGROUP",
+      "executionContextSource": "RUNTIME_INSTANCE_SERVER_COMMIT",
+      "allowedNetworkFamilies": [
+        "AF_UNIX"
+      ],
+      "allowedEndpoints": [
+        "/run/kajovocml-ng/gateway/runtime-gateway.sock"
+      ],
+      "allowedFilesystemRead": [
+        "/opt/kajovocml-ng/current",
+        "/etc/kajovocml-ng"
+      ],
+      "allowedFilesystemWrite": [
+        "/var/lib/kajovocml-ng/runtime",
+        "/run/kajovocml-ng/runtime-hosts"
+      ],
+      "allowedCredentials": [
+        "SYSTEMD_SCOPED",
+        "RUNTIME_MANIFEST_READ_ONLY"
+      ],
+      "allowedInheritedFds": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "allowedCapabilities": [
+        "LAUNCHER_PHASE_ONLY:CAP_SYS_ADMIN,CAP_SETUID,CAP_SETGID,CAP_KILL"
+      ],
+      "cgroupProfile": "CPU_200_MEMORY_HIGH_1536M_MEMORY_MAX_2G_TASKS_512_NO_SWAP_NO_CORE",
+      "prohibitedResources": [
+        "OWNER_API_KEY",
+        "DATABASE_CREDENTIAL",
+        "SECRET_MASTER_KEY",
+        "UNDECLARED_RESOURCE"
+      ],
+      "lifecycleStateMachineId": "SM-RUNTIME_INSTANCE",
+      "runtimeGenerationPolicy": "MONOTONIC_ROW_LOCKED",
+      "serviceGenerationPolicy": "SYSTEMD_INVOCATION_ID_BOOT_START_CGROUP",
+      "staleProcessFencing": "ALL_WRITES_RUNTIME_GENERATION_PIDFD",
+      "shutdownDrainKillPolicy": "DRAIN_TERM_KILL_CGROUP_EMPTY",
+      "childProcessPolicy": "DECLARED_RELEASE_DIGEST_EXECVEAT_ONLY",
+      "cleanupPredicateId": "CLOSURE-RUNTIME_INSTANCE",
+      "auditEvidence": [
+        "UNIT",
+        "INVOCATION",
+        "PEER",
+        "PIDFD",
+        "PROCESS",
+        "NAMESPACE",
+        "FD",
+        "CGROUP",
+        "SECCOMP",
+        "EPOCH"
+      ],
+      "testIds": [
+        "TEST-RUNTIME-HOST-LAUNCH",
+        "TEST-RUNTIME-HOST-CLEANUP"
+      ],
+      "requirementRefs": [
+        "ssot://55.9/55-9-runtime-boundary-matrix/atom-34",
+        "ssot://15.3/15-3-trusted-runtime-host-a-generated-handler/atom-4",
+        "ssot://50.11/50-11-sandbox-launch-lineariza-n-body/atom-4",
+        "ssot://50.17/50-17-child-processes-threads-a-orphan-cleanup/atom-1"
+      ],
+      "seccompProfileDigest": "sha256:2668eef42656fbdf3f7510c21f5adebe2ec45bedbff61234b2089414f29e1459",
+      "namespaceProfileDigest": "sha256:2668eef42656fbdf3f7510c21f5adebe2ec45bedbff61234b2089414f29e1459",
+      "seccompProfileDigestSource": "deploy/systemd/kcml-runtime-host@.service",
+      "namespaceProfileDigestSource": "deploy/systemd/kcml-runtime-host@.service"
+    },
+    {
+      "runtimeBoundaryId": "RUNTIME-GENERATED_HANDLER",
+      "runtimeType": "GENERATED_HANDLER",
+      "processIdentity": "PIDFD_RUNTIME_HOST_CHILD_USER_NAMESPACE",
+      "systemdUnit": "kcml-runtime-host@.service",
+      "osUser": "USER_NAMESPACE_MAPPED_RUNTIME_HOST",
+      "osGroup": "NO_PLATFORM_GROUP",
+      "socketOrCapabilityChannels": [
+        "ANONYMOUS_FD_3_ONLY"
+      ],
+      "peerIdentityContract": "PARENT_PIDFD_RUNTIME_GENERATION_MONOTONIC_SEQUENCE",
+      "executionContextSource": "RUNTIME_HOST_SERVER_CONTEXT_ONLY",
+      "allowedNetworkFamilies": [],
+      "allowedEndpoints": [],
+      "allowedFilesystemRead": [
+        "/opt/kajovocml-ng/current"
+      ],
+      "allowedFilesystemWrite": [
+        "/tmp",
+        "/run",
+        "/work"
+      ],
+      "allowedCredentials": [],
+      "allowedInheritedFds": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "allowedCapabilities": [],
+      "seccompProfileDigestSource": "deploy/runtime/kcml-sandbox-launcher.c:KCML_GENERATED_NODE_SECCOMP_PROFILE_V1",
+      "namespaceProfileDigestSource": "deploy/runtime/kcml-sandbox-launcher.c:KCML_GENERATED_HANDLER_NAMESPACE_PROFILE_V1",
+      "cgroupProfile": "TASKS_64_NOFILE_1024_FSIZE_1G_NO_CORE_PRIVATE_TMPFS",
+      "prohibitedResources": [
+        "AF_INET",
+        "AF_INET6",
+        "AF_UNIX_SOCKET_CREATE",
+        "POSTGRES",
+        "SECRET_STORAGE",
+        "BROKERS",
+        "BROWSER_HOST",
+        "HOST_FILESYSTEM",
+        "HOST_RUN",
+        "SYSTEMD_CREDENTIALS",
+        "OWNER_API_KEY",
+        "UNDECLARED_RESOURCE"
+      ],
+      "lifecycleStateMachineId": "SM-RUNTIME_INSTANCE",
+      "runtimeGenerationPolicy": "INHERIT_CURRENT_MONOTONIC",
+      "serviceGenerationPolicy": "INHERIT_HOST_INVOCATION_ID",
+      "staleProcessFencing": "PIDFD_PARENT_DEATH_RUNTIME_GENERATION_ALL_WRITES",
+      "shutdownDrainKillPolicy": "PARENT_DEATH_TERM_KILL_CGROUP_EMPTY",
+      "childProcessPolicy": "BROKERED_ALIAS_ONLY_NO_INHERITED_CAPABILITY_FD",
+      "cleanupPredicateId": "CLOSURE-RUNTIME_INSTANCE",
+      "auditEvidence": [
+        "PIDFD",
+        "NAMESPACE",
+        "MOUNT",
+        "PROC",
+        "DEV",
+        "RUN",
+        "FD",
+        "CAPABILITY",
+        "SECCOMP",
+        "CGROUP",
+        "SEQUENCE"
+      ],
+      "testIds": [
+        "TEST-GENERATED-HANDLER-NO-BYPASS",
+        "TEST-GENERATED-HANDLER-FD-INVENTORY",
+        "TEST-GENERATED-HANDLER-SECCOMP"
+      ],
+      "requirementRefs": [
+        "ssot://55.9/55-9-runtime-boundary-matrix/atom-34",
+        "ssot://50.1/50-1-rozsah-a-z-kladn-invarianty/atom-7",
+        "ssot://50.12/50-12-namespaces/atom-9",
+        "ssot://50.15/50-15-linux-capabilities-privilege-a-seccomp/atom-9",
+        "ssot://50.16/50-16-environment-a-file-descriptor-inheritance/atom-18",
+        "ssot://50.19/50-19-kcml-runtime-ipc-1/atom-2",
+        "ssot://50.34.4/50-34-4-generated-handler-runtime-host/atom-4"
+      ],
+      "seccompProfileDigest": "sha256:e3315dbed96d982509fb545c40990596a60e69f43912bb3e937b7633d149e8df",
+      "namespaceProfileDigest": "sha256:3bfb3c1be956c75feff0728e2f9f7882a02ba4d15cc4dd402e2e84c8f7184902"
+    },
+    {
+      "runtimeBoundaryId": "RUNTIME-SECRET_BROKER",
+      "runtimeType": "SECRET_BROKER",
+      "processIdentity": "KERNEL_SYSTEMD_DB_TUPLE",
+      "systemdUnit": "kcml-secret-broker.service",
+      "osUser": "kcml-secret-broker",
+      "osGroup": "kcml-secret-broker",
+      "socketOrCapabilityChannels": [
+        "SYSTEMD_UDS"
+      ],
+      "peerIdentityContract": "SO_PEERCRED_PIDFD_BOOT_START_INVOCATION_CGROUP",
+      "executionContextSource": "RUNTIME_GATEWAY_SERVER_COMMIT",
+      "allowedNetworkFamilies": [
+        "AF_UNIX"
+      ],
+      "allowedEndpoints": [
+        "/run/kajovocml-ng/brokers/secret-broker.sock"
+      ],
+      "allowedFilesystemRead": [
+        "/opt/kajovocml-ng/current"
+      ],
+      "allowedFilesystemWrite": [
+        "/var/lib/kajovocml-ng/data"
+      ],
+      "allowedCredentials": [
+        "SYSTEMD_SCOPED",
+        "SECRET_MASTER_KEY_SERVICE_CREDENTIAL"
+      ],
+      "allowedInheritedFds": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "allowedCapabilities": [],
+      "cgroupProfile": "CPU_200_MEMORY_HIGH_768M_MEMORY_MAX_1G_TASKS_256_NO_SWAP_NO_CORE",
+      "prohibitedResources": [
+        "GENERATED_HANDLER",
+        "OWNER_API_KEY",
+        "UNDECLARED_RESOURCE"
+      ],
+      "lifecycleStateMachineId": "SM-RUNTIME_INSTANCE",
+      "runtimeGenerationPolicy": "MONOTONIC_ROW_LOCKED",
+      "serviceGenerationPolicy": "SYSTEMD_INVOCATION_ID_BOOT_START_CGROUP",
+      "staleProcessFencing": "ALL_WRITES_PLATFORM_DEPLOYMENT_RECOVERY_EPOCH",
+      "shutdownDrainKillPolicy": "DRAIN_TERM_KILL_CGROUP_EMPTY",
+      "childProcessPolicy": "NONE",
+      "cleanupPredicateId": "CLOSURE-RUNTIME_INSTANCE",
+      "auditEvidence": [
+        "UNIT",
+        "PEER",
+        "PROCESS",
+        "FD",
+        "CGROUP",
+        "EPOCH"
+      ],
+      "testIds": [
+        "TEST-SECRET-BROKER-IDENTITY"
+      ],
+      "requirementRefs": [
+        "ssot://55.9/55-9-runtime-boundary-matrix/atom-34",
+        "ssot://50.23/50-23-secret-broker-boundary/atom-10"
+      ],
+      "seccompProfileDigest": "sha256:7220be70eb6fc254e0315c5bd5655c4fd10dab9a26cbebd7fe23071b2e03a211",
+      "namespaceProfileDigest": "sha256:7220be70eb6fc254e0315c5bd5655c4fd10dab9a26cbebd7fe23071b2e03a211",
+      "seccompProfileDigestSource": "deploy/systemd/kcml-service.service.in",
+      "namespaceProfileDigestSource": "deploy/systemd/kcml-service.service.in"
+    },
+    {
+      "runtimeBoundaryId": "RUNTIME-STATE_BROKER",
+      "runtimeType": "STATE_BROKER",
+      "processIdentity": "KERNEL_SYSTEMD_DB_TUPLE",
+      "systemdUnit": "kcml-state-broker.service",
+      "osUser": "kcml-state-broker",
+      "osGroup": "kcml-state-broker",
+      "socketOrCapabilityChannels": [
+        "SYSTEMD_UDS"
+      ],
+      "peerIdentityContract": "SO_PEERCRED_PIDFD_BOOT_START_INVOCATION_CGROUP",
+      "executionContextSource": "RUNTIME_GATEWAY_SERVER_COMMIT",
+      "allowedNetworkFamilies": [
+        "AF_UNIX"
+      ],
+      "allowedEndpoints": [
+        "/run/kajovocml-ng/brokers/state-broker.sock"
+      ],
+      "allowedFilesystemRead": [
+        "/opt/kajovocml-ng/current"
+      ],
+      "allowedFilesystemWrite": [
+        "/var/lib/kajovocml-ng/runtime"
+      ],
+      "allowedCredentials": [
+        "SYSTEMD_SCOPED",
+        "POSTGRES_STATE_ROLE"
+      ],
+      "allowedInheritedFds": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "allowedCapabilities": [],
+      "cgroupProfile": "CPU_200_MEMORY_HIGH_768M_MEMORY_MAX_1G_TASKS_256_NO_SWAP_NO_CORE",
+      "prohibitedResources": [
+        "GENERATED_HANDLER",
+        "RAW_SQL_CALLER",
+        "UNDECLARED_RESOURCE"
+      ],
+      "lifecycleStateMachineId": "SM-RUNTIME_INSTANCE",
+      "runtimeGenerationPolicy": "MONOTONIC_ROW_LOCKED",
+      "serviceGenerationPolicy": "SYSTEMD_INVOCATION_ID_BOOT_START_CGROUP",
+      "staleProcessFencing": "ALL_WRITES_PLATFORM_DEPLOYMENT_RECOVERY_EPOCH",
+      "shutdownDrainKillPolicy": "DRAIN_TERM_KILL_CGROUP_EMPTY",
+      "childProcessPolicy": "NONE",
+      "cleanupPredicateId": "CLOSURE-RUNTIME_INSTANCE",
+      "auditEvidence": [
+        "UNIT",
+        "PEER",
+        "PROCESS",
+        "FD",
+        "CGROUP",
+        "EPOCH"
+      ],
+      "testIds": [
+        "TEST-STATE-BROKER-IDENTITY"
+      ],
+      "requirementRefs": [
+        "ssot://55.9/55-9-runtime-boundary-matrix/atom-34",
+        "ssot://50.34.7/50-34-7-state-broker/atom-5"
+      ],
+      "seccompProfileDigest": "sha256:7220be70eb6fc254e0315c5bd5655c4fd10dab9a26cbebd7fe23071b2e03a211",
+      "namespaceProfileDigest": "sha256:7220be70eb6fc254e0315c5bd5655c4fd10dab9a26cbebd7fe23071b2e03a211",
+      "seccompProfileDigestSource": "deploy/systemd/kcml-service.service.in",
+      "namespaceProfileDigestSource": "deploy/systemd/kcml-service.service.in"
+    },
+    {
+      "runtimeBoundaryId": "RUNTIME-EGRESS_GATEWAY",
+      "runtimeType": "EGRESS_GATEWAY",
+      "processIdentity": "KERNEL_SYSTEMD_DB_TUPLE",
+      "systemdUnit": "kcml-egress-gateway.service",
+      "osUser": "kcml-egress-gateway",
+      "osGroup": "kcml-egress-gateway",
+      "socketOrCapabilityChannels": [
+        "SYSTEMD_UDS"
+      ],
+      "peerIdentityContract": "SO_PEERCRED_PIDFD_BOOT_START_INVOCATION_CGROUP",
+      "executionContextSource": "RUNTIME_GATEWAY_SERVER_COMMIT",
+      "allowedNetworkFamilies": [
+        "AF_UNIX",
+        "AF_INET",
+        "AF_INET6"
+      ],
+      "allowedEndpoints": [
+        "EXACT_EXTERNAL_TARGET_BINDINGS_ONLY"
+      ],
+      "allowedFilesystemRead": [
+        "/opt/kajovocml-ng/current"
+      ],
+      "allowedFilesystemWrite": [
+        "/var/lib/kajovocml-ng/data"
+      ],
+      "allowedCredentials": [
+        "SYSTEMD_SCOPED",
+        "ENDPOINT_LOCAL_SECRET_BINDING"
+      ],
+      "allowedInheritedFds": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "allowedCapabilities": [],
+      "cgroupProfile": "CPU_200_MEMORY_HIGH_768M_MEMORY_MAX_1G_TASKS_256_NO_SWAP_NO_CORE",
+      "prohibitedResources": [
+        "GENERATED_HANDLER_NETWORK_FD",
+        "UNBOUND_DESTINATION",
+        "UNDECLARED_RESOURCE"
+      ],
+      "lifecycleStateMachineId": "SM-RUNTIME_INSTANCE",
+      "runtimeGenerationPolicy": "MONOTONIC_ROW_LOCKED",
+      "serviceGenerationPolicy": "SYSTEMD_INVOCATION_ID_BOOT_START_CGROUP",
+      "staleProcessFencing": "ALL_WRITES_PLATFORM_DEPLOYMENT_RECOVERY_EPOCH",
+      "shutdownDrainKillPolicy": "DRAIN_TERM_KILL_CGROUP_EMPTY",
+      "childProcessPolicy": "NONE",
+      "cleanupPredicateId": "CLOSURE-RUNTIME_INSTANCE",
+      "auditEvidence": [
+        "UNIT",
+        "PEER",
+        "PROCESS",
+        "FD",
+        "CGROUP",
+        "EPOCH"
+      ],
+      "testIds": [
+        "TEST-EGRESS-GATEWAY-IDENTITY"
+      ],
+      "requirementRefs": [
+        "ssot://55.9/55-9-runtime-boundary-matrix/atom-34",
+        "ssot://50.24/50-24-egress-gateway-boundary/atom-1"
+      ],
+      "seccompProfileDigest": "sha256:7220be70eb6fc254e0315c5bd5655c4fd10dab9a26cbebd7fe23071b2e03a211",
+      "namespaceProfileDigest": "sha256:7220be70eb6fc254e0315c5bd5655c4fd10dab9a26cbebd7fe23071b2e03a211",
+      "seccompProfileDigestSource": "deploy/systemd/kcml-service.service.in",
+      "namespaceProfileDigestSource": "deploy/systemd/kcml-service.service.in"
+    },
+    {
+      "runtimeBoundaryId": "RUNTIME-BROWSER_WORKER",
+      "runtimeType": "BROWSER_WORKER",
+      "processIdentity": "KERNEL_SYSTEMD_DB_TUPLE",
+      "systemdUnit": "kcml-browser-worker.service",
+      "osUser": "kcml-browser-worker",
+      "osGroup": "kcml-browser-worker",
+      "socketOrCapabilityChannels": [
+        "SYSTEMD_UDS",
+        "KCML-BROWSER-ARTIFACT/1"
+      ],
+      "peerIdentityContract": "SO_PEERCRED_PIDFD_BOOT_START_INVOCATION_CGROUP",
+      "executionContextSource": "BROWSER_SESSION_SERVER_COMMIT",
+      "allowedNetworkFamilies": [
+        "AF_UNIX"
+      ],
+      "allowedEndpoints": [
+        "/run/kajovocml-ng/browser-hosts/<slot>/control.sock",
+        "/run/kajovocml-ng/browser-artifacts/control.sock"
+      ],
+      "allowedFilesystemRead": [
+        "/opt/kajovocml-ng/current"
+      ],
+      "allowedFilesystemWrite": [
+        "/var/lib/kajovocml-ng/browser/artifacts",
+        "/run/kajovocml-ng/browser-artifacts"
+      ],
+      "allowedCredentials": [
+        "SYSTEMD_SCOPED",
+        "BROWSER_SESSION_BINDING"
+      ],
+      "allowedInheritedFds": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "allowedCapabilities": [],
+      "cgroupProfile": "CPU_200_MEMORY_HIGH_2G_MEMORY_MAX_3G_TASKS_1024_NO_SWAP_NO_CORE",
+      "prohibitedResources": [
+        "PUBLIC_CDP",
+        "GENERATED_HANDLER",
+        "UNDECLARED_RESOURCE"
+      ],
+      "lifecycleStateMachineId": "SM-RUNTIME_INSTANCE",
+      "runtimeGenerationPolicy": "MONOTONIC_ROW_LOCKED",
+      "serviceGenerationPolicy": "SYSTEMD_INVOCATION_ID_BOOT_START_CGROUP",
+      "staleProcessFencing": "ALL_WRITES_BROWSER_HOST_GENERATION",
+      "shutdownDrainKillPolicy": "DRAIN_TERM_KILL_CGROUP_EMPTY",
+      "childProcessPolicy": "DECLARED_BROWSER_HOST_ONLY",
+      "cleanupPredicateId": "CLOSURE-RUNTIME_INSTANCE",
+      "auditEvidence": [
+        "UNIT",
+        "PEER",
+        "PROCESS",
+        "FD",
+        "CGROUP",
+        "EPOCH"
+      ],
+      "testIds": [
+        "TEST-BROWSER-WORKER-IDENTITY"
+      ],
+      "requirementRefs": [
+        "ssot://55.9/55-9-runtime-boundary-matrix/atom-34",
+        "ssot://50.34.8/50-34-8-browser-worker-browser-host/atom-2"
+      ],
+      "seccompProfileDigest": "sha256:7220be70eb6fc254e0315c5bd5655c4fd10dab9a26cbebd7fe23071b2e03a211",
+      "namespaceProfileDigest": "sha256:7220be70eb6fc254e0315c5bd5655c4fd10dab9a26cbebd7fe23071b2e03a211",
+      "seccompProfileDigestSource": "deploy/systemd/kcml-service.service.in",
+      "namespaceProfileDigestSource": "deploy/systemd/kcml-service.service.in"
+    },
+    {
+      "runtimeBoundaryId": "RUNTIME-BROWSER_HOST",
+      "runtimeType": "BROWSER_HOST",
+      "processIdentity": "KERNEL_SYSTEMD_DB_TUPLE",
+      "systemdUnit": "kcml-browser-host@.service",
+      "osUser": "kcml-browser-host",
+      "osGroup": "kcml-browser-host",
+      "socketOrCapabilityChannels": [
+        "SYSTEMD_UDS",
+        "KCML-BROWSER-ARTIFACT/1:PUT_ONLY"
+      ],
+      "peerIdentityContract": "SO_PEERCRED_PIDFD_BOOT_START_INVOCATION_CGROUP",
+      "executionContextSource": "BROWSER_WORKER_SERVER_COMMIT",
+      "allowedNetworkFamilies": [
+        "AF_UNIX",
+        "AF_INET",
+        "AF_INET6"
+      ],
+      "allowedEndpoints": [
+        "PRIVATE_BROWSER_PROTOCOL_ONLY",
+        "/run/kajovocml-ng/browser-artifacts/control.sock"
+      ],
+      "allowedFilesystemRead": [
+        "/opt/kajovocml-ng/current",
+        "/var/lib/kajovocml-ng/browser/runtime-builds"
+      ],
+      "allowedFilesystemWrite": [
+        "/run/kajovocml-ng/browser-hosts"
+      ],
+      "allowedCredentials": [
+        "SYSTEMD_SCOPED",
+        "BROWSER_PROFILE_LEASE"
+      ],
+      "allowedInheritedFds": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "allowedCapabilities": [],
+      "cgroupProfile": "CPU_200_MEMORY_HIGH_2G_MEMORY_MAX_3G_TASKS_1024_NO_SWAP_NO_CORE",
+      "prohibitedResources": [
+        "PUBLIC_CDP",
+        "OWNER_CLIENT_RAW_TRANSPORT",
+        "GENERATED_HANDLER",
+        "UNDECLARED_RESOURCE"
+      ],
+      "lifecycleStateMachineId": "SM-RUNTIME_INSTANCE",
+      "runtimeGenerationPolicy": "MONOTONIC_ROW_LOCKED",
+      "serviceGenerationPolicy": "SYSTEMD_INVOCATION_ID_BOOT_START_CGROUP",
+      "staleProcessFencing": "ALL_WRITES_BROWSER_HOST_GENERATION",
+      "shutdownDrainKillPolicy": "DRAIN_TERM_KILL_CGROUP_EMPTY",
+      "childProcessPolicy": "DECLARED_BROWSER_BUILD_ONLY",
+      "cleanupPredicateId": "CLOSURE-RUNTIME_INSTANCE",
+      "auditEvidence": [
+        "UNIT",
+        "PEER",
+        "PROCESS",
+        "FD",
+        "CGROUP",
+        "EPOCH"
+      ],
+      "testIds": [
+        "TEST-BROWSER-HOST-IDENTITY"
+      ],
+      "requirementRefs": [
+        "ssot://55.9/55-9-runtime-boundary-matrix/atom-34",
+        "ssot://50.34.8/50-34-8-browser-worker-browser-host/atom-5"
+      ],
+      "seccompProfileDigest": "sha256:669958d06949f482afe05ee646b459b775c8a55e5b630b9805dcc0f28d9d1bcc",
+      "namespaceProfileDigest": "sha256:669958d06949f482afe05ee646b459b775c8a55e5b630b9805dcc0f28d9d1bcc",
+      "seccompProfileDigestSource": "deploy/systemd/kcml-browser-host@.service",
+      "namespaceProfileDigestSource": "deploy/systemd/kcml-browser-host@.service"
+    },
+    {
+      "runtimeBoundaryId": "RUNTIME-BRIDGE_GATEWAY",
+      "runtimeType": "BRIDGE_GATEWAY",
+      "processIdentity": "KERNEL_SYSTEMD_DB_TUPLE",
+      "systemdUnit": "kcml-browser-bridge-gateway.service",
+      "osUser": "kcml-browser-bridge",
+      "osGroup": "kcml-browser-bridge",
+      "socketOrCapabilityChannels": [
+        "OUTBOUND_MTLS_WSS"
+      ],
+      "peerIdentityContract": "MTLS_CERTIFICATE_GENERATION_CONNECTION_EPOCH",
+      "executionContextSource": "BROWSER_SESSION_SERVER_COMMIT",
+      "allowedNetworkFamilies": [
+        "AF_UNIX",
+        "AF_INET",
+        "AF_INET6"
+      ],
+      "allowedEndpoints": [
+        "EXACT_BRIDGE_GATEWAY_ROUTE"
+      ],
+      "allowedFilesystemRead": [
+        "/opt/kajovocml-ng/current"
+      ],
+      "allowedFilesystemWrite": [
+        "/var/lib/kajovocml-ng/browser"
+      ],
+      "allowedCredentials": [
+        "SYSTEMD_SCOPED",
+        "BRIDGE_CERTIFICATE_GENERATION"
+      ],
+      "allowedInheritedFds": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "allowedCapabilities": [],
+      "cgroupProfile": "CPU_200_MEMORY_HIGH_768M_MEMORY_MAX_1G_TASKS_256_NO_SWAP_NO_CORE",
+      "prohibitedResources": [
+        "SHELL",
+        "LAN_PROXY",
+        "RAW_CDP",
+        "UNDECLARED_RESOURCE"
+      ],
+      "lifecycleStateMachineId": "SM-RUNTIME_INSTANCE",
+      "runtimeGenerationPolicy": "MONOTONIC_ROW_LOCKED",
+      "serviceGenerationPolicy": "SYSTEMD_INVOCATION_ID_BOOT_START_CGROUP",
+      "staleProcessFencing": "ALL_WRITES_BRIDGE_CONNECTION_EPOCH",
+      "shutdownDrainKillPolicy": "DRAIN_TERM_KILL_CGROUP_EMPTY",
+      "childProcessPolicy": "NONE",
+      "cleanupPredicateId": "CLOSURE-RUNTIME_INSTANCE",
+      "auditEvidence": [
+        "UNIT",
+        "PEER",
+        "PROCESS",
+        "FD",
+        "CGROUP",
+        "EPOCH"
+      ],
+      "testIds": [
+        "TEST-BRIDGE-GATEWAY-IDENTITY"
+      ],
+      "requirementRefs": [
+        "ssot://55.9/55-9-runtime-boundary-matrix/atom-34",
+        "ssot://50.34.10/50-34-10-owner-device-bridge/atom-5"
+      ],
+      "seccompProfileDigest": "sha256:7220be70eb6fc254e0315c5bd5655c4fd10dab9a26cbebd7fe23071b2e03a211",
+      "namespaceProfileDigest": "sha256:7220be70eb6fc254e0315c5bd5655c4fd10dab9a26cbebd7fe23071b2e03a211",
+      "seccompProfileDigestSource": "deploy/systemd/kcml-service.service.in",
+      "namespaceProfileDigestSource": "deploy/systemd/kcml-service.service.in"
+    },
+    {
+      "runtimeBoundaryId": "RUNTIME-OWNER_DEVICE_BRIDGE",
+      "runtimeType": "OWNER_DEVICE_BRIDGE",
+      "processIdentity": "BRIDGE_MTLS_LOCAL_PROCESS_IDENTITY",
+      "systemdUnit": "kcml-owner-device-bridge.service",
+      "osUser": "kcml-owner-device-bridge",
+      "osGroup": "kcml-owner-device-bridge",
+      "socketOrCapabilityChannels": [
+        "OUTBOUND_MTLS_WSS"
+      ],
+      "peerIdentityContract": "MTLS_CERTIFICATE_GENERATION_CONNECTION_EPOCH",
+      "executionContextSource": "BRIDGE_SESSION_SERVER_ASSIGNMENT",
+      "allowedNetworkFamilies": [
+        "AF_INET",
+        "AF_INET6"
+      ],
+      "allowedEndpoints": [
+        "EXACT_BRIDGE_ASSIGNMENT_ONLY"
+      ],
+      "allowedFilesystemRead": [
+        "/opt/kajovocml-ng/current"
+      ],
+      "allowedFilesystemWrite": [
+        "/var/lib/kajovocml-ng/browser"
+      ],
+      "allowedCredentials": [
+        "BRIDGE_CERTIFICATE_PRIVATE_KEY_LOCAL_STORE"
+      ],
+      "allowedInheritedFds": [
+        0,
+        1,
+        2
+      ],
+      "allowedCapabilities": [],
+      "cgroupProfile": "CPU_100_MEMORY_HIGH_512M_MEMORY_MAX_1G_TASKS_128_NO_SWAP_NO_CORE",
+      "prohibitedResources": [
+        "OWNER_API_KEY",
+        "SHELL",
+        "LAN_SCAN",
+        "RAW_CDP",
+        "UNDECLARED_RESOURCE"
+      ],
+      "lifecycleStateMachineId": "SM-RUNTIME_INSTANCE",
+      "runtimeGenerationPolicy": "MONOTONIC_ROW_LOCKED",
+      "serviceGenerationPolicy": "CERTIFICATE_GENERATION_CONNECTION_EPOCH",
+      "staleProcessFencing": "ALL_WRITES_BRIDGE_SESSION_PROFILE_LEASE",
+      "shutdownDrainKillPolicy": "DRAIN_TERM_KILL_CGROUP_EMPTY",
+      "childProcessPolicy": "DECLARED_BROWSER_ONLY",
+      "cleanupPredicateId": "CLOSURE-RUNTIME_INSTANCE",
+      "auditEvidence": [
+        "CERTIFICATE",
+        "PEER",
+        "PROCESS",
+        "FD",
+        "CGROUP",
+        "EPOCH"
+      ],
+      "testIds": [
+        "TEST-OWNER-BRIDGE-IDENTITY"
+      ],
+      "requirementRefs": [
+        "ssot://55.9/55-9-runtime-boundary-matrix/atom-34",
+        "ssot://50.34.10/50-34-10-owner-device-bridge/atom-5"
+      ],
+      "seccompProfileDigest": "sha256:7220be70eb6fc254e0315c5bd5655c4fd10dab9a26cbebd7fe23071b2e03a211",
+      "namespaceProfileDigest": "sha256:7220be70eb6fc254e0315c5bd5655c4fd10dab9a26cbebd7fe23071b2e03a211",
+      "seccompProfileDigestSource": "deploy/systemd/kcml-service.service.in",
+      "namespaceProfileDigestSource": "deploy/systemd/kcml-service.service.in"
+    },
+    {
+      "runtimeBoundaryId": "RUNTIME-WORKER",
+      "runtimeType": "WORKER",
+      "processIdentity": "KERNEL_SYSTEMD_DB_TUPLE",
+      "systemdUnit": "kcml-central-chat-worker.service",
+      "osUser": "kcml-chat",
+      "osGroup": "kcml-chat",
+      "socketOrCapabilityChannels": [
+        "SYSTEMD_UDS"
+      ],
+      "peerIdentityContract": "SO_PEERCRED_PIDFD_BOOT_START_INVOCATION_CGROUP",
+      "executionContextSource": "QUEUE_CLAIM_SERVER_COMMIT",
+      "allowedNetworkFamilies": [
+        "AF_UNIX"
+      ],
+      "allowedEndpoints": [
+        "PLATFORM_BROKER_UDS_ONLY"
+      ],
+      "allowedFilesystemRead": [
+        "/opt/kajovocml-ng/current"
+      ],
+      "allowedFilesystemWrite": [
+        "/var/lib/kajovocml-ng/data"
+      ],
+      "allowedCredentials": [
+        "SYSTEMD_SCOPED",
+        "SERVICE_POSTGRES_ROLE"
+      ],
+      "allowedInheritedFds": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "allowedCapabilities": [],
+      "cgroupProfile": "CPU_200_MEMORY_HIGH_768M_MEMORY_MAX_1G_TASKS_256_NO_SWAP_NO_CORE",
+      "prohibitedResources": [
+        "GENERATED_HANDLER",
+        "UNCLAIMED_QUEUE_ITEM",
+        "OWNER_API_KEY",
+        "UNDECLARED_RESOURCE"
+      ],
+      "lifecycleStateMachineId": "SM-RUNTIME_INSTANCE",
+      "runtimeGenerationPolicy": "MONOTONIC_ROW_LOCKED",
+      "serviceGenerationPolicy": "SYSTEMD_INVOCATION_ID_BOOT_START_CGROUP",
+      "staleProcessFencing": "ALL_WRITES_QUEUE_LEASE_FENCE",
+      "shutdownDrainKillPolicy": "DRAIN_TERM_KILL_CGROUP_EMPTY",
+      "childProcessPolicy": "NONE",
+      "cleanupPredicateId": "CLOSURE-RUNTIME_INSTANCE",
+      "auditEvidence": [
+        "UNIT",
+        "PEER",
+        "PROCESS",
+        "FD",
+        "CGROUP",
+        "EPOCH"
+      ],
+      "testIds": [
+        "TEST-WORKER-IDENTITY"
+      ],
+      "requirementRefs": [
+        "ssot://55.9/55-9-runtime-boundary-matrix/atom-34",
+        "ssot://50.18/50-18-cgroups-a-resource-limity/atom-3"
+      ],
+      "seccompProfileDigest": "sha256:7220be70eb6fc254e0315c5bd5655c4fd10dab9a26cbebd7fe23071b2e03a211",
+      "namespaceProfileDigest": "sha256:7220be70eb6fc254e0315c5bd5655c4fd10dab9a26cbebd7fe23071b2e03a211",
+      "seccompProfileDigestSource": "deploy/systemd/kcml-service.service.in",
+      "namespaceProfileDigestSource": "deploy/systemd/kcml-service.service.in"
+    }
+  ]
+}
