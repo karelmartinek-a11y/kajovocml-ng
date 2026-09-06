@@ -271,106 +271,6 @@ export function validateCanonicalOperationCommand(operation: OperationContract, 
   if (name === 'selfTest.registeredElement.run') requireString(args, 'evidenceKind');
 }
 
-async function runtimeMutation(client: DatabaseClient, context: CanonicalHandlerContext): Promise<unknown> {
-  const id = requireTarget(context);
-  const current = (await client.query(`SELECT * FROM kcml.runtime_instance WHERE id=$1 FOR UPDATE`, [id])).rows[0] as Record<string, unknown> | undefined;
-  if (!current) throw new DomainError('RUNTIME_CONTEXT_NOT_CURRENT', 'Runtime instance does not exist', 404, 'DO_NOT_RETRY');
-  const currentVersion = BigInt(String(current.state_version));
-  if (context.expectedStateVersion !== null && currentVersion !== context.expectedStateVersion) throw new DomainError('STATE_VERSION_CONFLICT', 'Runtime instance state version changed', 409, 'REFRESH_AND_RETRY_NEW_COMMAND', { currentStateVersion: String(currentVersion) });
-
-  const name = context.operation.operationName;
-  if (name === 'runtime.prepare' || name === 'runtime.instance.start') {
-    if (!['STOPPED', 'FAILED', 'UNKNOWN', 'STARTING'].includes(String(current.effective_state))) throw new DomainError('RUNTIME_STATE_BOUNDARY_VIOLATION', `Cannot start runtime from ${current.effective_state}`, 409, 'RECONCILE_THEN_RETRY');
-    const updated = (await client.query(`UPDATE kcml.runtime_instance SET desired_state='STARTING',effective_state='STARTING',effective_at=NULL,state_version=state_version+1,correlation_id=$2 WHERE id=$1 AND state_version=$3 RETURNING *`, [id, context.correlationId, currentVersion.toString()])).rows[0];
-    if (!updated) throw new DomainError('STATE_VERSION_CONFLICT', 'Runtime instance state version changed during preparation', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
-    return { operation: name, runtime: updated, transition: { from: current.effective_state, to: 'STARTING' }, state_version: updated.state_version };
-  }
-  if (name === 'runtime.drain') {
-    if (!['READY', 'STARTING'].includes(String(current.effective_state))) throw new DomainError('RUNTIME_STATE_BOUNDARY_VIOLATION', `Cannot drain runtime from ${current.effective_state}`, 409, 'RECONCILE_THEN_RETRY');
-    const updated = (await client.query(`UPDATE kcml.runtime_instance SET desired_state='DRAINING',effective_state='DRAINING',drain_logical_operation_id=$2,state_version=state_version+1,correlation_id=$3 WHERE id=$1 AND state_version=$4 RETURNING *`, [id, context.logicalOperationId, context.correlationId, currentVersion.toString()])).rows[0];
-    if (!updated) throw new DomainError('STATE_VERSION_CONFLICT', 'Runtime instance changed during drain', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
-    return { operation: name, runtime: updated, transition: { from: current.effective_state, to: 'DRAINING' }, state_version: updated.state_version };
-  }
-  if (name === 'runtime.stop' || name === 'runtime.cancel') {
-    if (current.effective_state === 'STOPPED') return { operation: name, runtime: current, duplicate: true, state_version: currentVersion };
-    const updated = (await client.query(`UPDATE kcml.runtime_instance SET desired_state='STOPPED',effective_state='STOPPED',stopped_at=clock_timestamp(),stop_logical_operation_id=$2,state_version=state_version+1,correlation_id=$3 WHERE id=$1 AND state_version=$4 RETURNING *`, [id, context.logicalOperationId, context.correlationId, currentVersion.toString()])).rows[0];
-    if (!updated) throw new DomainError('STATE_VERSION_CONFLICT', 'Runtime instance changed during stop', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
-    return { operation: name, runtime: updated, transition: { from: current.effective_state, to: 'STOPPED' }, state_version: updated.state_version };
-  }
-  if (name === 'runtime.instance.restart') {
-    const updated = (await client.query(`UPDATE kcml.runtime_instance SET desired_state='RESTARTING',effective_state='STARTING',restart_logical_operation_id=$2,state_version=state_version+1,correlation_id=$3 WHERE id=$1 AND state_version=$4 RETURNING *`, [id, context.logicalOperationId, context.correlationId, currentVersion.toString()])).rows[0];
-    if (!updated) throw new DomainError('STATE_VERSION_CONFLICT', 'Runtime instance changed during restart', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
-    return { operation: name, runtime: updated, transition: { from: current.effective_state, to: 'STARTING' }, state_version: updated.state_version };
-  }
-  if (name === 'runtime.heartbeat') {
-    const sequence = Number(context.arguments.heartbeatSequence);
-    if (!Number.isSafeInteger(sequence) || sequence <= Number(current.heartbeat_sequence ?? 0)) throw new DomainError('RUNTIME_PROCESS_STALE', 'Heartbeat sequence must advance monotonically', 409, 'DO_NOT_RETRY');
-    const updated = (await client.query(`UPDATE kcml.runtime_instance SET heartbeat_sequence=$2,heartbeat_at=clock_timestamp(),state_version=state_version+1,correlation_id=$3 WHERE id=$1 AND state_version=$4 RETURNING *`, [id, sequence, context.correlationId, currentVersion.toString()])).rows[0];
-    if (!updated) throw new DomainError('STATE_VERSION_CONFLICT', 'Runtime instance changed during heartbeat', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
-    return { operation: name, runtime: updated, state_version: updated.state_version };
-  }
-  if (name === 'runtime.cleanup.resume') {
-    const cleanup = (await client.query(`SELECT * FROM kcml.runtime_cleanup_operation WHERE runtime_instance_id=$1 ORDER BY created_at DESC LIMIT 1 FOR UPDATE`, [id])).rows[0];
-    if (!cleanup) throw new DomainError('RUNTIME_CONTEXT_NOT_CURRENT', 'Runtime cleanup operation does not exist', 404, 'DO_NOT_RETRY');
-    return { operation: name, cleanup, closure: cleanup.completed_at !== null };
-  }
-  throw new DomainError('RUNTIME_BOUNDARY_CONTRACT_INCOMPLETE', `${name} has no safe state transition for its current persisted runtime contract`, 409, 'RECONCILE_THEN_RETRY', { state: current.effective_state, operation: name });
-}
-
-async function chatMutation(client: DatabaseClient, context: CanonicalHandlerContext): Promise<unknown> {
-  if (context.operation.operationName === 'chat.conversation.create') {
-    const title = requireString(context.arguments, 'title');
-    const model = requireString(context.arguments, 'selectedModel');
-    const id = randomUUID();
-    const row = (await client.query(`INSERT INTO kcml.system_chat_conversation(id,stable_key,title,owner_actor_id,access_channel,status,selected_model,last_activity_at,current_object_context,canonical_digest,logical_operation_id,correlation_id,activation_epoch,platform_incarnation_id,application_deployment_epoch)
-      VALUES($1,$2,$3,'KRMAR78',$4,'OPEN',$5,clock_timestamp(),'{}'::jsonb,$6,$7,$8,$9,$10,$11) RETURNING *`, [id, `chat:${context.logicalOperationId}`, title, context.arguments.accessChannel === 'API_KEY' ? 'API_KEY' : 'SESSION', model, digest({ id, title, model, logicalOperationId: context.logicalOperationId }), context.logicalOperationId, context.correlationId, context.activationEpoch.toString(), context.platformIncarnationId, context.applicationDeploymentEpoch.toString()])).rows[0];
-    return { operation: context.operation.operationName, conversation: row, state_version: row.state_version };
-  }
-  const conversationId = requireTarget(context);
-  const conversation = (await client.query(`SELECT * FROM kcml.system_chat_conversation WHERE id=$1 FOR UPDATE`, [conversationId])).rows[0];
-  if (!conversation) throw new DomainError('KCIP_TARGET_NOT_FOUND', 'Chat conversation does not exist', 404, 'DO_NOT_RETRY');
-  if (context.operation.operationName === 'chat.message.append') {
-    const content = requireString(context.arguments, 'content');
-    const sequence = BigInt(String((await client.query(`SELECT coalesce((SELECT sequence FROM kcml.system_chat_message WHERE conversation_id=$1 ORDER BY sequence DESC LIMIT 1),0)+1 AS next_sequence`, [conversationId])).rows[0].next_sequence));
-    const row = (await client.query(`INSERT INTO kcml.system_chat_message(conversation_id,sequence,role,content,status,canonical_digest,logical_operation_id,correlation_id,activation_epoch,platform_incarnation_id,application_deployment_epoch)
-      VALUES($1,$2,'OWNER',$3,'COMPLETED',$4,$5,$6,$7,$8,$9) RETURNING *`, [conversationId, sequence.toString(), content, digest({ conversationId, sequence: sequence.toString(), content }), context.logicalOperationId, context.correlationId, context.activationEpoch.toString(), context.platformIncarnationId, context.applicationDeploymentEpoch.toString()])).rows[0];
-    await client.query(`UPDATE kcml.system_chat_conversation SET status='OPEN',last_activity_at=clock_timestamp(),state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`, [conversationId]);
-    return { operation: context.operation.operationName, message: row, state_version: row.state_version, aggregate_event_sequence: sequence };
-  }
-  if (context.operation.operationName === 'chat.response.stream') return { operation: context.operation.operationName, conversationId, status: conversation.status, state_version: conversation.state_version };
-  throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', `No exact chat transition exists for ${context.operation.operationName}`, 409, 'RECONCILE_THEN_RETRY');
-}
-
-async function agentMutation(client: DatabaseClient, context: CanonicalHandlerContext): Promise<unknown> {
-  if (context.operation.operationName === 'agent.run.start') {
-    const agentDefinitionId = requireUuid(context.arguments, 'agentDefinitionId');
-    const agentRevisionId = requireUuid(context.arguments, 'agentRevisionId');
-    const clientRunId = requireString(context.arguments, 'clientRunId');
-    const input = context.arguments.input && typeof context.arguments.input === 'object' ? context.arguments.input : {};
-    const row = (await client.query(`INSERT INTO kcml.agent_run(agent_definition_id,agent_revision_id,agent_graph_snapshot_digest,tool_snapshot_digest,guardrail_snapshot_digest,client_run_id,logical_operation_id,idempotency_key,mode,input,input_digest,context_snapshot,budget,correlation_id,platform_incarnation_id,application_deployment_epoch,activation_epoch,canonical_digest)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`, [agentDefinitionId, agentRevisionId, digest(context.arguments.graphSnapshot ?? {}), digest(context.arguments.toolSnapshot ?? {}), digest(context.arguments.guardrailSnapshot ?? {}), clientRunId, context.logicalOperationId, context.arguments.idempotencyKey ?? context.logicalOperationId, context.arguments.mode ?? 'INTERACTIVE', input, digest(input), context.arguments.contextSnapshot ?? {}, context.arguments.budget ?? {}, context.correlationId, context.platformIncarnationId, context.applicationDeploymentEpoch.toString(), context.activationEpoch.toString(), digest({ agentDefinitionId, agentRevisionId, clientRunId, logicalOperationId: context.logicalOperationId })])).rows[0];
-    return { operation: context.operation.operationName, run: row, state_version: row.state_version };
-  }
-  const id = requireTarget(context);
-  const current = (await client.query(`SELECT * FROM kcml.agent_run WHERE id=$1 FOR UPDATE`, [id])).rows[0];
-  if (!current) throw new DomainError('AGENT_RUN_STATE_UNRESUMABLE', 'Agent run does not exist', 404, 'DO_NOT_RETRY');
-  const transitions: Record<string, { from: string[]; to: string }> = {
-    'agent.run.pause': { from: ['RUNNING', 'WAITING_FOR_MODEL', 'WAITING_FOR_TOOL'], to: 'PAUSED' },
-    'agent.run.resume': { from: ['PAUSED', 'WAITING_FOR_OWNER'], to: 'RUNNING' },
-    'agent.run.cancel': { from: ['QUEUED', 'PREPARING', 'RUNNING', 'WAITING_FOR_MODEL', 'WAITING_FOR_TOOL', 'WAITING_FOR_OWNER'], to: 'CANCEL_REQUESTED' },
-    'agent.run.complete': { from: ['RUNNING', 'WAITING_FOR_MODEL', 'WAITING_FOR_TOOL'], to: 'SUCCEEDED' },
-    'agent.run.fail': { from: ['RUNNING', 'WAITING_FOR_MODEL', 'WAITING_FOR_TOOL'], to: 'FAILED' },
-    'agent.run.manualReview': { from: ['RUNNING', 'WAITING_FOR_MODEL', 'WAITING_FOR_TOOL', 'WAITING_FOR_OWNER'], to: 'MANUAL_REVIEW' }
-  };
-  const transition = transitions[context.operation.operationName];
-  if (!transition) throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', `No exact agent transition exists for ${context.operation.operationName}`, 409, 'RECONCILE_THEN_RETRY');
-  if (!transition.from.includes(String(current.status))) throw new DomainError('SIDE_EFFECT_RECONCILIATION_FAILED', `Cannot apply ${context.operation.operationName} from ${current.status}`, 409, 'RECONCILE_THEN_RETRY');
-  const completed = ['SUCCEEDED', 'FAILED'].includes(transition.to);
-  const row = (await client.query(`UPDATE kcml.agent_run SET status=$2,completed_at=CASE WHEN $3 THEN clock_timestamp() ELSE completed_at END,output=CASE WHEN $3 THEN $4 ELSE output END,output_digest=CASE WHEN $3 THEN $5 ELSE output_digest END,state_version=state_version+1,updated_at=clock_timestamp(),correlation_id=$6 WHERE id=$1 AND state_version=$7 RETURNING *`, [id, transition.to, completed, completed ? (context.arguments.output ?? null) : null, completed ? digest(context.arguments.output ?? null) : null, context.correlationId, current.state_version])).rows[0];
-  if (!row) throw new DomainError('STATE_VERSION_CONFLICT', 'Agent run changed during transition', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
-  return { operation: context.operation.operationName, run: row, transition: { from: current.status, to: transition.to }, state_version: row.state_version };
-}
-
 function unsupportedOperationRejection(family: string, context: CanonicalHandlerContext): never {
   throw new DomainError(
     'SIDE_EFFECT_RECONCILIATION_FAILED',
@@ -1104,13 +1004,54 @@ async function selfTestMutation(_client: DatabaseClient, context: CanonicalHandl
 
 /** Explicit operation dispatch. Every catalogued operation reaches a named
  * family handler; there is no entity/table CRUD fallback in this boundary. */
+const detailedGenerationMutationOperations: ReadonlySet<string> = new Set([
+  'generation.activation.prepare',
+  'generation.activation.rollback',
+  'generation.activation.switch',
+  'generation.candidate.publish',
+  'generation.integration.step',
+  'generation.job.cancel',
+  'generation.job.complete',
+  'generation.job.resume',
+  'generation.job.retry',
+  'generation.message.append',
+  'generation.phase.complete',
+  'generation.phase.start',
+  'generation.validation.run',
+  'generation.workspace.patch'
+]);
+const detailedBrowserMutationOperations: ReadonlySet<string> = new Set([
+  'browser.action.cancel',
+  'browser.action.complete',
+  'browser.action.dispatchPhase',
+  'browser.action.fail',
+  'browser.action.reconcile',
+  'browser.action.resolveOutcome',
+  'browser.action.start',
+  'browser.artifact.created',
+  'browser.challenge.required',
+  'browser.challenge.resolve',
+  'browser.cleanup.resume',
+  'browser.control.transfer',
+  'browser.download.persist',
+  'browser.download.started',
+  'browser.page.observed',
+  'browser.session.attach',
+  'browser.session.close',
+  'browser.session.pause',
+  'browser.session.recover',
+  'browser.session.resume',
+  'browser.upload.consume',
+  'browser.upload.create'
+]);
+
 export function mutationHandlerFor(operation: OperationContract): CanonicalMutationHandler {
-  const exactHandler = exactMutationHandlerFor(operation.operationName);
+  const operationName = operation.operationName;
+  if (detailedGenerationMutationOperations.has(operationName)) return generationMutation;
+  if (detailedBrowserMutationOperations.has(operationName)) return browserMutation;
+  const exactHandler = exactMutationHandlerFor(operationName);
   if (exactHandler) return exactHandler;
-  // The small legacy surface is also named per operation. TD-12 operations
-  // never reach a non-exact fallback: exact dispatch above is the only
-  // path for the 205 newly closed mutation contracts.
-  switch (operation.operationName) {
+  switch (operationName) {
     case 'browser.session.create': return browserMutation;
     case 'component.deregister':
     case 'component.heartbeat':
