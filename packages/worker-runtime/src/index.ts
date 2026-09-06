@@ -7,11 +7,13 @@ import { StructuredLogger } from '@kcml/observability';
 import { createCapabilityServer, type CapabilityRequest, type CapabilityResponse } from '@kcml/runtime-capability-ipc';
 import { assertRuntimeLocalStateKey, assertStateDocumentWithinLimits, assertStateValueWithinLimits, loadRuntimeExecutionLineage, runtimeStateNamespace, type RuntimeExecutionLineage } from './broker-authority.js';
 import { authorizeEgressUrl, performPinnedRequest, type EgressPolicy } from './egress-policy.js';
+import { RuntimeLifecycleExecutor } from './runtime-systemd.js';
 
 export { assertRuntimeLocalStateKey, assertStateDocumentWithinLimits, assertStateValueWithinLimits, loadRuntimeExecutionLineage, runtimeLineageDigest, runtimeStateNamespace } from './broker-authority.js';
 export type { RuntimeExecutionLineage } from './broker-authority.js';
 export { assertPublicDnsAnswers, authorizeEgressUrl, isForbiddenEgressAddress, performPinnedRequest, resolvePublicAddresses } from './egress-policy.js';
 export type { EgressPolicy, PinnedRequestOptions } from './egress-policy.js';
+export { RuntimeLifecycleExecutor, RuntimeSystemdController, parseSystemdShow, runtimeHostUnit } from './runtime-systemd.js';
 
 function requiredSourceSha(): string {
   const value = process.env.KCML_SOURCE_SHA;
@@ -62,7 +64,7 @@ const specializedServices = {
   'kcml-audit-archiver': { queueNames: ['kcml-audit'], allowedOperationPrefixes: ['audit.'], runtimeKind: 'EVIDENCE_WORKER' },
   'kcml-self-test-worker': { queueNames: ['kcml-selftest'], allowedOperationPrefixes: ['selfTest.'], runtimeKind: 'EVIDENCE_WORKER' },
   'kcml-acceptance-runner': { queueNames: ['kcml-selftest'], allowedOperationPrefixes: ['selfTest.'], runtimeKind: 'EVIDENCE_WORKER', intervalMs: 250 },
-  'kcml-runtime-host': { queueNames: ['kcml-runtime'], allowedOperationPrefixes: ['runtime.'], runtimeKind: 'SPECIALIST_HANDLER' },
+  'kcml-runtime-host': { runtimeKind: 'SPECIALIST_HANDLER' },
   'kcml-owner-device-bridge': { runtimeKind: 'PROTOCOL_GATEWAY' },
   'kcml-retry-scheduler': { retryScheduler: true, outboxDelivery: true, runtimeKind: 'COMMAND_COORDINATOR', intervalMs: 250 }
 } as const satisfies Record<string, Omit<ServiceOptions, 'serviceName'>>;
@@ -394,7 +396,8 @@ export async function runService(options: ServiceOptions): Promise<void> {
     || options.allowedOperationPrefixes?.some((prefix) => operation.operationName.startsWith(prefix))
   ).map((operation) => operation.operationName) : [];
   if (options.queueNames && allowedOperations.length === 0) throw new Error('SERVICE_OPERATION_ALLOWLIST_EMPTY');
-  const worker = options.queueNames && catalog ? new CanonicalCommandWorker(pool, catalog, { queueNames: options.queueNames, allowedOperations, workerId: instanceId }) : null;
+  const specialistExecutor = options.serviceName === 'kcml-runtime-gateway' ? new RuntimeLifecycleExecutor() : undefined;
+  const worker = options.queueNames && catalog ? new CanonicalCommandWorker(pool, catalog, { queueNames: options.queueNames, allowedOperations, workerId: instanceId, ...(specialistExecutor ? { specialistExecutor } : {}) }) : null;
   const retryScheduler = options.retryScheduler && catalog ? new CanonicalRetryScheduler(pool, new CanonicalOperationService(pool, catalog), { workerId: instanceId }) : null;
   const outboxDelivery = options.outboxDelivery ? new TransactionalOutboxDeliveryWorker(pool, { workerId: instanceId }) : null;
   const stop = () => { stopping = true; };

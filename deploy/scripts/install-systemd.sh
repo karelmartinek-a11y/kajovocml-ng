@@ -48,6 +48,7 @@ while IFS='|' read -r unit app service_user families writable dependency enabled
 done <"${manifest}"
 for unit in kcml.target kcml-platform-recovery.service kcml-web-api.socket kcml-runtime-gateway.socket kcml-runtime-gateway.service kcml-secret-broker.socket kcml-state-broker.socket kcml-egress-gateway.socket kcml-runtime-host@.service kcml-browser-host@.service kcml-backup.service kcml-backup.timer kcml-tls-renew.service kcml-tls-renew.timer; do install_changed "${repository_root}/deploy/systemd/${unit}" "/etc/systemd/system/${unit}"; done
 install_changed "${repository_root}/deploy/tmpfiles/kajovocml-ng.conf" /etc/tmpfiles.d/kajovocml-ng.conf
+install_changed "${repository_root}/deploy/polkit/50-kcml-runtime-gateway.rules" /etc/polkit-1/rules.d/50-kcml-runtime-gateway.rules 0644
 systemd-tmpfiles --create /etc/tmpfiles.d/kajovocml-ng.conf
 systemctl daemon-reload
 systemctl enable kcml.target kcml-web-api.socket kcml-runtime-gateway.socket kcml-secret-broker.socket kcml-state-broker.socket kcml-egress-gateway.socket kcml-browser-host@primary.service kcml-backup.timer kcml-tls-renew.timer >/dev/null

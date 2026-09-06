@@ -1,0 +1,10 @@
+/* KájovoCML NG: least-privilege lifecycle authority for runtime host units. */
+polkit.addRule(function(action, subject) {
+  if (action.id !== "org.freedesktop.systemd1.manage-units") return polkit.Result.NOT_HANDLED;
+  if (subject.user !== "kcml-runtime-gateway") return polkit.Result.NOT_HANDLED;
+  var unit = action.lookup("unit");
+  var verb = action.lookup("verb");
+  var runtimeUnit = /^kcml-runtime-host@[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.service$/;
+  if (runtimeUnit.test(unit) && (verb === "start" || verb === "stop" || verb === "restart" || verb === "kill")) return polkit.Result.YES;
+  return polkit.Result.NO;
+});
