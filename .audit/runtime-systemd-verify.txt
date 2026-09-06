@@ -12,9 +12,9 @@ $ node scripts/compile-ssot-surface.mjs --check && node scripts/compile-contract
 }
 verified requirements=13959 operations=262 files=33 pack=sha256:b31a4486a72280f1626ddf791a7b804577c2034aa993c2726095c2a9a47ee807
 Normative Contract Pack validation complete: 13 registries, 13959 SSOT requirements, sha256:b31a4486a72280f1626ddf791a7b804577c2034aa993c2726095c2a9a47ee807. Implementation evidence is validated separately.
-verified artifact evidence=437 mapped=437 unmapped=0 trace=sha256:bce2034167bb864ad54f44dc5aeb99a3449ec54b1c2377c46a2ea14b61bb70c1
-Contract trace/evidence validation complete: 437 repository artifacts and 13959 requirement atoms bound to normative pack sha256:b31a4486a72280f1626ddf791a7b804577c2034aa993c2726095c2a9a47ee807.
-{"status":"PASS","authorityRecordCount":42,"requiredKindCount":36,"operationCount":262,"staticWriterCount":635,"staticEvidenceDigest":"sha256:c8a7cee191c16391e211caa585611b75b8a47131b47ea4a62f8d29ddc8c8281d","failures":[],"evidenceDigest":"sha256:0c18b2c5b979c9dff36188c46d1d2dd1a170eadf65bcb8c2a28d1ccb74bd6e1d"}
+verified artifact evidence=438 mapped=438 unmapped=0 trace=sha256:b8fdd674d2ac78f34fdbb7a4a11c4eccd9967a2c7b9bb68e9c8f7a40cfd69712
+Contract trace/evidence validation complete: 438 repository artifacts and 13959 requirement atoms bound to normative pack sha256:b31a4486a72280f1626ddf791a7b804577c2034aa993c2726095c2a9a47ee807.
+{"status":"PASS","authorityRecordCount":42,"requiredKindCount":36,"operationCount":262,"staticWriterCount":634,"staticEvidenceDigest":"sha256:1447bc0189c8e2e760caccc719add33c49c9efdc3e277a3bce31a60f448a6543","failures":[],"evidenceDigest":"sha256:03738d47ab6c39e779c963310cffb62a9cb3d6631e01b4cd0e71c44bb81de01e"}
 Error code verification PASS registered=258 domainExpressions=598 sqlMarkers=16 unknown=0 conflicts=0
 
 ===== pnpm lint =====
@@ -36,14 +36,14 @@ apps/owner-ui build$ vite build
 packages/agentic-authority build$ tsc -p tsconfig.json
 packages/browser-runtime-contracts build$ tsc -p tsconfig.json
 packages/content-provenance build$ tsc -p tsconfig.json
-packages/content-provenance build: Done
-packages/database build$ tsc -p tsconfig.json
 packages/agentic-authority build: Done
+packages/database build$ tsc -p tsconfig.json
+packages/content-provenance build: Done
 packages/kcip build$ tsc -p tsconfig.json
 apps/owner-ui build: [36mvite v8.2.2 [32mbuilding client environment for production...[36m[39m
+apps/owner-ui build: transforming...
 packages/browser-runtime-contracts build: Done
 packages/runtime-capability-ipc build$ tsc -p tsconfig.json
-apps/owner-ui build: transforming...
 packages/database build: Done
 apps/owner-ui build: ✓ 1827 modules transformed.
 packages/kcip build: Done
@@ -53,15 +53,15 @@ apps/owner-ui build: computing gzip size...
 apps/owner-ui build: dist/index.html                   0.46 kB │ gzip:  0.31 kB
 apps/owner-ui build: dist/assets/index-hTb9w2jN.css   28.27 kB │ gzip:  6.44 kB
 apps/owner-ui build: dist/assets/index-FXQbZrhn.js   311.19 kB │ gzip: 98.09 kB │ map: 1,523.73 kB
-apps/owner-ui build: [32m✓ built in 759ms[39m
+apps/owner-ui build: [32m✓ built in 577ms[39m
 apps/owner-ui build: Done
 packages/browser-preview-protocol build$ tsc -p tsconfig.json
 packages/component-sdk build$ tsc -p tsconfig.json
 packages/domain build$ tsc -p tsconfig.json
 packages/runtime-boundary build$ tsc -p tsconfig.json
+packages/browser-preview-protocol build: Done
 packages/runtime-boundary build: Done
 packages/component-sdk build: Done
-packages/browser-preview-protocol build: Done
 packages/domain build: Done
 apps/platform-recovery build$ tsc -p tsconfig.json
 packages/browser-interaction build$ tsc -p tsconfig.json
@@ -75,12 +75,96 @@ packages/browser-interaction build: Done
 packages/worker-runtime build$ tsc -p tsconfig.json
 packages/mcp-runtime build: Done
 packages/testing build: Done
-packages/worker-runtime build: src/index.ts(400,92): error TS2379: Argument of type '{ queueNames: readonly string[]; allowedOperations: string[]; workerId: `${string}-${string}-${string}-${string}-${string}`; specialistExecutor: RuntimeLifecycleExecutor | undefined; }' is not assignable to parameter of type 'WorkerOptions' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-packages/worker-runtime build:   Types of property 'specialistExecutor' are incompatible.
-packages/worker-runtime build:     Type 'RuntimeLifecycleExecutor | undefined' is not assignable to type 'SpecialistCommandExecutor'.
-packages/worker-runtime build:       Type 'undefined' is not assignable to type 'SpecialistCommandExecutor'.
-packages/worker-runtime build: Failed
-/home/runner/work/kajovocml-ng/kajovocml-ng/packages/worker-runtime:
-[ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @kcml/worker-runtime@2026.8.30-8 build: `tsc -p tsconfig.json`
-Exit status 2
-[ELIFECYCLE] Command failed with exit code 2.
+packages/worker-runtime build: Done
+packages/openai-runtime build: Done
+apps/acceptance-runner build$ tsc -p tsconfig.json
+apps/agent-worker build$ tsc -p tsconfig.json
+apps/alert-worker build$ tsc -p tsconfig.json
+apps/audit-archiver build$ tsc -p tsconfig.json
+apps/alert-worker build: Done
+apps/browser-bridge-gateway build$ tsc -p tsconfig.json
+apps/acceptance-runner build: Done
+apps/central-chat-worker build$ tsc -p tsconfig.json
+apps/agent-worker build: Done
+apps/component-control-worker build$ tsc -p tsconfig.json
+apps/audit-archiver build: Done
+apps/component-e2e-worker build$ tsc -p tsconfig.json
+apps/central-chat-worker build: Done
+apps/egress-gateway build$ tsc -p tsconfig.json
+apps/browser-bridge-gateway build: Done
+apps/generation-activation-worker build$ tsc -p tsconfig.json
+apps/component-control-worker build: Done
+apps/generation-coordinator build$ tsc -p tsconfig.json
+apps/component-e2e-worker build: Done
+apps/generation-integration-worker build$ tsc -p tsconfig.json
+apps/egress-gateway build: Done
+apps/generation-openai-worker build$ tsc -p tsconfig.json
+apps/generation-activation-worker build: Done
+apps/generation-validation-worker build$ tsc -p tsconfig.json
+apps/generation-coordinator build: Done
+apps/generation-workspace-worker build$ tsc -p tsconfig.json
+apps/generation-integration-worker build: Done
+apps/mcp-worker build$ tsc -p tsconfig.json
+apps/generation-openai-worker build: Done
+apps/monitor-worker build$ tsc -p tsconfig.json
+apps/generation-validation-worker build: Done
+apps/owner-device-bridge build$ tsc -p tsconfig.json
+apps/generation-workspace-worker build: Done
+apps/retry-scheduler build$ tsc -p tsconfig.json
+apps/mcp-worker build: Done
+apps/runtime-gateway build$ tsc -p tsconfig.json
+apps/monitor-worker build: Done
+apps/runtime-host build$ tsc -p tsconfig.json
+apps/owner-device-bridge build: Done
+apps/secret-broker build$ tsc -p tsconfig.json
+apps/retry-scheduler build: Done
+apps/self-test-runtime build$ tsc -p tsconfig.json
+apps/runtime-gateway build: Done
+apps/server build$ tsc -p tsconfig.json
+apps/runtime-host build: Done
+apps/state-broker build$ tsc -p tsconfig.json
+apps/secret-broker build: Done
+packages/agent-sdk build$ tsc -p tsconfig.json
+apps/self-test-runtime build: Done
+packages/browser-automation-runtime build$ tsc -p tsconfig.json
+apps/state-broker build: Done
+packages/generation-orchestrator build$ tsc -p tsconfig.json
+packages/browser-automation-runtime build: Done
+packages/agent-sdk build: Done
+packages/generation-orchestrator build: Done
+apps/server build: Done
+apps/browser-host build$ tsc -p tsconfig.json
+apps/browser-worker build$ tsc -p tsconfig.json
+apps/browser-host build: Done
+apps/browser-worker build: Done
+
+===== pnpm exec vitest run tests/runtime-boundary/runtime-systemd.test.ts tests/runtime-boundary/ipc-multiplex.test.ts tests/runtime-boundary/matrix.test.ts =====
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/home/runner/work/kajovocml-ng/kajovocml-ng[39m
+
+ [32m✓[39m tests/runtime-boundary/matrix.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m tests/runtime-boundary/ipc-multiplex.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 44663[2mms[22m[39m
+     [33m[2m✓[22m[39m correlates 10k reordered responses without listener growth [33m 44662[2mms[22m[39m
+ [31m❯[39m tests/runtime-boundary/runtime-systemd.test.ts [2m([22m[2m0 test[22m[2m)[22m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Suites 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m tests/runtime-boundary/runtime-systemd.test.ts[2m [ tests/runtime-boundary/runtime-systemd.test.ts ][22m
+[31m[1mError[22m: Cannot find package '@kcml/worker-runtime' imported from /home/runner/work/kajovocml-ng/kajovocml-ng/tests/runtime-boundary/runtime-systemd.test.ts[39m
+[36m [2m❯[22m tests/runtime-boundary/runtime-systemd.test.ts:[2m2:1[22m[39m
+    [90m  1|[39m [35mimport[39m { describe[33m,[39m expect[33m,[39m it } [35mfrom[39m [32m'vitest'[39m[33m;[39m
+    [90m  2|[39m import { parseSystemdShow, runtimeHostUnit } from '@kcml/worker-runtim…
+    [90m   |[39m [31m^[39m
+    [90m  3|[39m
+    [90m  4|[39m [34mdescribe[39m([32m'runtime systemd lifecycle authority'[39m[33m,[39m () [33m=>[39m {
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m2 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m9 passed[39m[22m[90m (9)[39m
+[2m   Start at [22m 13:34:04
+[2m   Duration [22m 45.17s[2m (transform 69ms, setup 0ms, import 185ms, tests 44.67s, environment 0ms)[22m
+
+
+::error file=/home/runner/work/kajovocml-ng/kajovocml-ng/tests/runtime-boundary/runtime-systemd.test.ts,title=tests/runtime-boundary/runtime-systemd.test.ts,line=2,column=1::Error: Cannot find package '@kcml/worker-runtime' imported from /home/runner/work/kajovocml-ng/kajovocml-ng/tests/runtime-boundary/runtime-systemd.test.ts%0A ❯ tests/runtime-boundary/runtime-systemd.test.ts:2:1%0A%0A⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯%0ASerialized Error: { code: 'ERR_MODULE_NOT_FOUND' }%0A
