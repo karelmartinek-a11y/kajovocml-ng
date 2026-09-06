@@ -25,7 +25,9 @@ jobs:
           node-version: '24.11.1'
           cache: pnpm
       - name: Apply ordered outbox remediation
-        run: python3 scripts/audit-remediation-batch5.py
+        run: |
+          python3 scripts/audit-remediation-batch5.py
+          python3 scripts/audit-remediation-batch5-fix.py
       - name: Install
         run: pnpm install --frozen-lockfile
       - name: Verify SSOT surface and registries
@@ -42,7 +44,7 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add packages/worker-runtime/src/index.ts packages/worker-runtime/src/outbox-delivery.ts scripts/lib/authority-writer-audit.mjs
+          git add packages/worker-runtime/src/index.ts
           if git diff --cached --quiet; then
             echo 'No outbox remediation changes.'
             exit 0
