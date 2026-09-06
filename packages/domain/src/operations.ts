@@ -222,12 +222,20 @@ export class CanonicalCommandWorker {
   public async runOnce():Promise<boolean>{
     const claim=await inTransactionProfile(this.pool,'WORKER_COMMIT',async(client)=>{
       const recoveryHead=await lockAndVerifyPlatformRecovery(client);
-      const candidateResult=await client.query(`SELECT q.id,q.command_id FROM kcml.queue_item q JOIN kcml.domain_command c ON c.id=q.command_id
+      const candidateResult=await client.query(`SELECT q.id,q.command_id FROM kcml.queue_item q
+        JOIN kcml.domain_command c ON c.id=q.command_id
+        JOIN kcml.domain_command_activation_domain admission ON admission.domain_command_id=c.id
+        JOIN kcml.concurrency_claim claim ON claim.id=c.concurrency_claim_id
+        LEFT JOIN kcml.domain_command_execution_checkpoint checkpoint ON checkpoint.command_id=c.id
         WHERE q.queue_name=ANY($1) AND ($5::text[] IS NULL OR c.operation_name=ANY($5)) AND q.available_at<=clock_timestamp()
           AND (q.status='READY' OR (q.status='CLAIMED' AND q.lease_expires_at<=clock_timestamp()))
           AND q.platform_incarnation_id=$2 AND q.application_deployment_epoch=$3 AND q.recovery_epoch=$4
           AND c.platform_incarnation_id=$2 AND c.application_deployment_epoch=$3 AND c.recovery_epoch=$4
-        ORDER BY q.priority,q.available_at,q.id LIMIT 1`,[this.options.queueNames,recoveryHead.platform_incarnation_id,recoveryHead.current_epoch,recoveryHead.recovery_epoch,this.options.allowedOperations??null]);const candidate=candidateResult.rows[0];if(!candidate)return null;
+          AND claim.released_at IS NULL AND claim.logical_operation_id=c.logical_operation_id
+          AND claim.fencing_token=c.concurrency_fencing_token AND q.concurrency_fencing_token=c.concurrency_fencing_token
+          AND claim.platform_incarnation_id=$2 AND claim.application_deployment_epoch=$3 AND claim.recovery_epoch=$4
+          AND (admission.state='ADMITTED' OR (admission.state='TERMINAL' AND checkpoint.command_id IS NOT NULL))
+        ORDER BY q.priority,q.available_at,q.id FOR UPDATE OF q SKIP LOCKED LIMIT 1`,[this.options.queueNames,recoveryHead.platform_incarnation_id,recoveryHead.current_epoch,recoveryHead.recovery_epoch,this.options.allowedOperations??null]);const candidate=candidateResult.rows[0];if(!candidate)return null;
       const guard=(await client.query(`SELECT relation.id AS admission_id,relation.activation_domain_id,relation.state AS admission_state,c.operation_name,c.target_id,c.logical_operation_id,c.concurrency_claim_id,c.concurrency_fencing_token,c.activation_epoch
         FROM kcml.domain_command c JOIN kcml.domain_command_activation_domain relation ON relation.domain_command_id=c.id WHERE c.id=$1`,[candidate.command_id])).rows[0];if(!guard)return null;
       await client.query(`SELECT id FROM kcml.activation_domain_head WHERE id=$1 FOR UPDATE`,[guard.activation_domain_id]);
@@ -308,6 +316,8 @@ export class CanonicalCommandWorker {
         if(!await checkpointRecoveryAuthorized(client,row,checkpoint))throw new DomainError('CHECKPOINT_DIGEST_INVALID','Persisted command checkpoint does not match current logical operation lineage or an exact terminal-replay recovery classification',409,'MANUAL_REVIEW');
         return checkpoint.output;
       }
+      const deadline=(await client.query(`SELECT deadline_at FROM kcml.domain_command WHERE id=$1 FOR UPDATE`,[row.command_id])).rows[0]?.deadline_at;
+      if(deadline&&new Date(String(deadline)).getTime()<=Date.now())throw new DomainError('KCIP_DEADLINE_EXCEEDED','Command deadline elapsed before execution began',408,'DO_NOT_RETRY');
       const output=await apply(client,head);const safeOutput=jsonSafe(output);
       await client.query(`INSERT INTO kcml.domain_command_execution_checkpoint(command_id,logical_operation_id,checkpoint_state,output,output_digest,concurrency_claim_id,concurrency_fencing_token,recovery_epoch,platform_incarnation_id,application_deployment_epoch)
         VALUES($1,$2,'APPLIED',$3,digest(convert_to($3::jsonb::text,'UTF8'),'sha256'),$4,$5,$6,$7,$8)`,[row.command_id,row.logical_operation_id,safeOutput,row.concurrency_claim_id,row.concurrency_fencing_token,row.recovery_epoch,head.platform_incarnation_id,head.current_epoch]);

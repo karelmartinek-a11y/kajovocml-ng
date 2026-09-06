@@ -85,14 +85,14 @@ export class BrowserInteractionService {
   private async waitForActionId(commandId: string, timeoutMs: number): Promise<string> {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
-      const result = await this.pool.query(`SELECT c.status,c.failure,checkpoint.output
+      const result = await this.pool.query(`SELECT c.status,c.error,checkpoint.output
         FROM kcml.domain_command c
         LEFT JOIN kcml.domain_command_execution_checkpoint checkpoint ON checkpoint.command_id=c.id
         WHERE c.id=$1`, [commandId]);
       const command = result.rows[0] as Row | undefined;
       if (!command) throw new DomainError('KCIP_TARGET_NOT_FOUND', 'Browser action command disappeared before execution', 409, 'DO_NOT_RETRY');
       if (command.status === 'FAILED' || command.status === 'CANCELLED') {
-        throw new DomainError('BROWSER_ACTIONABILITY_FAILED', 'Browser action command failed before the action aggregate was created', 409, 'RECONCILE_THEN_RETRY', { commandId, failure: command.failure ?? null });
+        throw new DomainError('BROWSER_ACTIONABILITY_FAILED', 'Browser action command failed before the action aggregate was created', 409, 'RECONCILE_THEN_RETRY', { commandId, failure: command.error ?? null });
       }
       const output = command.output && typeof command.output === 'object' ? command.output as Row : null;
       const value = output?.value && typeof output.value === 'object' ? output.value as Row : null;

@@ -62,13 +62,13 @@ new="INSERT INTO kcml.generation_message(job_id,sequence,role,content,attachment
 if t.count(old)!=1: raise SystemExit(f'canonical generation_message column marker count={t.count(old)}')
 t=t.replace(old,new,1)
 # The detailed path uses content digest immediately before lineage fields; duplicate that digest as canonical row digest.
-needle="contentDigest, context.logicalOperationId, context.correlationId, context.activationEpoch.toString(), context.platformIncarnationId, context.applicationDeploymentEpoch.toString()"
+needle="digest(content), context.logicalOperationId, context.correlationId, context.activationEpoch.toString(), context.platformIncarnationId, context.applicationDeploymentEpoch.toString()"
 if t.count(needle)!=1: raise SystemExit(f'canonical generation_message bind marker count={t.count(needle)}')
-t=t.replace(needle,"contentDigest, digest({ jobId, sequence: sequence.toString(), role: context.arguments.role ?? 'OWNER', content: context.arguments.content, attachments: context.arguments.attachments ?? [] }), context.logicalOperationId, context.correlationId, context.activationEpoch.toString(), context.platformIncarnationId, context.applicationDeploymentEpoch.toString()",1)
+t=t.replace(needle,"digest(content), digest({ jobId, sequence: sequence.toString(), role: context.arguments.role ?? 'OWNER', content: context.arguments.content, attachments: context.arguments.attachments ?? [] }), context.logicalOperationId, context.correlationId, context.activationEpoch.toString(), context.platformIncarnationId, context.applicationDeploymentEpoch.toString()",1)
 # Add one placeholder to the generation_message VALUES list only.
-marker="VALUES($1,$2,$3,$4,$5,'COMPLETED',$6,$7,$8,$9,$10,$11) RETURNING *`"
+marker="VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`"
 if t.count(marker)!=1: raise SystemExit(f'canonical generation_message values marker count={t.count(marker)}')
-t=t.replace(marker,"VALUES($1,$2,$3,$4,$5,'COMPLETED',$6,$7,$8,$9,$10,$11,$12) RETURNING *`",1)
+t=t.replace(marker,"VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`",1)
 p.write_text(t,encoding='utf-8')
 
 # RUN-010: STARTING is an idempotent in-progress prepare, not a second transition.
