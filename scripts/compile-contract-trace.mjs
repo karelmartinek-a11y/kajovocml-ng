@@ -21,12 +21,16 @@ const sourceFiles = [
   'contracts/traceability/artifact-trace-source-test-overrides.json',
   'contracts/traceability/artifact-trace-source-remediation.json'
 ];
+const operationalControlPlanePaths = new Set([
+  '.github/workflows/audit-remediation.yml'
+]);
 
 const merged = new Map();
 for (const sourcePath of sourceFiles) {
   const source = JSON.parse(await readFile(join(root, sourcePath), 'utf8'));
   if (source.schemaVersion !== '1.0' || source.kind !== 'ARTIFACT_TRACE_SOURCE' || !Array.isArray(source.records)) throw new Error(`TRACE_SOURCE_INVALID:${sourcePath}`);
   for (const record of source.records) {
+    if (operationalControlPlanePaths.has(record.repositoryPath)) continue;
     const current = merged.get(record.repositoryPath) ?? { repositoryPath: record.repositoryPath, requirementIds: [], operationIds: [], stateMachineIds: [], registryRecordIds: [], testIds: [], releaseIds: [], traceAnchors: [] };
     for (const field of ['requirementIds','operationIds','stateMachineIds','registryRecordIds','testIds','releaseIds']) current[field] = stable([...(current[field] ?? []), ...(record[field] ?? [])]);
     const anchors = [...(current.traceAnchors ?? []), ...(record.traceAnchors ?? [])];
@@ -41,6 +45,7 @@ for (const sourcePath of sourceFiles) {
 try {
   const legacy = JSON.parse(await readFile(join(root, 'contracts/registries/artifact-trace/artifact-trace.json'), 'utf8'));
   for (const record of legacy.records ?? []) {
+    if (operationalControlPlanePaths.has(record.repositoryPath)) continue;
     const current = merged.get(record.repositoryPath) ?? { repositoryPath: record.repositoryPath, requirementIds: [], operationIds: [], stateMachineIds: [], registryRecordIds: [], testIds: [], releaseIds: [], traceAnchors: [] };
     for (const field of ['requirementIds','operationIds','stateMachineIds','registryRecordIds','testIds','releaseIds']) current[field] = stable([...(current[field] ?? []), ...(record[field] ?? [])]);
     const anchors = [...(current.traceAnchors ?? []), ...(record.traceAnchors ?? [])];
@@ -57,7 +62,7 @@ async function collect(directory = root) {
     const absolute = join(directory, entry.name);
     const repositoryPath = relative(root, absolute).replaceAll('\\','/');
     if (entry.isDirectory()) output.push(...await collect(absolute));
-    else if (entry.isFile() && !repositoryPath.startsWith('contracts/registries/') && !repositoryPath.startsWith('contracts/registry-schemas/') && !repositoryPath.startsWith('contracts/traceability/artifact-trace/')) output.push(repositoryPath);
+    else if (entry.isFile() && !operationalControlPlanePaths.has(repositoryPath) && !repositoryPath.startsWith('contracts/registries/') && !repositoryPath.startsWith('contracts/registry-schemas/') && !repositoryPath.startsWith('contracts/traceability/artifact-trace/')) output.push(repositoryPath);
   }
   return output;
 }
