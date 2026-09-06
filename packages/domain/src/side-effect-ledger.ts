@@ -59,13 +59,15 @@ export async function recordSideEffectReadbackEvidence(
   const operation = (await client.query(`SELECT current_attempt_sequence FROM kcml.side_effect_operation WHERE id=$1 FOR UPDATE`, [operationId])).rows[0];
   if (!operation) throw new Error('SIDE_EFFECT_OPERATION_NOT_FOUND');
   const attemptSequence = BigInt(String(operation.current_attempt_sequence));
-  const next = (await client.query(`SELECT coalesce(max(evidence_sequence),0)+1 AS next FROM kcml.side_effect_attempt_evidence WHERE operation_id=$1 AND attempt_sequence=$2`, [operationId, attemptSequence.toString()])).rows[0]?.next;
-  const evidenceSequence = BigInt(String(next ?? 1));
+  const allocated = (await client.query(`UPDATE kcml.side_effect_attempt_state
+    SET last_evidence_sequence=last_evidence_sequence+1,status=$3,state_version=state_version+1,updated_at=clock_timestamp()
+    WHERE operation_id=$1 AND attempt_sequence=$2
+    RETURNING last_evidence_sequence`, [operationId, attemptSequence.toString(), disposition])).rows[0]?.last_evidence_sequence;
+  if (allocated === undefined || allocated === null) throw new Error('SIDE_EFFECT_ATTEMPT_STATE_NOT_FOUND');
+  const evidenceSequence = BigInt(String(allocated));
   const safePayload = toCanonicalJsonValue(payload);
   const payloadDigest = digest(safePayload);
   await client.query(`INSERT INTO kcml.side_effect_attempt_evidence(operation_id,attempt_sequence,evidence_sequence,evidence_type,payload,payload_digest)
     VALUES($1,$2,$3,'INDEPENDENT_READBACK',$4,$5)`, [operationId, attemptSequence.toString(), evidenceSequence.toString(), safePayload, payloadDigest]);
-  await client.query(`UPDATE kcml.side_effect_attempt_state SET status=$3,last_evidence_sequence=$4,state_version=state_version+1,updated_at=clock_timestamp()
-    WHERE operation_id=$1 AND attempt_sequence=$2`, [operationId, attemptSequence.toString(), disposition, evidenceSequence.toString()]);
   await client.query(`UPDATE kcml.side_effect_operation SET status=$2,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1`, [operationId, disposition]);
 }
