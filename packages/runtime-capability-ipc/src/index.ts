@@ -1,6 +1,8 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { createConnection, createServer, type Server, type Socket } from 'node:net';
 import { spawn } from 'node:child_process';
+import { createRequire } from 'node:module';
+import { resolve } from 'node:path';
 import { chmod, unlink } from 'node:fs/promises';
 import { canonicalJson, toCanonicalJsonValue, type CanonicalJsonValue, z } from '@kcml/schemas';
 
@@ -15,6 +17,46 @@ export const RUNTIME_IPC_MAX_UNARY = 16 * 1024 * 1024;
 export const RUNTIME_IPC_MAX_STREAM_CHUNK = 64 * 1024;
 export const RUNTIME_IPC_HEADER_BYTES = 16;
 export const RUNTIME_IPC_MAX_PENDING = 32;
+
+
+export interface RuntimeSocketFdEvidence {
+  readonly family: 'AF_UNIX' | 'OTHER';
+  readonly socketType: 'SOCK_STREAM' | 'OTHER';
+  readonly accepting: boolean;
+  readonly nonBlocking: boolean;
+  readonly closeOnExec: boolean;
+  readonly device: bigint;
+  readonly inode: bigint;
+  readonly localPath: string;
+}
+
+interface NativeRuntimeFdAddon {
+  setFdCloexec(fd: number): void;
+  inspectSocketFd(fd: number): RuntimeSocketFdEvidence;
+  openPidfd(pid: number): number;
+}
+
+let nativeRuntimeFdAddon: NativeRuntimeFdAddon | null = null;
+function runtimeFdAddon(): NativeRuntimeFdAddon {
+  if (nativeRuntimeFdAddon) return nativeRuntimeFdAddon;
+  const addonPath = process.env.KCML_NATIVE_FD_ADDON ?? resolve(process.cwd(), 'deploy/runtime/kcml-fd-cloexec.node');
+  const loaded = createRequire(import.meta.url)(addonPath) as Partial<NativeRuntimeFdAddon>;
+  if (typeof loaded.setFdCloexec !== 'function' || typeof loaded.inspectSocketFd !== 'function' || typeof loaded.openPidfd !== 'function') throw new Error('KCML_NATIVE_FD_ADDON_INVALID');
+  nativeRuntimeFdAddon = loaded as NativeRuntimeFdAddon;
+  return nativeRuntimeFdAddon;
+}
+
+export function sealAndInspectSocketFd(fd: number): RuntimeSocketFdEvidence {
+  if (!Number.isInteger(fd) || fd < 0) throw new Error('RUNTIME_SOCKET_FD_INVALID');
+  const native = runtimeFdAddon();
+  native.setFdCloexec(fd);
+  return native.inspectSocketFd(fd);
+}
+
+export function openPinnedPidfd(pid: number): number {
+  if (!Number.isInteger(pid) || pid <= 0) throw new Error('RUNTIME_PEER_PID_INVALID');
+  return runtimeFdAddon().openPidfd(pid);
+}
 
 export const runtimeFrameType = {
   HELLO: 1, READY: 2, REQUEST: 3, RESPONSE: 4, ERROR: 5, STREAM_OPEN: 6,
@@ -77,9 +119,10 @@ export function decodeRuntimeFrameHeader(header: Buffer): { frameType: RuntimeFr
   return { frameType, flags: header.readUInt16BE(6), payloadLength, sequence };
 }
 
-function consumeRuntimeFrames(socket: Socket, onFrame: (frame: RuntimeFrame) => Promise<void>): void {
+export function consumeRuntimeFrames(socket: Socket, onFrame: (frame: RuntimeFrame) => Promise<void>): void {
   let pending = Buffer.alloc(0);
   let expectedSequence = 1;
+  let handling = Promise.resolve();
   socket.on('data', (chunk: Buffer) => {
     pending = Buffer.concat([pending, chunk]);
     while (pending.length >= RUNTIME_IPC_HEADER_BYTES) {
@@ -105,7 +148,8 @@ function consumeRuntimeFrames(socket: Socket, onFrame: (frame: RuntimeFrame) => 
       let payload: unknown;
       if (header.frameType === 'STREAM_CHUNK') payload = Buffer.from(payloadBytes);
       else { try { payload = JSON.parse(payloadBytes.toString('utf8')); } catch { socket.destroy(new Error('RUNTIME_PROTOCOL_INVALID_JSON')); return; } }
-      void onFrame({ frameType: header.frameType, flags: header.flags, sequence: header.sequence, payload }).catch((error: unknown) => socket.destroy(error instanceof Error ? error : new Error(String(error))));
+      const frame = { frameType: header.frameType, flags: header.flags, sequence: header.sequence, payload } as RuntimeFrame;
+      handling = handling.then(() => onFrame(frame)).catch((error: unknown) => { socket.destroy(error instanceof Error ? error : new Error(String(error))); });
     }
   });
 }

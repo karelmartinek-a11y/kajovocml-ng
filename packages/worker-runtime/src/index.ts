@@ -8,12 +8,14 @@ import { createCapabilityServer, type CapabilityRequest, type CapabilityResponse
 import { assertRuntimeLocalStateKey, assertStateDocumentWithinLimits, assertStateValueWithinLimits, loadRuntimeExecutionLineage, runtimeStateNamespace, type RuntimeExecutionLineage } from './broker-authority.js';
 import { authorizeEgressUrl, performPinnedRequest, type EgressPolicy } from './egress-policy.js';
 import { RuntimeLifecycleExecutor } from './runtime-systemd.js';
+import { startRuntimeGatewayServer } from './runtime-gateway.js';
 
 export { assertRuntimeLocalStateKey, assertStateDocumentWithinLimits, assertStateValueWithinLimits, loadRuntimeExecutionLineage, runtimeLineageDigest, runtimeStateNamespace } from './broker-authority.js';
 export type { RuntimeExecutionLineage } from './broker-authority.js';
 export { assertPublicDnsAnswers, authorizeEgressUrl, isForbiddenEgressAddress, performPinnedRequest, resolvePublicAddresses } from './egress-policy.js';
 export type { EgressPolicy, PinnedRequestOptions } from './egress-policy.js';
 export { RuntimeLifecycleExecutor, RuntimeSystemdController, parseSystemdShow, runtimeHostUnit } from './runtime-systemd.js';
+export { assertRuntimeGatewayActivationEnvironment, parseProcStartTicks, runtimeUnitFromCgroup, startRuntimeGatewayServer } from './runtime-gateway.js';
 
 function requiredSourceSha(): string {
   const value = process.env.KCML_SOURCE_SHA;
@@ -378,6 +380,11 @@ export async function runService(options: ServiceOptions): Promise<void> {
 
   await heartbeat('STARTING');
   let closeBroker: (() => Promise<void>) | null = null;
+  let closeRuntimeGateway: (() => Promise<void>) | null = null;
+  if (options.serviceName === 'kcml-runtime-gateway') {
+    const runtimeGateway = await startRuntimeGatewayServer(pool, logger);
+    closeRuntimeGateway = () => new Promise<void>((resolveClose, reject) => runtimeGateway.close((error) => error ? reject(error) : resolveClose()));
+  }
   if (options.broker) {
     const broker = options.broker;
     const socketPath = options.socketPath ?? `/run/kajovocml-ng/${broker}-broker.sock`;
@@ -427,6 +434,7 @@ export async function runService(options: ServiceOptions): Promise<void> {
   }
   clearInterval(heartbeatTimer);
   await heartbeat('DRAINING');
+  await closeRuntimeGateway?.();
   await closeBroker?.();
   await pool.end();
 }
