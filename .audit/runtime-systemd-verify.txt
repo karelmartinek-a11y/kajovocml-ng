@@ -12,7 +12,75 @@ $ node scripts/compile-ssot-surface.mjs --check && node scripts/compile-contract
 }
 verified requirements=13959 operations=262 files=33 pack=sha256:b31a4486a72280f1626ddf791a7b804577c2034aa993c2726095c2a9a47ee807
 Normative Contract Pack validation complete: 13 registries, 13959 SSOT requirements, sha256:b31a4486a72280f1626ddf791a7b804577c2034aa993c2726095c2a9a47ee807. Implementation evidence is validated separately.
-verified artifact evidence=437 mapped=437 unmapped=0 trace=sha256:7d24f23f9d5b1fc88c17038101d66a4dc82f1386ada524906baf623ab5ef62c4
+verified artifact evidence=437 mapped=437 unmapped=0 trace=sha256:bce2034167bb864ad54f44dc5aeb99a3449ec54b1c2377c46a2ea14b61bb70c1
 Contract trace/evidence validation complete: 437 repository artifacts and 13959 requirement atoms bound to normative pack sha256:b31a4486a72280f1626ddf791a7b804577c2034aa993c2726095c2a9a47ee807.
-{"status":"FAIL","authorityRecordCount":42,"requiredKindCount":36,"operationCount":262,"staticWriterCount":635,"staticEvidenceDigest":"sha256:ce610092c4b508186e0cfb91b6976c5a3cc207506a8038aacae97b2f7eeddbc4","failures":["UNREGISTERED_SQL_WRITER:packages/worker-runtime/src/runtime-systemd.ts:208","UNREGISTERED_SQL_WRITER:packages/worker-runtime/src/runtime-systemd.ts:210","UNREGISTERED_SQL_WRITER:packages/worker-runtime/src/runtime-systemd.ts:219","UNREGISTERED_SQL_WRITER:packages/worker-runtime/src/runtime-systemd.ts:220","UNREGISTERED_SQL_WRITER:packages/worker-runtime/src/runtime-systemd.ts:221","UNREGISTERED_SQL_WRITER:packages/worker-runtime/src/runtime-systemd.ts:222","UNREGISTERED_SQL_WRITER:packages/worker-runtime/src/runtime-systemd.ts:231","UNREGISTERED_SQL_WRITER:packages/worker-runtime/src/runtime-systemd.ts:234","UNREGISTERED_SQL_WRITER:packages/worker-runtime/src/runtime-systemd.ts:235","UNREGISTERED_SQL_WRITER:packages/worker-runtime/src/runtime-systemd.ts:259","UNREGISTERED_SQL_WRITER:packages/worker-runtime/src/runtime-systemd.ts:295","UNREGISTERED_SQL_WRITER:packages/worker-runtime/src/runtime-systemd.ts:309","UNREGISTERED_SQL_WRITER:packages/worker-runtime/src/runtime-systemd.ts:317","STATIC_WRITER_OWNER_UNREGISTERED:packages/worker-runtime/src/runtime-systemd.ts:208:null","STATIC_WRITER_OWNER_UNREGISTERED:packages/worker-runtime/src/runtime-systemd.ts:210:null","STATIC_WRITER_OWNER_UNREGISTERED:packages/worker-runtime/src/runtime-systemd.ts:219:null","STATIC_WRITER_OWNER_UNREGISTERED:packages/worker-runtime/src/runtime-systemd.ts:220:null","STATIC_WRITER_OWNER_UNREGISTERED:packages/worker-runtime/src/runtime-systemd.ts:221:null","STATIC_WRITER_OWNER_UNREGISTERED:packages/worker-runtime/src/runtime-systemd.ts:222:null","STATIC_WRITER_OWNER_UNREGISTERED:packages/worker-runtime/src/runtime-systemd.ts:231:null","STATIC_WRITER_OWNER_UNREGISTERED:packages/worker-runtime/src/runtime-systemd.ts:234:null","STATIC_WRITER_OWNER_UNREGISTERED:packages/worker-runtime/src/runtime-systemd.ts:235:null","STATIC_WRITER_OWNER_UNREGISTERED:packages/worker-runtime/src/runtime-systemd.ts:259:null","STATIC_WRITER_OWNER_UNREGISTERED:packages/worker-runtime/src/runtime-systemd.ts:295:null","STATIC_WRITER_OWNER_UNREGISTERED:packages/worker-runtime/src/runtime-systemd.ts:309:null","STATIC_WRITER_OWNER_UNREGISTERED:packages/worker-runtime/src/runtime-systemd.ts:317:null"],"evidenceDigest":"sha256:cb6cfdd2228cffa7932f8f76f251e6860943d226cc7b9251f7c78d744f0c337f"}
-[ELIFECYCLE] Command failed with exit code 1.
+{"status":"PASS","authorityRecordCount":42,"requiredKindCount":36,"operationCount":262,"staticWriterCount":635,"staticEvidenceDigest":"sha256:c8a7cee191c16391e211caa585611b75b8a47131b47ea4a62f8d29ddc8c8281d","failures":[],"evidenceDigest":"sha256:0c18b2c5b979c9dff36188c46d1d2dd1a170eadf65bcb8c2a28d1ccb74bd6e1d"}
+Error code verification PASS registered=258 domainExpressions=598 sqlMarkers=16 unknown=0 conflicts=0
+
+===== pnpm lint =====
+$ node scripts/lint.mjs
+Repository lint PASS
+
+===== pnpm typecheck =====
+$ pnpm -r --sort --if-present build
+Scope: 52 of 53 workspace projects
+packages/contract-pack build$ tsc -p tsconfig.json
+packages/observability build$ tsc -p tsconfig.json
+packages/schemas build$ tsc -p tsconfig.json
+packages/ui-kit build$ tsc -p tsconfig.json
+packages/observability build: Done
+packages/contract-pack build: Done
+packages/ui-kit build: Done
+packages/schemas build: Done
+apps/owner-ui build$ vite build
+packages/agentic-authority build$ tsc -p tsconfig.json
+packages/browser-runtime-contracts build$ tsc -p tsconfig.json
+packages/content-provenance build$ tsc -p tsconfig.json
+packages/content-provenance build: Done
+packages/database build$ tsc -p tsconfig.json
+packages/agentic-authority build: Done
+packages/kcip build$ tsc -p tsconfig.json
+apps/owner-ui build: [36mvite v8.2.2 [32mbuilding client environment for production...[36m[39m
+packages/browser-runtime-contracts build: Done
+packages/runtime-capability-ipc build$ tsc -p tsconfig.json
+apps/owner-ui build: transforming...
+packages/database build: Done
+apps/owner-ui build: ✓ 1827 modules transformed.
+packages/kcip build: Done
+apps/owner-ui build: rendering chunks...
+packages/runtime-capability-ipc build: Done
+apps/owner-ui build: computing gzip size...
+apps/owner-ui build: dist/index.html                   0.46 kB │ gzip:  0.31 kB
+apps/owner-ui build: dist/assets/index-hTb9w2jN.css   28.27 kB │ gzip:  6.44 kB
+apps/owner-ui build: dist/assets/index-FXQbZrhn.js   311.19 kB │ gzip: 98.09 kB │ map: 1,523.73 kB
+apps/owner-ui build: [32m✓ built in 759ms[39m
+apps/owner-ui build: Done
+packages/browser-preview-protocol build$ tsc -p tsconfig.json
+packages/component-sdk build$ tsc -p tsconfig.json
+packages/domain build$ tsc -p tsconfig.json
+packages/runtime-boundary build$ tsc -p tsconfig.json
+packages/runtime-boundary build: Done
+packages/component-sdk build: Done
+packages/browser-preview-protocol build: Done
+packages/domain build: Done
+apps/platform-recovery build$ tsc -p tsconfig.json
+packages/browser-interaction build$ tsc -p tsconfig.json
+packages/generation-workspace build$ tsc -p tsconfig.json
+packages/mcp-runtime build$ tsc -p tsconfig.json
+packages/generation-workspace build: Done
+packages/openai-runtime build$ tsc -p tsconfig.json
+apps/platform-recovery build: Done
+packages/testing build$ tsc -p tsconfig.json
+packages/browser-interaction build: Done
+packages/worker-runtime build$ tsc -p tsconfig.json
+packages/mcp-runtime build: Done
+packages/testing build: Done
+packages/worker-runtime build: src/index.ts(400,92): error TS2379: Argument of type '{ queueNames: readonly string[]; allowedOperations: string[]; workerId: `${string}-${string}-${string}-${string}-${string}`; specialistExecutor: RuntimeLifecycleExecutor | undefined; }' is not assignable to parameter of type 'WorkerOptions' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+packages/worker-runtime build:   Types of property 'specialistExecutor' are incompatible.
+packages/worker-runtime build:     Type 'RuntimeLifecycleExecutor | undefined' is not assignable to type 'SpecialistCommandExecutor'.
+packages/worker-runtime build:       Type 'undefined' is not assignable to type 'SpecialistCommandExecutor'.
+packages/worker-runtime build: Failed
+/home/runner/work/kajovocml-ng/kajovocml-ng/packages/worker-runtime:
+[ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @kcml/worker-runtime@2026.8.30-8 build: `tsc -p tsconfig.json`
+Exit status 2
+[ELIFECYCLE] Command failed with exit code 2.
