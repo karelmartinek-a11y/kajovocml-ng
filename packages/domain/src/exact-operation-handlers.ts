@@ -876,9 +876,18 @@ async function handleBrowserChallengeRequired(client: DatabaseClient, context: C
 async function handleBrowserChallengeResolve(client: DatabaseClient, context: CanonicalHandlerContext): Promise<unknown> {
   const id = target(context);
   const current = row((await client.query(`SELECT * FROM kcml.browser_challenge WHERE id=$1 FOR UPDATE`, [id])).rows as Row[], 'BROWSER_CHALLENGE_NOT_FOUND', 'Browser challenge does not exist');
+  const responseDigest = digestArgument(context, 'responseDigest', context.arguments.response ?? null);
+  if (current.status === 'RESOLVED') {
+    if (!current.consume_digest || !Buffer.from(current.consume_digest as Buffer).equals(responseDigest)) throw new DomainError('BROWSER_ACTIONABILITY_FAILED', 'A resolved challenge cannot consume a different response', 409, 'DO_NOT_RETRY');
+    return result(context, 'browser_challenge', current, current.state_version, { duplicate: true, requiresFreshObservation: true });
+  }
   assertVersion(context, current);
   if (current.status !== 'PENDING') throw new DomainError('TERMINAL_STATE_IMMUTABLE', 'Only a pending browser challenge can be resolved', 409, 'DO_NOT_RETRY');
-  const responseDigest = digestArgument(context, 'responseDigest', context.arguments.response ?? null);
+  if (new Date(String(current.expires_at)).getTime() <= Date.now() || new Date(String(current.deadline_at)).getTime() <= Date.now()) throw new DomainError('BROWSER_CHALLENGE_STALE', 'Challenge has expired', 409, 'DO_NOT_RETRY');
+  if (context.arguments.controlEpoch !== undefined && BigInt(String(context.arguments.controlEpoch)) !== BigInt(String(current.control_epoch))) throw new DomainError('BROWSER_CHALLENGE_STALE', 'Challenge control epoch is stale', 409, 'REFRESH_AND_RETRY_NEW_COMMAND');
+  if (current.challenge_type === 'WEBAUTHN_ASSERTION' && (!context.arguments.assertion || context.arguments.registration)) throw new DomainError('BROWSER_ACTIONABILITY_FAILED', 'Assertion challenge requires an assertion response', 422, 'DO_NOT_RETRY');
+  if (current.challenge_type === 'WEBAUTHN_REGISTRATION' && (!context.arguments.registration || context.arguments.assertion)) throw new DomainError('BROWSER_ACTIONABILITY_FAILED', 'Registration challenge requires a registration response', 422, 'DO_NOT_RETRY');
+  if (current.challenge_type === 'PASSKEY' && !context.arguments.bridgeResponseId) throw new DomainError('BROWSER_CHALLENGE_REQUIRED', 'Passkey resolution requires OWNER Device Bridge acknowledgement', 422, 'DO_NOT_RETRY');
   const updated = row((await client.query(`UPDATE kcml.browser_challenge SET status='RESOLVED',owner_response_id=$2,bridge_response_id=$3,resolved_at=clock_timestamp(),consume_digest=$4,state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND status='PENDING' AND state_version=$5 RETURNING *`, [id, context.arguments.ownerResponseId ?? null, context.arguments.bridgeResponseId ?? null, responseDigest, current.state_version])).rows as Row[], 'STATE_VERSION_CONFLICT', 'Browser challenge changed while resolving');
   await client.query(`UPDATE kcml.browser_session SET lifecycle='RECOVERING',state_version=state_version+1,updated_at=clock_timestamp() WHERE id=$1 AND lifecycle='CHALLENGE_REQUIRED'`, [current.session_id]);
   await recordAudit(client, context, 'BROWSER_CHALLENGE', id, { challengeId: id, status: 'RESOLVED', responseDigest: `sha256:${responseDigest.toString('hex')}` });

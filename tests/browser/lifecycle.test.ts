@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { loadOperationCatalog } from '../../packages/contract-pack/src/index.js';
-import { validateCanonicalOperationCommand } from '../../packages/domain/src/canonical-operation-handlers.js';
+import { exactMutationHandlerFor, validateCanonicalOperationCommand, type CanonicalHandlerContext } from '../../packages/domain/src/canonical-operation-handlers.js';
+import type { DatabaseClient } from '../../packages/database/src/index.js';
 
 const catalog = await loadOperationCatalog();
 const operation = (name: string) => {
@@ -12,6 +13,33 @@ const id = '00000000-0000-4000-8000-000000000001';
 const digest = `sha256:${'a'.repeat(64)}`;
 
 describe('TD-05 persisted Browser Interaction Plane contract', () => {
+  it('rejects expired challenge resolution before any SQL mutation', async () => {
+    const handler = exactMutationHandlerFor('browser.challenge.resolve')!;
+    const statements: string[] = [];
+    const client = { query: async (sql: string) => {
+      statements.push(sql);
+      return { rows: [{ id, status: 'PENDING', state_version: 1, expires_at: new Date(0), deadline_at: new Date(0) }] };
+    } } as unknown as DatabaseClient;
+    const context = { operation: operation('browser.challenge.resolve'), targetId: id, arguments: { responseDigest: digest }, expectedStateVersion: 1n } as CanonicalHandlerContext;
+    await expect(handler(client, context)).rejects.toMatchObject({ code: 'BROWSER_CHALLENGE_STALE' });
+    expect(statements).toHaveLength(1);
+    expect(statements[0]).toMatch(/^SELECT /);
+  });
+
+  it('replays an identical consumed challenge and rejects a changed response without writes', async () => {
+    const handler = exactMutationHandlerFor('browser.challenge.resolve')!;
+    const statements: string[] = [];
+    const client = { query: async (sql: string) => {
+      statements.push(sql);
+      return { rows: [{ id, status: 'RESOLVED', state_version: 2, consume_digest: Buffer.from('a'.repeat(64), 'hex') }] };
+    } } as unknown as DatabaseClient;
+    const context = { operation: operation('browser.challenge.resolve'), targetId: id, arguments: { responseDigest: digest }, expectedStateVersion: 1n } as CanonicalHandlerContext;
+    await expect(handler(client, context)).resolves.toBeDefined();
+    await expect(handler(client, { ...context, arguments: { responseDigest: `sha256:${'b'.repeat(64)}` } })).rejects.toMatchObject({ code: 'BROWSER_ACTIONABILITY_FAILED' });
+    expect(statements).toHaveLength(2);
+    expect(statements.every(sql => sql.startsWith('SELECT '))).toBe(true);
+  });
+
   it('rejects arbitrary host paths in every nested browser payload', () => {
     expect(() => validateCanonicalOperationCommand(operation('browser.action.start'), id, {
       sessionId: id,
