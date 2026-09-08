@@ -5,7 +5,7 @@ release_path='';failed_release='';while (($#));do case "$1" in --release-path)re
 [[ ${release_path} == /opt/kajovocml-ng/releases/* && -d ${release_path} ]]||{ echo 'Neplatná rollback release path.' >&2;exit 64; }
 source /etc/kajovocml-ng/deploy.env;source /etc/kajovocml-ng/runtime.env;export DATABASE_URL
 release_id=$(<"${release_path}/RELEASE_ID");source_sha=$(<"${release_path}/SOURCE_SHA");deployment_id=$(cat /proc/sys/kernel/random/uuid)
-if grep -q 'KCML_DATABASE_URL_FILE=%d/database-url' "${release_path}/deploy/systemd/kcml-service.service.in";then
+if grep -q 'KCML_DATABASE_URL_FILE=%d/database-url' "${release_path}/deploy/scripts/install-systemd.sh" "${release_path}/deploy/systemd/kcml-service.service.in";then
   sed -i -E '/^(DATABASE_URL|KCML_MASTER_KEY_FILE)=/d' /etc/kajovocml-ng/runtime.env
   chown root:kcml-release-readers /etc/kajovocml-ng/runtime.env;chmod 0440 /etc/kajovocml-ng/runtime.env
   chown root:root /etc/kajovocml-ng/master.key;chmod 0400 /etc/kajovocml-ng/master.key
