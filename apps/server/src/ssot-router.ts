@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { DatabasePool } from '@kcml/database';
+import { toCanonicalJsonValue } from '@kcml/schemas';
 import { CanonicalOperationService, DomainError, operationHandlerFor, SsotSurfaceService } from '@kcml/domain';
 import { SSOT_ROUTES, type SsotRoute } from './ssot-surface.generated.js';
 
@@ -147,12 +148,12 @@ export function registerCompiledSsotRoutes(dependencies: CompiledRouteDependenci
             ? String((request.params as Record<string, unknown>).operationKey ?? '')
             : route.operation;
           if (!operationName) throw new DomainError('OPERATION_CONTRACT_INCOMPLETE', 'operationKey is required', 400, 'DO_NOT_RETRY');
-          return operations.execute(operationName, commandInput(route, request), {
+          return toCanonicalJsonValue(await operations.execute(operationName, commandInput(route, request), {
             callerFingerprint: callerFingerprint(request),
             actorId: ownerId(request),
             correlationId: request.requestCorrelationId,
             idempotencyKey: typeof request.headers['idempotency-key'] === 'string' ? request.headers['idempotency-key'] : null
-          });
+          }));
         }
         if (method === 'GET') {
           const params = paramsOf(request);

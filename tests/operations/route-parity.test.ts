@@ -1,5 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
+import Fastify from 'fastify';
+import { registerCompiledSsotRoutes, type CompiledRouteDependencies } from '../../apps/server/src/ssot-router.js';
 import { loadOperationCatalog } from '../../packages/contract-pack/src/index.js';
 import { operationHandlerFor } from '../../packages/domain/src/operation-handler-catalog.js';
 import {
@@ -16,6 +18,19 @@ const operationNames = catalog.records.map((record) => record.operationName);
 const mutatingMethods = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 describe('SSOT route operation bindings', () => {
+  it('serializes operation metadata bigints on the HTTP boundary without precision loss', async () => {
+    const app = Fastify();
+    registerCompiledSsotRoutes({ app, authenticate: async () => {}, ownerId: () => 'KRMAR78', specialRouteKeys: new Set(),
+      operations: { catalog: { get: (name: string) => catalog.records.find(record => record.operationName === name)! },
+        execute: async () => ({ status: 'SUCCEEDED', metadata: { stateVersion: 9007199254740993n }, result: { lifecycle: 'READY' } }) }
+    } as unknown as CompiledRouteDependencies);
+    try {
+      const response = await app.inject({ method: 'GET', url: '/api/v1/browser-sessions/00000000-0000-4000-8000-000000000001' });
+      expect(response.statusCode).toBe(200);
+      expect(response.json().metadata.stateVersion).toBe('9007199254740993');
+    } finally { await app.close(); }
+  });
+
   it('resolves every route explicitly without family or create-default inference', async () => {
     const source = await readFile(new URL('../../scripts/lib/ssot-surface.mjs', import.meta.url), 'utf8');
     expect(source).toContain('ROUTE_OPERATION_BINDINGS');
