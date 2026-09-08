@@ -13,17 +13,20 @@ const id = '00000000-0000-4000-8000-000000000001';
 const digest = `sha256:${'a'.repeat(64)}`;
 
 describe('TD-05 persisted Browser Interaction Plane contract', () => {
-  it('rejects expired challenge resolution before any SQL mutation', async () => {
+  it('uses post-lock database expiry even when the application clock considers the challenge valid', async () => {
     const handler = exactMutationHandlerFor('browser.challenge.resolve')!;
     const statements: string[] = [];
     const client = { query: async (sql: string) => {
       statements.push(sql);
-      return { rows: [{ id, status: 'PENDING', state_version: 1, expires_at: new Date(0), deadline_at: new Date(0) }] };
+      if (sql.includes('clock_timestamp()')) return { rows: [{ db_now: new Date(), expired: true }] };
+      return { rows: [{ id, status: 'PENDING', state_version: 1, expires_at: new Date(Date.now() + 60_000), deadline_at: new Date(Date.now() + 60_000) }] };
     } } as unknown as DatabaseClient;
     const context = { operation: operation('browser.challenge.resolve'), targetId: id, arguments: { responseDigest: digest }, expectedStateVersion: 1n } as CanonicalHandlerContext;
     await expect(handler(client, context)).rejects.toMatchObject({ code: 'BROWSER_CHALLENGE_STALE' });
-    expect(statements).toHaveLength(1);
-    expect(statements[0]).toMatch(/^SELECT /);
+    expect(statements).toHaveLength(2);
+    expect(statements[0]).toContain('FOR UPDATE');
+    expect(statements[1]).toContain('clock_timestamp()');
+    expect(statements.every(sql => sql.startsWith('SELECT '))).toBe(true);
   });
 
   it('replays an identical consumed challenge and rejects a changed response without writes', async () => {
